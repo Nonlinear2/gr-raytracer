@@ -1,72 +1,74 @@
-use winit::application::ApplicationHandler;
-use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::window::{Window, WindowId};
+use winit::{
+    application::ApplicationHandler,
+    event::WindowEvent,
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    window::Window
+};
 use pixels::{Pixels, SurfaceTexture};
 
-#[derive(Default)]
-struct App<'a> {
-    window: Option<Window>,
-    pixels: Option<Pixels<'a>>,
-}
+const WIDTH: u32 = 200;
+const HEIGHT: u32 = 150;
 
+#[derive(Default)]
+struct App {
+    window: Option<&'static Window>,
+    pixels: Option<Pixels<'static>>,
+}
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+
         let window = event_loop
-            .create_window(Window::default_attributes())
+            .create_window(Window::default_attributes().with_title("simulation"))
             .unwrap();
 
         let size = window.inner_size();
+        let window_ref: &'static Window = Box::leak(Box::new(window));
+        let surface_texture = SurfaceTexture::new(size.width, size.height, window_ref);
 
-        let surface_texture = SurfaceTexture::new(size.width, size.height, &window);
+        let pixels = Pixels::new(WIDTH, HEIGHT, surface_texture).unwrap();
 
-        let pixels = Pixels::new(
-            size.width,
-            size.height,
-            surface_texture,
-        ).unwrap();
-
+        self.window = Some(window_ref);
         self.pixels = Some(pixels);
-        self.window = Some(window);
+
+        let scale_factor = window_ref.scale_factor();
+        println!("Scale factor : {}", scale_factor);
     }
 
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _: winit::window::WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => {
-                println!("The close button was pressed; stopping");
                 event_loop.exit();
-            },
+            }
+
             WindowEvent::RedrawRequested => {
-                let pixels = self.pixels.as_mut().unwrap();
+                if let Some(pixels) = &mut self.pixels {
+                    let frame = pixels.frame_mut();
 
-                let frame = pixels.frame_mut();
+                    // Remplir tout en bleu
+                    for spot in frame.chunks_exact_mut(4) {
+                        spot[0] = 0x20; // R
+                        spot[1] = 0x40; // G
+                        spot[2] = 0xFF; // B
+                        spot[3] = 0xFF; // A
+                    }
 
-                // Fill screen (RGBA)
-                for chunk in frame.chunks_exact_mut(4) {
-                    chunk[0] = 0x20; // R
-                    chunk[1] = 0x40; // G
-                    chunk[2] = 0x80; // B
-                    chunk[3] = 0xFF; // A
+                    pixels.render().unwrap();
                 }
 
-                // Example: draw a white pixel at (100, 100)
-                let width = pixels.texture().width();
-                let x = 100;
-                let y = 100;
-                let i = ((y * width + x) * 4) as usize;
-
-                frame[i..i + 4].copy_from_slice(&[255, 255, 255, 255]);
-
-                pixels.render().unwrap();
-
-                self.window.as_ref().unwrap().request_redraw();
+                if let Some(window) = &self.window {
+                    window.request_redraw();
+                }
             }
-            _ => (),
+
+            _ => {}
         }
     }
-}
 
+    fn about_to_wait(&mut self, _: &ActiveEventLoop) {
+        self.window.expect("Bug - Window should exist").request_redraw();
+    }
+}
 
 fn main() {
     let event_loop = EventLoop::new().unwrap();
@@ -81,5 +83,5 @@ fn main() {
     event_loop.set_control_flow(ControlFlow::Wait);
 
     let mut app = App::default();
-    event_loop.run_app(&mut app);
+    event_loop.run_app(&mut app).unwrap();
 }
