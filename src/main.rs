@@ -1,5 +1,7 @@
 mod graphics;
 
+use std::collections::btree_set::Intersection;
+
 use winit::{
     application::ApplicationHandler,
     event::WindowEvent,
@@ -8,9 +10,10 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::graphics::vector::{Point3, Vec3};
+use crate::graphics::{ray::RayIntersection, surface::Surface, vector::{Point3, Vec3}};
 use crate::graphics::ray::Ray;
 use crate::graphics::color::Color;
+use crate::graphics::surface::Sphere;
 
 
 const ASPECT_RATIO: f32 = 16.0 / 9.0;
@@ -23,7 +26,16 @@ const viewport_height: f32 = 2.0;
 const viewport_width: f32 = viewport_height * ASPECT_RATIO;
 
 fn ray_color(ray: &Ray) -> Color {
-    return Color { r: ((ray.direction.normalize().y + 1.)*127.) as u8, g: 255, b: 255, a: 255 }
+    let sphere = Sphere {center: Vec3 { x: 0., y: 0., z: -1.}, radius: 0.5};
+    return match sphere.hit(ray, 0., 20.) {
+        Some(i) => Color {
+            r: (255. * i.normal.dot(&ray.direction).abs()) as u8,
+            g: 0,
+            b: 0,
+            a: 255
+        },
+        None => Color { r: ((ray.direction.normalize().y + 1.)*127.) as u8, g: 255, b: 255, a: 255 }
+    }
 }
 
 #[derive(Default)]
