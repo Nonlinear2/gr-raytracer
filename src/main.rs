@@ -9,6 +9,8 @@ use winit::{
 use pixels::{Pixels, SurfaceTexture};
 
 use crate::graphics::vector::{Point3, Vec3};
+use crate::graphics::ray::Ray;
+use crate::graphics::color::Color;
 
 
 const ASPECT_RATIO: f32 = 16.0 / 9.0;
@@ -19,6 +21,10 @@ const WIDTH: u32 = ((HEIGHT as f32) * ASPECT_RATIO) as u32;
 const focal_length: f32 = 1.0;
 const viewport_height: f32 = 2.0;
 const viewport_width: f32 = viewport_height * ASPECT_RATIO;
+
+fn ray_color(ray: &Ray) -> Color {
+    return Color { r: ((ray.direction.normalize().y + 1.)*127.) as u8, g: 255, b: 255, a: 255 }
+}
 
 #[derive(Default)]
 struct App {
@@ -41,9 +47,6 @@ impl ApplicationHandler for App {
 
         self.window = Some(window_ref);
         self.pixels = Some(pixels);
-
-        let scale_factor = window_ref.scale_factor();
-        println!("Scale factor : {}", scale_factor);
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: winit::window::WindowId, event: WindowEvent) {
@@ -56,11 +59,35 @@ impl ApplicationHandler for App {
                 if let Some(pixels) = &mut self.pixels {
                     let frame = pixels.frame_mut();
 
-                    for spot in frame.chunks_exact_mut(4) {
-                        spot[0] = 0x20; // R
-                        spot[1] = 0x40; // G
-                        spot[2] = 0xFF; // B
-                        spot[3] = 0xFF; // A
+                    let camera_center = Point3{x: 0., y: 0., z: 0.};
+
+                    let viewport_u_vect = Vec3{x: viewport_width, y: 0., z: 0.};
+                    let viewport_v_vect = Vec3{x: 0., y: -viewport_height, z: 0.};
+
+                    // Calculate the horizontal and vertical delta vectors from pixel to pixel.
+                    let pixel_delta_u = viewport_u_vect / (WIDTH as f32);
+                    let pixel_delta_v = viewport_v_vect / (HEIGHT as f32);
+
+                    // Calculate the location of the upper left pixel.
+                    let viewport_upper_left = 
+                        camera_center - Vec3{x: 0., y: 0., z: focal_length} - viewport_u_vect/2. - viewport_v_vect/2.;
+                    
+                    let pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
+
+                    for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
+                        let i = idx % WIDTH as usize;
+                        let j = idx / WIDTH as usize;
+
+                        let pixel_center = pixel00_loc + (pixel_delta_u * (i as f32)) + (pixel_delta_v * (j as f32));
+                        let ray_direction = pixel_center - camera_center;
+                        let ray = Ray{origin: camera_center, direction: ray_direction};
+
+                        let col = ray_color(&ray);
+
+                        pixel[0] = col.r; // R
+                        pixel[1] = col.g; // G
+                        pixel[2] = col.b; // B
+                        pixel[3] = col.a; // A
                     }
 
                     pixels.render().unwrap();
@@ -81,20 +108,6 @@ impl ApplicationHandler for App {
 }
 
 fn main() {
-    let mut camera_center = Point3{x: 0., y: 0., z: 0.};
-
-    let mut viewport_u_vect = Vec3{x: viewport_width, y: 0., z: 0.};
-    let mut viewport_v_vect = Vec3{x: 0., y: -viewport_height, z: 0.};
-
-    // Calculate the horizontal and vertical delta vectors from pixel to pixel.
-    let pixel_delta_u = viewport_u_vect / (WIDTH as f32);
-    let pixel_delta_v = viewport_v_vect / (HEIGHT as f32);
-
-    // Calculate the location of the upper left pixel.
-    let viewport_upper_left = 
-        camera_center - Vec3{x: 0., y: 0., z: focal_length} - viewport_u_vect/2. - viewport_v_vect/2.;
-    
-    let pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
 
     let event_loop = EventLoop::new().unwrap();
 

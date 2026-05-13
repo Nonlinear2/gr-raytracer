@@ -20,7 +20,7 @@ impl Div<f32> for Vec3 {
 }
 
 
-impl Mul<f32> for &Vec3 {
+impl Mul<f32> for Vec3 {
     type Output = Vec3;
 
     fn mul(self, rhs: f32) -> Self::Output {
@@ -81,11 +81,13 @@ impl Vec3 {
         self.dot(self).sqrt()
     }
 
-    pub fn normalize(&mut self) {
+    pub fn normalize(&self) -> Vec3 {
         let len = self.length();
-        self.x /= len;
-        self.y /= len;
-        self.z /= len;
+        Vec3 {
+            x: self.x / len,
+            y: self.y / len,
+            z: self.z / len
+        }
     }
 }
 
