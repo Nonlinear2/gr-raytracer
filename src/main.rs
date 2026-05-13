@@ -1,3 +1,5 @@
+mod graphics;
+
 use winit::{
     application::ApplicationHandler,
     event::WindowEvent,
@@ -6,8 +8,17 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-const WIDTH: u32 = 200;
-const HEIGHT: u32 = 150;
+use crate::graphics::vector::{Point3, Vec3};
+
+
+const ASPECT_RATIO: f32 = 16.0 / 9.0;
+
+const HEIGHT: u32 = 400;
+const WIDTH: u32 = ((HEIGHT as f32) * ASPECT_RATIO) as u32;
+
+const focal_length: f32 = 1.0;
+const viewport_height: f32 = 2.0;
+const viewport_width: f32 = viewport_height * ASPECT_RATIO;
 
 #[derive(Default)]
 struct App {
@@ -45,7 +56,6 @@ impl ApplicationHandler for App {
                 if let Some(pixels) = &mut self.pixels {
                     let frame = pixels.frame_mut();
 
-                    // Remplir tout en bleu
                     for spot in frame.chunks_exact_mut(4) {
                         spot[0] = 0x20; // R
                         spot[1] = 0x40; // G
@@ -71,6 +81,21 @@ impl ApplicationHandler for App {
 }
 
 fn main() {
+    let mut camera_center = Point3{x: 0., y: 0., z: 0.};
+
+    let mut viewport_u_vect = Vec3{x: viewport_width, y: 0., z: 0.};
+    let mut viewport_v_vect = Vec3{x: 0., y: -viewport_height, z: 0.};
+
+    // Calculate the horizontal and vertical delta vectors from pixel to pixel.
+    let pixel_delta_u = viewport_u_vect / (WIDTH as f32);
+    let pixel_delta_v = viewport_v_vect / (HEIGHT as f32);
+
+    // Calculate the location of the upper left pixel.
+    let viewport_upper_left = 
+        camera_center - Vec3{x: 0., y: 0., z: focal_length} - viewport_u_vect/2. - viewport_v_vect/2.;
+    
+    let pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
+
     let event_loop = EventLoop::new().unwrap();
 
     // ControlFlow::Poll continuously runs the event loop, even if the OS hasn't
