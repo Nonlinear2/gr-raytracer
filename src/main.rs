@@ -9,8 +9,10 @@ use winit::{
 use pixels::{Pixels, SurfaceTexture};
 
 use crate::graphics::{camera::Camera, surface::Sphere, vector::Vec3};
-use crate::graphics::camera::{HEIGHT, WIDTH};
 use crate::graphics::world::World;
+
+const HEIGHT: u32 = 400;
+const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
 
 #[derive(Default)]
 struct App {
@@ -41,9 +43,9 @@ impl ApplicationHandler for App {
             ],
         };
 
-        let camera: Camera = Camera {  };
+        let camera: Camera = Camera::new();
 
-        camera.render(frame, &world);
+        camera.render(frame, WIDTH, HEIGHT, &world);
 
         self.window = Some(window_ref);
         self.pixels = Some(pixels);
