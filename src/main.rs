@@ -1,7 +1,5 @@
 mod graphics;
 
-use std::collections::btree_set::Intersection;
-
 use winit::{
     application::ApplicationHandler,
     event::WindowEvent,
@@ -10,8 +8,9 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::graphics::{ray::PhotonIntersection, surface::Sphere, vector::{Point3, Vec3}};
-use crate::graphics::world::{HEIGHT, WIDTH, World};
+use crate::graphics::{camera::Camera, surface::Sphere, vector::Vec3};
+use crate::graphics::camera::{HEIGHT, WIDTH};
+use crate::graphics::world::World;
 
 #[derive(Default)]
 struct App {
@@ -42,7 +41,9 @@ impl ApplicationHandler for App {
             ],
         };
 
-        world.get_image(frame);
+        let camera: Camera = Camera {  };
+
+        camera.render(frame, &world);
 
         self.window = Some(window_ref);
         self.pixels = Some(pixels);
