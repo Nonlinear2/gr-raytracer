@@ -16,8 +16,8 @@ impl Camera {
             focal_length: 1.0,
             viewport_height: 2.0,
             viewport_width: 2.0 * 16.0 / 9.0,
-            max_distance: 15.,
-            ray_step_size: 0.1,
+            max_distance: 7.,
+            ray_step_size: 0.01,
         }
     }
 
@@ -34,11 +34,21 @@ impl Camera {
             ray = ray.step(self.ray_step_size);
             for obj in &world.objects {
                 if let Some(hit) = obj.hit(&ray) {
-                    return 0.5 * self.ray_color(
-                        Ray { pos: hit.point + 0.001 * hit.normal, vel: Vec3::random_on_hemisphere(&hit.normal) },
-                        depth-1,
-                        &world
+                    let bounced = self.ray_color(
+                        Ray {
+                            pos: hit.point + 0.001 * hit.normal,
+                            vel: Vec3::random_on_hemisphere(&hit.normal),
+                        },
+                        depth - 1,
+                        world,
                     );
+
+                    return hit.material.emission
+                        + Color {
+                            x: hit.material.color.x * bounced.x / 255.0,
+                            y: hit.material.color.y * bounced.y / 255.0,
+                            z: hit.material.color.z * bounced.z / 255.0,
+                        };
                 }
             }
         }

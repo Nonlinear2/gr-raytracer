@@ -1,6 +1,17 @@
 use crate::graphics::ray::{Ray, PhotonIntersection};
 use crate::graphics::vector::{Vec3, Color};
 
+pub struct Material {
+    pub color: Color,
+    pub emission: Color,
+}
+
+impl Material {
+    fn scatter(){
+
+    }
+}
+
 pub trait Surface {
     fn hit(&self, ray: &Ray) -> Option<PhotonIntersection>;
 }
@@ -9,6 +20,7 @@ pub struct Sphere {
     pub center: Vec3,
     pub radius: f32,
     pub color: Color,
+    pub material: Material,
 }
 
 impl Surface for Sphere {
@@ -17,6 +29,7 @@ impl Surface for Sphere {
             return Some(PhotonIntersection {
                 point: ray.pos,
                 normal: (ray.pos - self.center).normalize(),
+                material: &self.material,
             });
         } else {
             return None;

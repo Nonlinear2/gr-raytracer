@@ -1,8 +1,10 @@
 use crate::graphics::vector::{Point3, Vec3};
+use crate::graphics::surface::Material;
 
-pub struct PhotonIntersection {
+pub struct PhotonIntersection<'a> {
     pub point: Point3,
     pub normal: Vec3,
+    pub material: &'a Material
 }
 
 
