@@ -35,7 +35,7 @@ impl Camera {
             for obj in &world.objects {
                 if let Some(hit) = obj.hit(&ray) {
                     return 0.5 * self.ray_color(
-                        Ray { pos: hit.point, vel: Vec3::random_on_hemisphere(&hit.normal) },
+                        Ray { pos: hit.point + 0.001 * hit.normal, vel: Vec3::random_on_hemisphere(&hit.normal) },
                         depth-1,
                         &world
                     );
@@ -43,8 +43,8 @@ impl Camera {
             }
         }
 
-        let a = (ray.vel.normalize().y + 1.0) * 127.;
-        return (255.-a)*(Color {x: 255.0, y: 255.0, z: 255.0}) + a*(Color {x: 127.0, y: 190.0, z: 255.0});
+        let a = 0.5 * (ray.vel.normalize().y + 1.0);
+        return (1.-a)*(Color {x: 255.0, y: 255.0, z: 255.0}) + a*(Color {x: 127.0, y: 190.0, z: 255.0});
     }
 
     pub fn render(&self, frame: &mut [u8], width: u32, height: u32, world: &World) {
