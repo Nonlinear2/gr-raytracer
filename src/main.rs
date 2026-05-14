@@ -43,7 +43,7 @@ impl ApplicationHandler for App {
                     material: Material {color: Color { x: 128., y: 0., z: 0. }, emission: Vec3 { x: 0., y: 0., z: 0. }}
                 }),
                 Box::new(Sphere {
-                    center: Vec3 { x: 0.7, y: 0., z: -1. },
+                    center: Vec3 { x: 0.4, y: 0., z: -0.6 },
                     radius: 0.1,
                     color: Color {x: 70., y: 122., z: 133.},
                     material: Material {color: Color { x: 128., y: 128., z: 128. }, emission: Vec3 { x: 255., y: 0., z: 0. }}

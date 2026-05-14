@@ -37,7 +37,7 @@ impl Camera {
                     let bounced = self.ray_color(
                         Ray {
                             pos: hit.point + 0.001 * hit.normal,
-                            vel: Vec3::random_on_hemisphere(&hit.normal),
+                            vel: (hit.normal + Vec3::random_on_sphere()/2.).normalize(),
                         },
                         depth - 1,
                         world,
