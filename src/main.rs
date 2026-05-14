@@ -8,7 +8,7 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::graphics::{camera::Camera, surface::Sphere, vector::Vec3};
+use crate::graphics::{camera::Camera, surface::Sphere, vector::{Vec3, Color}};
 use crate::graphics::world::World;
 
 const HEIGHT: u32 = 400;
@@ -39,6 +39,12 @@ impl ApplicationHandler for App {
                 Box::new(Sphere {
                     center: Vec3 { x: 0., y: 0., z: -1. },
                     radius: 0.5,
+                    color: Color {x: 255., y: 0., z: 0.},
+                }),
+                Box::new(Sphere {
+                    center: Vec3 { x: 0., y: -6., z: -1. },
+                    radius: 5.,
+                    color: Color {x: 70., y: 122., z: 133.},
                 })
             ],
         };

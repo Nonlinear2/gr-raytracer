@@ -1,4 +1,4 @@
-use crate::graphics::{ray::{Color, Ray}, vector::{Point3, Vec3}, world::World};
+use crate::graphics::{ray::Ray, vector::{Point3, Vec3, Color}, world::World};
 
 pub struct Camera {
     pub center: Point3,
@@ -25,21 +25,26 @@ impl Camera {
         self.viewport_width / self.viewport_height
     }
 
-    pub fn ray_color(&self, mut ray: Ray, world: &World) -> Color {
+    pub fn ray_color(&self, mut ray: Ray, depth: u32, world: &World) -> Color {
+        if depth <= 0 {
+            return Color {x: 0., y: 0., z: 0.};
+        }
+
         while (ray.pos - self.center).length() < self.max_distance {
             ray = ray.step(self.ray_step_size);
             for obj in &world.objects {
                 if let Some(hit) = obj.hit(&ray) {
-                    return Color {
-                        r: (255. * hit.normal.dot(&ray.vel).abs()) as u8,
-                        g: 0,
-                        b: 0,
-                        a: 255
-                    }
+                    return 0.5 * self.ray_color(
+                        Ray { pos: hit.point, vel: Vec3::random_on_hemisphere(&hit.normal) },
+                        depth-1,
+                        &world
+                    );
                 }
             }
         }
-        Color { r: ((ray.vel.normalize().y + 1.)*127.) as u8, g: 255, b: 255, a: 255 }
+
+        let a = (ray.vel.normalize().y + 1.0) * 127.;
+        return (255.-a)*(Color {x: 255.0, y: 255.0, z: 255.0}) + a*(Color {x: 127.0, y: 190.0, z: 255.0});
     }
 
     pub fn render(&self, frame: &mut [u8], width: u32, height: u32, world: &World) {
@@ -66,12 +71,12 @@ impl Camera {
             let ray_direction = pixel_center - self.center;
             let ray = Ray{pos: self.center, vel: ray_direction};
 
-            let col = self.ray_color(ray, &world);
+            let col = self.ray_color(ray, 3, &world);
 
-            pixel[0] = col.r; // R
-            pixel[1] = col.g; // G
-            pixel[2] = col.b; // B
-            pixel[3] = col.a; // A
+            pixel[0] = col.x as u8; // R
+            pixel[1] = col.y as u8; // G
+            pixel[2] = col.z as u8; // B
+            pixel[3] = 0xff; // A
         }
     }
 }

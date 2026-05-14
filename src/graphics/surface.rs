@@ -1,5 +1,5 @@
 use crate::graphics::ray::{Ray, PhotonIntersection};
-use crate::graphics::vector::{Vec3};
+use crate::graphics::vector::{Vec3, Color};
 
 pub trait Surface {
     fn hit(&self, ray: &Ray) -> Option<PhotonIntersection>;
@@ -8,6 +8,7 @@ pub trait Surface {
 pub struct Sphere {
     pub center: Vec3,
     pub radius: f32,
+    pub color: Color,
 }
 
 impl Surface for Sphere {
