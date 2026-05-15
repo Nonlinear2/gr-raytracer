@@ -1,5 +1,5 @@
 use std::ops::{Add, Div, Mul, Neg, Sub};
-use rand::{Rng, RngExt};
+use rand::RngExt;
 use glam::{Vec3};
 
 pub fn random_on_sphere() -> Vec3 {

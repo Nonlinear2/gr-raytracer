@@ -5,7 +5,7 @@ use glam::Vec3;
 pub struct PhotonIntersection<'a> {
     pub point: Point3,
     pub normal: Vec3,
-    pub material: &'a Material
+    pub material: &'a dyn Material
 }
 
 

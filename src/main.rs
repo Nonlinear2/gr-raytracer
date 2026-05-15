@@ -10,11 +10,11 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::graphics::{camera::Camera, surface::{Material, Sphere}, vector::Color};
+use crate::graphics::{camera::Camera, surface::{Diffuse, Metal, Sphere}, vector::Color};
 use crate::graphics::world::World;
 use glam::Vec3;
 
-const HEIGHT: u32 = 400;
+const HEIGHT: u32 = 200;
 const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
 
 #[derive(Default)]
@@ -78,14 +78,19 @@ fn main() {
             Box::new(Sphere {
                 center: Vec3 { x: 0., y: 0., z: -1. },
                 radius: 0.5,
-                color: Color {x: 255., y: 0., z: 0.},
-                material: Material {color: Color { x: 128., y: 0., z: 0. }, emission: Vec3 { x: 0., y: 0., z: 0. }}
+                material: Box::new(Diffuse {
+                    color: Color { x: 128., y: 0., z: 0. },
+                    emission: Vec3 { x: 0., y: 0., z: 0. },
+                }),
             }),
             Box::new(Sphere {
                 center: Vec3 { x: 0.4, y: 0., z: -0.6 },
                 radius: 0.1,
-                color: Color {x: 70., y: 122., z: 133.},
-                material: Material {color: Color { x: 128., y: 128., z: 128. }, emission: Vec3 { x: 255., y: 0., z: 0. }}
+                material: Box::new(Metal {
+                    color: Color { x: 128., y: 128., z: 128. },
+                    emission: Vec3 { x: 255., y: 0., z: 0. },
+                    fuzz: 0.15,
+                }),
             })
         ],
     };

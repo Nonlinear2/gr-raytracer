@@ -1,6 +1,6 @@
 use crate::{graphics::{ray::Ray, vector::{self, Color, Point3}, world::World}};
 use glam::Vec3;
-
+use rand::RngExt;
 pub struct Camera {
     pub center: Point3,
     pub focal_length: f32,
@@ -9,23 +9,55 @@ pub struct Camera {
     pub max_distance: f32,
     pub ray_step_size: f32,
 
+    pub samples_per_pixel: u32,
+
     pub img_width: u32,
     pub img_height: u32,
+
+    pub viewport_u_vect: Vec3,
+    pub viewport_v_vect: Vec3,
+    pub pixel_delta_u: Vec3,
+    pub pixel_delta_v: Vec3,
+    pub viewport_upper_left: Point3,
+    pub first_pixel_loc: Point3,
 }
 
 impl Camera {
     pub fn new(img_width: u32, img_height: u32) -> Self {
         let a_ratio = (img_width as f32) / (img_height as f32);
+
+        let center = Point3{x: 0., y: 0., z: 0.};
+        let focal_length = 1.0;
+
         let viewport_height = 2.0;
+        let viewport_width = viewport_height * a_ratio;
+    
+        let viewport_u_vect = Vec3{x: viewport_width, y: 0., z: 0.};
+        let viewport_v_vect = Vec3{x: 0., y: -viewport_height, z: 0.};
+
+        let pixel_delta_u = viewport_u_vect / (img_width as f32);
+        let pixel_delta_v = viewport_v_vect / (img_height as f32);
+
+        let viewport_upper_left = center - Vec3{x: 0., y: 0., z: focal_length} - viewport_u_vect/2. - viewport_v_vect/2.;
+        let first_pixel_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
+
         Self {
-            center: Point3{x: 0., y: 0., z: 0.},
-            focal_length: 1.0,
+            center: center,
+            focal_length: focal_length,
             viewport_height: viewport_height,
-            viewport_width: viewport_height * a_ratio,
-            max_distance: 7.,
-            ray_step_size: 0.01,
+            viewport_width: viewport_width,
+            max_distance: 5.,
+            ray_step_size: 0.02,
+            samples_per_pixel: 5,
             img_width: img_width,
             img_height: img_height,
+
+            viewport_u_vect: viewport_u_vect,
+            viewport_v_vect: viewport_v_vect,
+            pixel_delta_u: pixel_delta_u,
+            pixel_delta_v: pixel_delta_v,
+            viewport_upper_left: viewport_upper_left,
+            first_pixel_loc: first_pixel_loc,
         }
     }
 
@@ -38,20 +70,18 @@ impl Camera {
             ray = ray.step(self.ray_step_size);
             for obj in &world.objects {
                 if let Some(hit) = obj.hit(&ray) {
-                    let bounced = self.ray_color(
-                        Ray {
-                            pos: hit.point + 0.001 * hit.normal,
-                            vel: (hit.normal + vector::random_on_sphere()/2.).normalize(),
-                        },
-                        depth - 1,
-                        world,
-                    );
+                    let bounced = match hit.material.scatter(&ray, &hit) {
+                        Some(scattered_ray) => self.ray_color(scattered_ray, depth - 1, world),
+                        None => Color {x: 0., y: 0., z: 0.},
+                    };
 
-                    return hit.material.emission
+                    let color = hit.material.color();
+
+                    return hit.material.emission()
                         + Color {
-                            x: hit.material.color.x * bounced.x / 255.0,
-                            y: hit.material.color.y * bounced.y / 255.0,
-                            z: hit.material.color.z * bounced.z / 255.0,
+                            x: color.x * bounced.x / 255.0,
+                            y: color.y * bounced.y / 255.0,
+                            z: color.z * bounced.z / 255.0,
                         };
                 }
             }
@@ -61,21 +91,13 @@ impl Camera {
         return (1.-a)*(Color {x: 255.0, y: 255.0, z: 255.0}) + a*(Color {x: 127.0, y: 190.0, z: 255.0});
     }
 
-    pub fn get_pixel_position(&self, i: usize, j: usize) -> Vec3 {
-        let viewport_u_vect = Vec3{x: self.viewport_width, y: 0., z: 0.};
-        let viewport_v_vect = Vec3{x: 0., y: -self.viewport_height, z: 0.};
-
-        // Calculate the horizontal and vertical delta vectors from pixel to pixel.
-        let pixel_delta_u = viewport_u_vect / (self.img_width as f32);
-        let pixel_delta_v = viewport_v_vect / (self.img_height as f32);
-
-        // Calculate the location of the upper left pixel.
-        let viewport_upper_left = 
-            self.center - Vec3{x: 0., y: 0., z: self.focal_length} - viewport_u_vect/2. - viewport_v_vect/2.;
-        
-        let pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
-
-        pixel00_loc + (pixel_delta_u * (i as f32)) + (pixel_delta_v * (j as f32))
+    pub fn get_pixel_position(&self, i: usize, j: usize, offset: bool) -> Vec3 {
+        let mut pos = self.first_pixel_loc + (self.pixel_delta_u * (i as f32)) + (self.pixel_delta_v * (j as f32));
+        if offset {
+            let mut rng = rand::rng();
+            pos += rng.random_range(-0.5..0.5) * self.pixel_delta_u + rng.random_range(-0.5..0.5) * self.pixel_delta_v;
+        }
+        pos
     }
 
     pub fn render(&self, frame: &mut [u8], world: &World) {
@@ -83,14 +105,18 @@ impl Camera {
             let i = idx % self.img_width as usize;
             let j = idx / self.img_width as usize;
 
-            let ray_direction = self.get_pixel_position(i, j) - self.center;
-            let ray = Ray{pos: self.center, vel: ray_direction};
+            let mut color = Color {x: 0., y: 0., z: 0.};
+            for _ in 0..self.samples_per_pixel {
+                let ray_direction = self.get_pixel_position(i, j, false) - self.center;
+                let ray = Ray{pos: self.center, vel: ray_direction};
+                color += self.ray_color(ray, 3, &world);
+            }
 
-            let col = self.ray_color(ray, 3, &world);
+            color /= self.samples_per_pixel as f32;
 
-            pixel[0] = col.x as u8; // R
-            pixel[1] = col.y as u8; // G
-            pixel[2] = col.z as u8; // B
+            pixel[0] = color.x as u8; // R
+            pixel[1] = color.y as u8; // G
+            pixel[2] = color.z as u8; // B
             pixel[3] = 0xff; // A
         }
     }
