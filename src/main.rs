@@ -21,6 +21,17 @@ const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
 struct App {
     window: Option<&'static Window>,
     pixels: Option<Pixels<'static>>,
+    frame: Vec<u8>,
+}
+
+impl App {
+    fn new(frame: Vec<u8>) -> Self {
+        Self {
+            window: None,
+            pixels: None,
+            frame,
+        }
+    }
 }
 
 impl ApplicationHandler for App {
@@ -35,28 +46,8 @@ impl ApplicationHandler for App {
         let surface_texture = SurfaceTexture::new(size.width, size.height, window_ref);
 
         let mut pixels = Pixels::new(WIDTH, HEIGHT, surface_texture).unwrap();
-        let frame = pixels.frame_mut();
-
-        let world = World {
-            objects: vec![
-                Box::new(Sphere {
-                    center: Vec3 { x: 0., y: 0., z: -1. },
-                    radius: 0.5,
-                    color: Color {x: 255., y: 0., z: 0.},
-                    material: Material {color: Color { x: 128., y: 0., z: 0. }, emission: Vec3 { x: 0., y: 0., z: 0. }}
-                }),
-                Box::new(Sphere {
-                    center: Vec3 { x: 0.4, y: 0., z: -0.6 },
-                    radius: 0.1,
-                    color: Color {x: 70., y: 122., z: 133.},
-                    material: Material {color: Color { x: 128., y: 128., z: 128. }, emission: Vec3 { x: 255., y: 0., z: 0. }}
-                })
-            ],
-        };
-
-        let camera: Camera = Camera::new();
-
-        camera.render(frame, WIDTH, HEIGHT, &world);
+        
+        pixels.frame_mut().copy_from_slice(&self.frame);
 
         self.window = Some(window_ref);
         self.pixels = Some(pixels);
@@ -85,6 +76,31 @@ impl ApplicationHandler for App {
 }
 
 fn main() {
+
+    let world = World {
+        objects: vec![
+            Box::new(Sphere {
+                center: Vec3 { x: 0., y: 0., z: -1. },
+                radius: 0.5,
+                color: Color {x: 255., y: 0., z: 0.},
+                material: Material {color: Color { x: 128., y: 0., z: 0. }, emission: Vec3 { x: 0., y: 0., z: 0. }}
+            }),
+            Box::new(Sphere {
+                center: Vec3 { x: 0.4, y: 0., z: -0.6 },
+                radius: 0.1,
+                color: Color {x: 70., y: 122., z: 133.},
+                material: Material {color: Color { x: 128., y: 128., z: 128. }, emission: Vec3 { x: 255., y: 0., z: 0. }}
+            })
+        ],
+    };
+
+    let camera: Camera = Camera::new();
+
+
+    let mut buffer = vec![0u8; (WIDTH * HEIGHT * 4) as usize];
+
+    camera.render(buffer.as_mut_slice(), WIDTH, HEIGHT, &world);
+
     let event_loop = EventLoop::new().unwrap();
 
     // ControlFlow::Poll continuously runs the event loop, even if the OS hasn't
@@ -96,7 +112,7 @@ fn main() {
     // input, and uses significantly less power/CPU time than ControlFlow::Poll.
     event_loop.set_control_flow(ControlFlow::Wait);
 
-    let mut app = App::default();
+    let mut app = App::new(buffer);
 
     event_loop.run_app(&mut app).unwrap();
 }
