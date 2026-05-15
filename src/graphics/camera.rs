@@ -48,7 +48,7 @@ impl Camera {
             viewport_width: viewport_width,
             max_distance: 5.,
             ray_step_size: 0.02,
-            samples_per_pixel: 5,
+            samples_per_pixel: 30,
             img_width: img_width,
             img_height: img_height,
 
@@ -70,19 +70,21 @@ impl Camera {
             ray = ray.step(self.ray_step_size);
             for obj in &world.objects {
                 if let Some(hit) = obj.hit(&ray) {
-                    let bounced = match hit.material.scatter(&ray, &hit) {
-                        Some(scattered_ray) => self.ray_color(scattered_ray, depth - 1, world),
-                        None => Color {x: 0., y: 0., z: 0.},
-                    };
+                    let mut scattered = Ray { pos: hit.point, vel: ray.vel };
+                    let mut attenuation = Color { x: 0., y: 0., z: 0. };
 
-                    let color = hit.material.color();
+                    if hit.material.scatter(&ray, &hit, &mut attenuation, &mut scattered) {
+                        let bounced = self.ray_color(scattered, depth - 1, world);
 
-                    return hit.material.emission()
-                        + Color {
-                            x: color.x * bounced.x / 255.0,
-                            y: color.y * bounced.y / 255.0,
-                            z: color.z * bounced.z / 255.0,
-                        };
+                        return hit.material.emission()
+                            + Color {
+                                x: attenuation.x * bounced.x / 255.0,
+                                y: attenuation.y * bounced.y / 255.0,
+                                z: attenuation.z * bounced.z / 255.0,
+                            };
+                    }
+
+                    return hit.material.emission();
                 }
             }
         }

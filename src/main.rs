@@ -79,7 +79,7 @@ fn main() {
                 center: Vec3 { x: 0., y: 0., z: -1. },
                 radius: 0.5,
                 material: Box::new(Diffuse {
-                    color: Color { x: 128., y: 0., z: 0. },
+                    albedo: Color { x: 128., y: 0., z: 0. },
                     emission: Vec3 { x: 0., y: 0., z: 0. },
                 }),
             }),
@@ -87,8 +87,8 @@ fn main() {
                 center: Vec3 { x: 0.4, y: 0., z: -0.6 },
                 radius: 0.1,
                 material: Box::new(Metal {
-                    color: Color { x: 128., y: 128., z: 128. },
-                    emission: Vec3 { x: 255., y: 0., z: 0. },
+                    albedo: Color { x: 128., y: 128., z: 128. },
+                    emission: Vec3 { x: 0., y: 0., z: 0. },
                     fuzz: 0.15,
                 }),
             })

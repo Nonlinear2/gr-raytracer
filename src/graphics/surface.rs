@@ -3,63 +3,75 @@ use crate::graphics::vector::{self, Color, Point3};
 use glam::Vec3;
 
 pub trait Material {
-    fn color(&self) -> Color;
-    fn emission(&self) -> Color;
-    fn scatter(&self, ray: &Ray, hit: &PhotonIntersection) -> Option<Ray>;
+    fn emission(&self) -> Color {
+        Vec3::ZERO
+    }
+
+    fn scatter(
+        &self,
+        ray_in: &Ray,
+        hit: &PhotonIntersection,
+        attenuation: &mut Color,
+        scattered: &mut Ray,
+    ) -> bool;
 }
 
 pub struct Diffuse {
-    pub color: Color,
+    pub albedo: Color,
     pub emission: Color,
 }
 
 impl Material for Diffuse {
-    fn color(&self) -> Color {
-        self.color
-    }
-
     fn emission(&self) -> Color {
         self.emission
     }
 
-    fn scatter(&self, _ray: &Ray, hit: &PhotonIntersection) -> Option<Ray> {
-        Some(Ray {
+    fn scatter(
+        &self,
+        _ray: &Ray,
+        hit: &PhotonIntersection,
+        attenuation: &mut Color,
+        scattered: &mut Ray,
+    ) -> bool {
+        *attenuation = self.albedo;
+        *scattered = Ray {
             pos: hit.point + 0.001 * hit.normal,
             vel: (hit.normal + vector::random_on_sphere() / 2.0).normalize(),
-        })
+        };
+
+        true
     }
 }
 
 pub struct Metal {
-    pub color: Color,
+    pub albedo: Color,
     pub emission: Color,
     pub fuzz: f32,
 }
 
 impl Material for Metal {
-    fn color(&self) -> Color {
-        self.color
-    }
-
     fn emission(&self) -> Color {
         self.emission
     }
 
-    fn scatter(&self, ray: &Ray, hit: &PhotonIntersection) -> Option<Ray> {
+    fn scatter(
+        &self,
+        ray: &Ray,
+        hit: &PhotonIntersection,
+        attenuation: &mut Color,
+        scattered: &mut Ray,
+    ) -> bool {
         let incoming = ray.vel.normalize();
         let reflected = incoming - 2.0 * incoming.dot(hit.normal) * hit.normal;
         let fuzz = self.fuzz.clamp(0.0, 1.0);
 
-        let scattered = Ray {
+        *attenuation = self.albedo;
+        *scattered = Ray {
             pos: hit.point + 0.001 * hit.normal,
             vel: (reflected + fuzz * vector::random_on_sphere()).normalize(),
         };
 
-        if scattered.vel.dot(hit.normal) > 0.0 {
-            Some(scattered)
-        } else {
-            None
-        }
+        scattered.vel.dot(hit.normal) > 0.0
     }
 }
 
