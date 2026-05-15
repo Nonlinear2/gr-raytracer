@@ -64,10 +64,6 @@ impl ApplicationHandler for App {
                 if let Some(pixels) = &mut self.pixels {
                     pixels.render().unwrap();
                 }
-
-                // if let Some(window) = &self.window {
-                //     window.request_redraw();
-                // }
             }
 
             _ => {}
@@ -94,12 +90,11 @@ fn main() {
         ],
     };
 
-    let camera: Camera = Camera::new();
-
-
     let mut buffer = vec![0u8; (WIDTH * HEIGHT * 4) as usize];
+    
+    let camera: Camera = Camera::new(buffer.as_mut_slice(), WIDTH, HEIGHT);
 
-    camera.render(buffer.as_mut_slice(), WIDTH, HEIGHT, &world);
+    camera.render(&world);
 
     let event_loop = EventLoop::new().unwrap();
 

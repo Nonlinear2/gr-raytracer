@@ -1,29 +1,37 @@
-use crate::graphics::{ray::Ray, vector::{self, Point3, Color}, world::World};
+use crate::{graphics::{ray::Ray, vector::{self, Color, Point3}, world::World}};
 use glam::Vec3;
 
-pub struct Camera {
+pub struct Camera<'a> {
     pub center: Point3,
     pub focal_length: f32,
     pub viewport_height: f32,
     pub viewport_width: f32,
     pub max_distance: f32,
     pub ray_step_size: f32,
+
+    pub frame: &'a mut [u8],
+    pub img_width: u32,
+    pub img_height: u32,
+
+    pub aspect_ratio: f32
 }
 
-impl Camera {
-    pub fn new() -> Self {
+impl<'a> Camera<'a> {
+    pub fn new(frame: &'a mut [u8], img_width: u32, img_height: u32) -> Self {
+        let a_ratio = (img_width as f32) / (img_height as f32);
+        let viewport_height = 2.0;
         Self {
             center: Point3{x: 0., y: 0., z: 0.},
             focal_length: 1.0,
-            viewport_height: 2.0,
-            viewport_width: 2.0 * 16.0 / 9.0,
+            viewport_height: viewport_height,
+            viewport_width: viewport_height * a_ratio,
             max_distance: 7.,
             ray_step_size: 0.01,
+            frame,
+            img_width: img_width,
+            img_height: img_height,
+            aspect_ratio: a_ratio,
         }
-    }
-
-    pub fn aspect_ratio(&self) -> f32{
-        self.viewport_width / self.viewport_height
     }
 
     pub fn ray_color(&self, mut ray: Ray, depth: u32, world: &World) -> Color {
@@ -58,15 +66,13 @@ impl Camera {
         return (1.-a)*(Color {x: 255.0, y: 255.0, z: 255.0}) + a*(Color {x: 127.0, y: 190.0, z: 255.0});
     }
 
-    pub fn render(&self, frame: &mut [u8], width: u32, height: u32, world: &World) {
-        assert!(width == (self.aspect_ratio() * (height as f32)) as u32);
-
+    pub fn get_pixel_position(&self, i: usize, j: usize) -> Vec3 {
         let viewport_u_vect = Vec3{x: self.viewport_width, y: 0., z: 0.};
         let viewport_v_vect = Vec3{x: 0., y: -self.viewport_height, z: 0.};
 
         // Calculate the horizontal and vertical delta vectors from pixel to pixel.
-        let pixel_delta_u = viewport_u_vect / (width as f32);
-        let pixel_delta_v = viewport_v_vect / (height as f32);
+        let pixel_delta_u = viewport_u_vect / (self.img_width as f32);
+        let pixel_delta_v = viewport_v_vect / (self.img_height as f32);
 
         // Calculate the location of the upper left pixel.
         let viewport_upper_left = 
@@ -74,12 +80,15 @@ impl Camera {
         
         let pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
 
-        for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let i = idx % width as usize;
-            let j = idx / width as usize;
+        pixel00_loc + (pixel_delta_u * (i as f32)) + (pixel_delta_v * (j as f32))
+    }
 
-            let pixel_center = pixel00_loc + (pixel_delta_u * (i as f32)) + (pixel_delta_v * (j as f32));
-            let ray_direction = pixel_center - self.center;
+    pub fn render(&mut self, world: &World) {
+        for (idx, pixel) in self.frame.chunks_exact_mut(4).enumerate() {
+            let i = idx % self.img_width as usize;
+            let j = idx / self.img_width as usize;
+
+            let ray_direction = self.get_pixel_position(i, j) - self.center;
             let ray = Ray{pos: self.center, vel: ray_direction};
 
             let col = self.ray_color(ray, 3, &world);
