@@ -1,7 +1,7 @@
 use crate::{graphics::{ray::Ray, vector::{self, Color, Point3}, world::World}};
 use glam::Vec3;
 
-pub struct Camera<'a> {
+pub struct Camera {
     pub center: Point3,
     pub focal_length: f32,
     pub viewport_height: f32,
@@ -9,15 +9,12 @@ pub struct Camera<'a> {
     pub max_distance: f32,
     pub ray_step_size: f32,
 
-    pub frame: &'a mut [u8],
     pub img_width: u32,
     pub img_height: u32,
-
-    pub aspect_ratio: f32
 }
 
-impl<'a> Camera<'a> {
-    pub fn new(frame: &'a mut [u8], img_width: u32, img_height: u32) -> Self {
+impl Camera {
+    pub fn new(img_width: u32, img_height: u32) -> Self {
         let a_ratio = (img_width as f32) / (img_height as f32);
         let viewport_height = 2.0;
         Self {
@@ -27,10 +24,8 @@ impl<'a> Camera<'a> {
             viewport_width: viewport_height * a_ratio,
             max_distance: 7.,
             ray_step_size: 0.01,
-            frame,
             img_width: img_width,
             img_height: img_height,
-            aspect_ratio: a_ratio,
         }
     }
 
@@ -83,8 +78,8 @@ impl<'a> Camera<'a> {
         pixel00_loc + (pixel_delta_u * (i as f32)) + (pixel_delta_v * (j as f32))
     }
 
-    pub fn render(&mut self, world: &World) {
-        for (idx, pixel) in self.frame.chunks_exact_mut(4).enumerate() {
+    pub fn render(&self, frame: &mut [u8], world: &World) {
+        for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
             let i = idx % self.img_width as usize;
             let j = idx / self.img_width as usize;
 

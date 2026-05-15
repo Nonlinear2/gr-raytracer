@@ -92,9 +92,9 @@ fn main() {
 
     let mut buffer = vec![0u8; (WIDTH * HEIGHT * 4) as usize];
     
-    let camera: Camera = Camera::new(buffer.as_mut_slice(), WIDTH, HEIGHT);
+    let camera: Camera = Camera::new(WIDTH, HEIGHT);
 
-    camera.render(&world);
+    camera.render(buffer.as_mut_slice(), &world);
 
     let event_loop = EventLoop::new().unwrap();
 
