@@ -1,5 +1,6 @@
 use crate::graphics::ray::{Ray, PhotonIntersection};
-use crate::graphics::vector::{Vec3, Color};
+use crate::graphics::vector::{Color, Point3};
+use glam::Vec3;
 
 pub struct Material {
     pub color: Color,
@@ -17,7 +18,7 @@ pub trait Surface {
 }
 
 pub struct Sphere {
-    pub center: Vec3,
+    pub center: Point3,
     pub radius: f32,
     pub color: Color,
     pub material: Material,

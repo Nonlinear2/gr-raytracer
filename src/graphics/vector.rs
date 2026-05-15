@@ -1,127 +1,25 @@
 use std::ops::{Add, Div, Mul, Neg, Sub};
 use rand::{Rng, RngExt};
+use glam::{Vec3};
 
-#[derive(Copy, Clone)]
-pub struct Vec3 {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-}
+pub fn random_on_sphere() -> Vec3 {
+    let mut rng = rand::rng();
 
-impl Div<f32> for Vec3 {
-    type Output = Vec3;
+    let phi = rng.random_range(0.0..2.*std::f32::consts::PI);
+    let costheta: f32 = rng.random_range((-1.)..(1.));
 
-    fn div(self, rhs: f32) -> Self::Output {
-        Vec3 {
-            x: self.x / rhs,
-            y: self.y / rhs,
-            z: self.z / rhs,
-        }
+    let theta = costheta.acos();
+    Vec3 {
+        x: theta.sin() * phi.cos(),
+        y: theta.sin() * phi.sin(),
+        z: theta.cos(),
     }
 }
 
-
-impl Mul<f32> for Vec3 {
-    type Output = Vec3;
-
-    fn mul(self, rhs: f32) -> Self::Output {
-        Vec3 {
-            x: self.x * rhs,
-            y: self.y * rhs,
-            z: self.z * rhs,
-        }
-    }
-}
-
-impl Mul<Vec3> for f32 {
-    type Output = Vec3;
-
-    fn mul(self, rhs: Vec3) -> Vec3 {
-        Vec3 {
-            x: rhs.x * self,
-            y: rhs.y * self,
-            z: rhs.z * self,
-        }
-    }
-}
-
-impl Add<Vec3> for Vec3 {
-    type Output = Vec3;
-
-    fn add(self, rhs: Vec3) -> Vec3 {
-        Vec3 {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-            z: self.z + rhs.z,
-        }
-    }
-}
-
-impl Sub<Vec3> for Vec3 {
-    type Output = Vec3;
-
-    fn sub(self, rhs: Vec3) -> Vec3 {
-        Vec3 {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-            z: self.z - rhs.z,
-        }
-    }
-}
-
-impl Neg for Vec3 {
-    type Output = Vec3;
-
-    fn neg(self) -> Self::Output {
-        Vec3 {
-            x: -self.x,
-            y: -self.y,
-            z: -self.z,
-        }
-    }
-}
-
-impl Vec3 {
-    pub fn random_on_sphere() -> Self {
-        let mut rng = rand::rng();
-
-        let phi = rng.random_range(0.0..2.*std::f32::consts::PI);
-        let costheta: f32 = rng.random_range((-1.)..(1.));
-
-        let theta = costheta.acos();
-        Vec3 {
-            x: theta.sin() * phi.cos(),
-            y: theta.sin() * phi.sin(),
-            z: theta.cos(),
-        }
-    }
-
-    // returns a random vector in the hemisphere aligned with v
-    pub fn random_on_hemisphere(v: &Vec3) -> Self {
-        let vec = Vec3::random_on_sphere();
-        if vec.dot(v) > 0.0 { vec } else { -vec }
-    }
-
-    pub fn dot(&self, other: &Vec3) -> f32 {
-        self.x * other.x + self.y * other.y + self.z * other.z
-    }
-
-    pub fn length_squared(&self) -> f32 {
-        self.dot(self)
-    }
-
-    pub fn length(&self) -> f32 {
-        self.dot(self).sqrt()
-    }
-
-    pub fn normalize(&self) -> Vec3 {
-        let len = self.length();
-        Vec3 {
-            x: self.x / len,
-            y: self.y / len,
-            z: self.z / len
-        }
-    }
+// returns a random vector in the hemisphere aligned with v
+pub fn random_on_hemisphere(v: Vec3) -> Vec3 {
+    let vec = random_on_sphere();
+    if vec.dot(v) > 0.0 { vec } else { -vec }
 }
 
 pub type Point3 = Vec3;

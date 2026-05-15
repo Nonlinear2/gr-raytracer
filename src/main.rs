@@ -1,4 +1,5 @@
 mod graphics;
+mod relativity;
 
 use winit::{
     application::ApplicationHandler,
@@ -8,8 +9,9 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::graphics::{camera::Camera, surface::{Material, Sphere}, vector::{Color, Vec3}};
+use crate::graphics::{camera::Camera, surface::{Material, Sphere}, vector::Color};
 use crate::graphics::world::World;
+use glam::Vec3;
 
 const HEIGHT: u32 = 400;
 const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;

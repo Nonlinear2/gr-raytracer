@@ -1,4 +1,5 @@
-use crate::graphics::{ray::Ray, vector::{Point3, Vec3, Color}, world::World};
+use crate::graphics::{ray::Ray, vector::{self, Point3, Color}, world::World};
+use glam::Vec3;
 
 pub struct Camera {
     pub center: Point3,
@@ -37,7 +38,7 @@ impl Camera {
                     let bounced = self.ray_color(
                         Ray {
                             pos: hit.point + 0.001 * hit.normal,
-                            vel: (hit.normal + Vec3::random_on_sphere()/2.).normalize(),
+                            vel: (hit.normal + vector::random_on_sphere()/2.).normalize(),
                         },
                         depth - 1,
                         world,

@@ -1,5 +1,6 @@
-use crate::graphics::vector::{Point3, Vec3};
+use crate::graphics::vector::{Point3};
 use crate::graphics::surface::Material;
+use glam::Vec3;
 
 pub struct PhotonIntersection<'a> {
     pub point: Point3,
