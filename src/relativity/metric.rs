@@ -184,7 +184,7 @@ impl Metric for SchwartzschildMetric {
         // spherical position
         let sph_pos = self.to_spherical_coordinates(pos_cart);
         let pos_sph4 = SphVec4::new(photon.pos.time(), sph_pos.r(), sph_pos.theta(), sph_pos.phi());
-        eprintln!("[step] sph_pos: r={}, theta={}, phi={}", sph_pos.r(), sph_pos.theta(), sph_pos.phi());
+        // eprintln!("[step] sph_pos: r={}, theta={}, phi={}", sph_pos.r(), sph_pos.theta(), sph_pos.phi());
 
         // convert spatial velocity (cartesian basis) -> spherical-basis components
         // Use coordinates relative to the metric center (the spherical chart origin).
@@ -227,8 +227,8 @@ impl Metric for SchwartzschildMetric {
         // 4-vector in spherical components: (t, v_r, v_theta, v_phi)
         let mut x_sph = pos_sph4.as_vec4();
         let mut k_sph = Vec4::from_space_time(photon.vel[0], v_sph);
-        eprintln!("[step] k_sph before update: {:?}", k_sph);
-        eprintln!("[step] v_sph: {}", v_sph);
+        // eprintln!("[step] k_sph before update: {:?}", k_sph);
+        // eprintln!("[step] v_sph: {}", v_sph);
 
         // update position in spherical components
         for mu in 0..4 {
@@ -247,8 +247,8 @@ impl Metric for SchwartzschildMetric {
             }
             k_new_sph[mu] -= h * acc;
         }
-        eprintln!("[step] k_new_sph after update: {:?}", k_new_sph);
-        eprintln!("[step] x_sph after position update: {:?}", x_sph);
+        // eprintln!("[step] k_new_sph after update: {:?}", k_new_sph);
+        // eprintln!("[step] x_sph after position update: {:?}", x_sph);
 
         // convert spherical-position back to cartesian space coords
         // x_sph[1] may have become negative due to numerical error; clamp it
