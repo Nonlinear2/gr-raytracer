@@ -10,7 +10,7 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::graphics::{camera::Camera, surface::{Diffuse, Metal, Sphere}, vector::Color};
+use crate::graphics::{camera::Camera, surface::{BlackHole, Diffuse, Metal, Sphere}, vector::Color};
 use crate::graphics::world::World;
 use glam::Vec3;
 use crate::relativity::metric::SchwartzschildMetric;
@@ -80,17 +80,18 @@ fn main() {
             Box::new(Sphere {
                 center: Vec3 { x: 0., y: 0., z: -1. },
                 radius: 0.5,
-                material: Box::new(Diffuse {
-                    albedo: Color { x: 128., y: 0., z: 0. },
-                    emission: Vec3 { x: 0., y: 0., z: 0. },
-                }),
+                // material: Box::new(Diffuse {
+                //     albedo: Color { x: 128., y: 0., z: 0. },
+                //     emission: Vec3 { x: 0., y: 0., z: 0. },
+                // }),
+                material: Box::new(BlackHole {}),
             }),
             Box::new(Sphere {
                 center: Vec3 { x: 0.4, y: 0., z: -0.6 },
                 radius: 0.1,
                 material: Box::new(Metal {
-                    albedo: Color { x: 128., y: 128., z: 128. },
-                    emission: Vec3 { x: 0., y: 0., z: 0. },
+                    albedo: Color::new(128., 128., 128.),
+                    emission: Color::new(0., 0., 0.),
                     fuzz: 0.15,
                 }),
             })

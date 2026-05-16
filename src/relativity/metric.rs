@@ -34,17 +34,20 @@ impl SchwartzschildMetric {
     }
 
     pub fn to_spherical_coordinates(&self, pos: Point3) -> Point3 {
-        let length = (self.center - pos).length();
+        let relative_pos = pos - self.center;
+        let length = relative_pos.length();
         Point3::new(
             length,
-            pos.y.atan2(pos.x),
-            if length > 0. { (pos.z / length).acos() } else { 0. },
+            relative_pos.y.atan2(relative_pos.x),
+            if length > 0. { (relative_pos.z / length).acos() } else { 0. },
         )
     }
 }
 
 impl Metric for SchwartzschildMetric {
     fn g(&self, pos: Point4) -> Mat4 {
+        assert!((pos.space() - self.center).length() > self.r_s);
+
         let r = pos[1];
         let theta = pos[2];
         Mat4 {
@@ -58,8 +61,8 @@ impl Metric for SchwartzschildMetric {
     fn del_g(&self, pos: Point4, i: u32) -> Mat4 {
         let sph_pos = self.to_spherical_coordinates(pos.space());
 
-        let r = sph_pos[1];
-        let theta = sph_pos[2];
+        let r = sph_pos[0];
+        let theta = sph_pos[1];
         match i {
             0 => Mat4::ZERO,
             1 => Mat4 {
@@ -120,7 +123,7 @@ impl Metric for SchwartzschildMetric {
 
                     for alpha in 0..4 {
                         for beta in 0..4 {
-                            let gamma = self.christoffel(photon.pos, mu, alpha, beta);
+                            let gamma = self.christoffel(photon.pos, alpha, beta, mu);
                             acc += gamma * photon.vel[alpha] * photon.vel[beta];
                         }
                     }

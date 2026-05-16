@@ -77,6 +77,24 @@ impl Material for Metal {
     }
 }
 
+pub struct BlackHole {}
+
+impl Material for BlackHole {
+    fn emission(&self) -> Color {
+        Color::ZERO
+    }
+
+    fn scatter(
+        &self,
+        _ray: &Photon,
+        _hit: &PhotonIntersection,
+        _attenuation: &mut Color,
+        _scattered: &mut Photon,
+    ) -> bool {
+        false
+    }
+}
+
 pub trait Surface {
     fn hit(&self, ray: &Photon, g: Mat4) -> Option<PhotonIntersection>;
 }

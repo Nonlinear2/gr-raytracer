@@ -63,7 +63,7 @@ impl Camera {
 
     pub fn ray_color(&self, mut ray: Photon, depth: u32, world: &World) -> Color {
         if depth <= 0 {
-            return Color {x: 0., y: 0., z: 0.};
+            return Color {r: 0., g: 0., b: 0.};
         }
 
         while (ray.pos.space() - self.center).length() < self.max_distance {
@@ -71,16 +71,16 @@ impl Camera {
             for obj in &world.objects {
                 if let Some(hit) = obj.hit(&ray, world.metric.g(ray.pos)) {
                     let mut scattered = Photon { pos: hit.point, vel: ray.vel };
-                    let mut attenuation = Color { x: 0., y: 0., z: 0. };
+                    let mut attenuation = Color { r: 0., g: 0., b: 0. };
 
                     if hit.material.scatter(&ray, &hit, &mut attenuation, &mut scattered) {
                         let bounced = self.ray_color(scattered, depth - 1, world);
 
                         return hit.material.emission()
                             + Color {
-                                x: attenuation.x * bounced.x / 255.0,
-                                y: attenuation.y * bounced.y / 255.0,
-                                z: attenuation.z * bounced.z / 255.0,
+                                r: attenuation.r * bounced.r / 255.0,
+                                g: attenuation.g * bounced.g / 255.0,
+                                b: attenuation.b * bounced.b / 255.0,
                             };
                     }
 
@@ -90,9 +90,9 @@ impl Camera {
         }
 
         let a = 0.5 * (ray.vel.normalize().y + 1.0);
-        let mut col = (1.-a)*(Color {x: 255.0, y: 255.0, z: 255.0}) + a*(Color {x: 127.0, y: 190.0, z: 255.0});
+        let mut col = (1.-a)*(Color {r: 255.0, g: 255.0, b: 255.0}) + a*(Color {r: 127.0, g: 190.0, b: 255.0});
         if ray.pos.x < 0. {
-            col.z = 0.;
+            col.b = 0.;
         }
         col
     }
@@ -111,7 +111,7 @@ impl Camera {
             let i = idx % self.img_width as usize;
             let j = idx / self.img_width as usize;
 
-            let mut color = Color {x: 0., y: 0., z: 0.};
+            let mut color = Color {r: 0., g: 0., b: 0.};
             for _ in 0..self.samples_per_pixel {
                 let ray_direction = self.get_pixel_position(i, j, false) - self.center;
 
@@ -128,9 +128,9 @@ impl Camera {
 
             color /= self.samples_per_pixel as f32;
 
-            pixel[0] = color.x as u8; // R
-            pixel[1] = color.y as u8; // G
-            pixel[2] = color.z as u8; // B
+            pixel[0] = color.r as u8; // R
+            pixel[1] = color.g as u8; // G
+            pixel[2] = color.b as u8; // B
             pixel[3] = 0xff; // A
         }
     }

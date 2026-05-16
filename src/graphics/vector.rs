@@ -1,4 +1,4 @@
-use rand::RngExt;
+﻿use rand::RngExt;
 use glam::{Vec3, Vec4};
 
 pub trait FourVector {
@@ -22,6 +22,52 @@ impl FourVector for Vec4 {
 }
 
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SphVec3 {
+    inner: Vec3,
+}
+
+impl SphVec3 {
+    pub fn new(r: f32, theta: f32, phi: f32) -> Self {
+        assert!(r >= 0.0);
+        assert!((0.0..=std::f32::consts::PI).contains(&theta));
+        Self { inner: Vec3::new(r, theta, phi) }
+    }
+
+    pub fn r(self) -> f32 { self.inner.x }
+    pub fn theta(self) -> f32 { self.inner.y }
+    pub fn phi(self) -> f32 { self.inner.z }
+
+    pub fn with_r(mut self, r: f32) -> Self { self.inner.x = r; self }
+    pub fn with_theta(mut self, theta: f32) -> Self { self.inner.y = theta; self }
+    pub fn with_phi(mut self, phi: f32) -> Self { self.inner.z = phi; self }
+
+    pub fn as_vec3(self) -> Vec3 { self.inner }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SphVec4 {
+    inner: Vec4,
+}
+
+impl SphVec4 {
+    pub fn new(ct: f32, r: f32, theta: f32, phi: f32) -> Self {
+        assert!(r >= 0.0);
+        assert!((0.0..=std::f32::consts::PI).contains(&theta));
+        Self { inner: Vec4::new(ct, r, theta, phi) }
+    }
+
+    pub fn r(self) -> f32 { self.inner.x }
+    pub fn theta(self) -> f32 { self.inner.y }
+    pub fn phi(self) -> f32 { self.inner.z }
+
+    pub fn with_r(mut self, r: f32) -> Self { self.inner.x = r; self }
+    pub fn with_theta(mut self, theta: f32) -> Self { self.inner.y = theta; self }
+    pub fn with_phi(mut self, phi: f32) -> Self { self.inner.z = phi; self }
+
+    pub fn as_vec4(self) -> Vec4 { self.inner }
+}
+
 pub fn random_on_sphere() -> Vec3 {
     let mut rng = rand::rng();
 
@@ -42,6 +88,57 @@ pub fn random_on_hemisphere(v: Vec3) -> Vec3 {
     if vec.dot(v) > 0.0 { vec } else { -vec }
 }
 
-pub type Color = Vec3;
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct Color {
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+}
+
+impl Color {
+    pub const ZERO: Self = Self { r: 0.0, g: 0.0, b: 0.0 };
+
+    pub fn new(r: f32, g: f32, b: f32) -> Self { Self { r, g, b } }
+
+    pub fn from_vec3(v: Vec3) -> Self { Self { r: v.x, g: v.y, b: v.z } }
+    pub fn as_vec3(&self) -> Vec3 { Vec3::new(self.r, self.g, self.b) }
+}
+
+impl std::ops::Add for Color {
+    type Output = Color;
+    fn add(self, rhs: Color) -> Color { Color::new(self.r + rhs.r, self.g + rhs.g, self.b + rhs.b) }
+}
+
+impl std::ops::AddAssign for Color {
+    fn add_assign(&mut self, rhs: Color) { self.r += rhs.r; self.g += rhs.g; self.b += rhs.b; }
+}
+
+impl std::ops::Sub for Color {
+    type Output = Color;
+    fn sub(self, rhs: Color) -> Color { Color::new(self.r - rhs.r, self.g - rhs.g, self.b - rhs.b) }
+}
+
+impl std::ops::Mul<f32> for Color {
+    type Output = Color;
+    fn mul(self, rhs: f32) -> Color { Color::new(self.r * rhs, self.g * rhs, self.b * rhs) }
+}
+
+impl std::ops::Mul<Color> for f32 {
+    type Output = Color;
+    fn mul(self, rhs: Color) -> Color { Color::new(rhs.r * self, rhs.g * self, rhs.b * self) }
+}
+
+impl std::ops::Div<f32> for Color {
+    type Output = Color;
+    fn div(self, rhs: f32) -> Color { Color::new(self.r / rhs, self.g / rhs, self.b / rhs) }
+}
+
+impl std::ops::DivAssign<f32> for Color {
+    fn div_assign(&mut self, rhs: f32) { self.r /= rhs; self.g /= rhs; self.b /= rhs; }
+}
+
+impl From<Vec3> for Color { fn from(v: Vec3) -> Self { Color::from_vec3(v) } }
+impl From<Color> for Vec3 { fn from(c: Color) -> Vec3 { Vec3::new(c.r, c.g, c.b) } }
+
 pub type Point3 = Vec3;
 pub type Point4 = Vec4;
