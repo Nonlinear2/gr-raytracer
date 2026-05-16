@@ -10,7 +10,8 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::graphics::{camera::Camera, surface::{BlackHole, Diffuse, Metal, Sphere}, vector::Color};
+use crate::graphics::{camera::Camera, surface::{BlackHole, Diffuse, Metal, Sphere}};
+use crate::graphics::color::Color;
 use crate::graphics::world::World;
 use glam::Vec3;
 use crate::relativity::metric::SchwartzschildMetric;

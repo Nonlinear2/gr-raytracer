@@ -1,5 +1,6 @@
 use crate::graphics::ray::{PhotonIntersection, Photon};
-use crate::graphics::vector::{self, Color, Point3, FourVector};
+use crate::graphics::vector::{self, Point3, FourVector};
+use crate::graphics::color::Color;
 use::glam::{Vec4, Mat4};
 
 pub trait Material {

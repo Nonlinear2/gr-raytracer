@@ -1,4 +1,5 @@
-use crate::graphics::{ray::Photon, vector::{self, Color, FourVector, Point3}, world::World};
+use crate::graphics::{ray::Photon, vector::{self, FourVector, Point3}, world::World};
+use crate::graphics::color::Color;
 use glam::{Vec3, Vec4};
 use rand::RngExt;
 pub struct Camera {
