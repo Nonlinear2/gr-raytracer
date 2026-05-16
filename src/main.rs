@@ -16,7 +16,7 @@ use crate::graphics::world::World;
 use glam::Vec3;
 use crate::relativity::metric::SchwartzschildMetric;
 
-const HEIGHT: u32 = 200;
+const HEIGHT: u32 = 100;
 const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
 
 #[derive(Default)]
