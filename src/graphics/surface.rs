@@ -35,7 +35,7 @@ impl Material for Diffuse {
         scattered: &mut Photon,
     ) -> bool {
         *attenuation = self.albedo;
-        *scattered = Photon::new(
+        *scattered = Photon::from_space_vel(
             hit.g,
             Vec4::from_space_time(hit.point.time(), hit.point.space() + 0.001 * hit.normal),
             (hit.normal + vector::random_on_sphere() / 2.0).normalize(),
@@ -68,7 +68,7 @@ impl Material for Metal {
         let fuzz = self.fuzz.clamp(0.0, 1.0);
 
         *attenuation = self.albedo;
-        *scattered = Photon::new(
+        *scattered = Photon::from_space_vel(
             hit.g,
             Vec4::from_space_time(hit.point.time(), hit.point.space() + 0.001 * hit.normal),
             (reflected + fuzz * vector::random_on_sphere()).normalize(),

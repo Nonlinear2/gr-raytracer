@@ -1,4 +1,4 @@
-use crate::graphics::{ray::Photon, vector::{self, FourVector, Point3}, world::World};
+use crate::graphics::{ray::Photon, vector::{FourVector, Point3}, world::World};
 use crate::graphics::color::Color;
 use glam::{Vec3, Vec4};
 use rand::RngExt;
@@ -118,7 +118,7 @@ impl Camera {
 
                 let pos = Vec4::from_space_time(0., self.center);
 
-                let ray = Photon::new(
+                let ray = Photon::from_space_vel(
                     world.metric.g(pos),
                     pos,
                     ray_direction

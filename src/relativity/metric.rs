@@ -140,7 +140,7 @@ impl Metric for SchwartzschildMetric {
 
                     for alpha in 0..4 {
                         for beta in 0..4 {
-                            let gamma = self.christoffel_sph(photon.pos, alpha, beta, mu);
+                            let gamma = self.christoffel(photon.pos, alpha, beta, mu);
                             acc += gamma * photon.vel[alpha] * photon.vel[beta];
                         }
                     }
