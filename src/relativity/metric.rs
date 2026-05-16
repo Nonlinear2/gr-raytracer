@@ -13,13 +13,13 @@ pub trait Metric {
 
     fn step_along_null_geodesic(&self, s: Photon, h: f32) -> Photon;
 
-    fn dot(&self, x: Point4, v1: Vec4, v2: Vec4) -> f32 {
-        v1.dot(self.g(x) * v2)
-    }
+    // fn dot(&self, x: Point4, v1: Vec4, v2: Vec4) -> f32 {
+    //     v1.dot(self.g(x) * v2)
+    // }
 
-    fn norm(&self, x: Point4, v1: Vec4) -> f32 {
-        self.dot(x, v1, v1)
-    }
+    // fn norm(&self, x: Point4, v1: Vec4) -> f32 {
+    //     self.dot(x, v1, v1)
+    // }
 }
 
 pub struct SchwartzschildMetric {
@@ -140,7 +140,7 @@ impl Metric for SchwartzschildMetric {
 
                     for alpha in 0..4 {
                         for beta in 0..4 {
-                            let gamma = self.christoffel(photon.pos, alpha, beta, mu);
+                            let gamma = self.christoffel_sph(photon.pos, alpha, beta, mu);
                             acc += gamma * photon.vel[alpha] * photon.vel[beta];
                         }
                     }

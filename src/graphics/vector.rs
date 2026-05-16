@@ -1,5 +1,54 @@
 ﻿use rand::RngExt;
 use glam::{Vec3, Vec4};
+use std::ops::{Index, IndexMut};
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SphVec3 {
+    inner: Vec3,
+}
+
+impl SphVec3 {
+    pub fn new(r: f32, theta: f32, phi: f32) -> Self {
+        assert!(r >= 0.0);
+        assert!((0.0..=std::f32::consts::PI).contains(&theta));
+        Self { inner: Vec3::new(r, theta, phi) }
+    }
+
+    pub fn r(self) -> f32 { self.inner.x }
+    pub fn theta(self) -> f32 { self.inner.y }
+    pub fn phi(self) -> f32 { self.inner.z }
+
+    pub fn with_r(mut self, r: f32) -> Self { self.inner.x = r; self }
+    pub fn with_theta(mut self, theta: f32) -> Self { self.inner.y = theta; self }
+    pub fn with_phi(mut self, phi: f32) -> Self { self.inner.z = phi; self }
+
+    pub fn as_vec3(self) -> Vec3 { self.inner }
+}
+
+impl Index<usize> for SphVec3 {
+    type Output = f32;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0 => &self.inner.x,
+            1 => &self.inner.y,
+            2 => &self.inner.z,
+            _ => panic!(),
+        }
+    }
+}
+
+impl IndexMut<usize> for SphVec3 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0 => &mut self.inner.x,
+            1 => &mut self.inner.y,
+            2 => &mut self.inner.z,
+            _ => panic!(),
+        }
+    }
+}
+
 
 pub trait FourVector {
     type Space;
@@ -26,42 +75,19 @@ impl FourVector for Vec4 {
 
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SphVec3 {
-    inner: Vec3,
-}
-
-impl SphVec3 {
-    pub fn new(r: f32, theta: f32, phi: f32) -> Self {
-        assert!(r >= 0.0);
-        assert!((0.0..=std::f32::consts::PI).contains(&theta));
-        Self { inner: Vec3::new(r, theta, phi) }
-    }
-
-    pub fn r(self) -> f32 { self.inner.x }
-    pub fn theta(self) -> f32 { self.inner.y }
-    pub fn phi(self) -> f32 { self.inner.z }
-
-    pub fn with_r(mut self, r: f32) -> Self { self.inner.x = r; self }
-    pub fn with_theta(mut self, theta: f32) -> Self { self.inner.y = theta; self }
-    pub fn with_phi(mut self, phi: f32) -> Self { self.inner.z = phi; self }
-
-    pub fn as_vec3(self) -> Vec3 { self.inner }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SphVec4 {
     inner: Vec4,
 }
 
 impl SphVec4 {
-    pub fn new(ct: f32, r: f32, theta: f32, phi: f32) -> Self {
+    pub fn new(t: f32, r: f32, theta: f32, phi: f32) -> Self {
         assert!(r >= 0.0);
         assert!((0.0..=std::f32::consts::PI).contains(&theta));
-        Self { inner: Vec4::new(ct, r, theta, phi) }
+        Self { inner: Vec4::new(t, r, theta, phi) }
     }
 
     /// Time / ct component
-    pub fn ct(self) -> f32 { self.inner.x }
+    pub fn t(self) -> f32 { self.inner.x }
 
     /// Spatial spherical components
     pub fn r(self) -> f32 { self.inner.y }
@@ -77,6 +103,32 @@ impl SphVec4 {
     pub fn as_vec4(self) -> Vec4 { self.inner }
 }
 
+impl Index<usize> for SphVec4 {
+    type Output = f32;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0 => &self.inner.x,
+            1 => &self.inner.y,
+            2 => &self.inner.z,
+            3 => &self.inner.w,
+            _ => panic!(),
+        }
+    }
+}
+
+impl IndexMut<usize> for SphVec4 {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0 => &mut self.inner.x,
+            1 => &mut self.inner.y,
+            2 => &mut self.inner.z,
+            3 => &mut self.inner.w,
+            _ => panic!(),
+        }
+    }
+}
+
 impl FourVector for SphVec4 {
     type Space = SphVec3;
 
@@ -85,7 +137,7 @@ impl FourVector for SphVec4 {
     }
 
     fn time(&self) -> f32 {
-        self.ct()
+        self.t()
     }
 
     fn space(&self) -> SphVec3 {
