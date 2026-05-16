@@ -1,4 +1,4 @@
-use crate::graphics::{ray::Photon, vector::{Point3, Point4}};
+use crate::graphics::{ray::Photon, vector::{FourVector, Point3, Point4}};
 use glam::{Vec4, Mat4};
 
 pub trait Metric {
@@ -32,6 +32,15 @@ impl SchwartzschildMetric {
     pub fn mass(&self) -> f32 { // schwartzschild radius
         return self.r_s; // r_s = 2GM/c^2.
     }
+
+    pub fn to_spherical_coordinates(&self, pos: Point3) -> Point3 {
+        let length = (self.center - pos).length();
+        Point3::new(
+            length,
+            pos.y.atan2(pos.x),
+            if length > 0. { (pos.z / length).acos() } else { 0. },
+        )
+    }
 }
 
 impl Metric for SchwartzschildMetric {
@@ -47,8 +56,10 @@ impl Metric for SchwartzschildMetric {
     }
 
     fn del_g(&self, pos: Point4, i: u32) -> Mat4 {
-        let r = pos[1];
-        let theta = pos[2];
+        let sph_pos = self.to_spherical_coordinates(pos.space());
+
+        let r = sph_pos[1];
+        let theta = sph_pos[2];
         match i {
             0 => Mat4::ZERO,
             1 => Mat4 {
@@ -69,7 +80,9 @@ impl Metric for SchwartzschildMetric {
     }
 
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32 {
-        let g_inv = self.g(pos).inverse();
+        let sph_pos = self.to_spherical_coordinates(pos.space());
+
+        let g_inv = self.g(Vec4::from_space_time(pos.time(), sph_pos)).inverse();
         let mut gamma = 0.;
 
         let d_mu_g = self.del_g(pos, mu as u32);
