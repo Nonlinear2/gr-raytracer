@@ -4,10 +4,13 @@ use glam::{Vec4, Mat4};
 pub trait Metric {
     fn g(&self, x: Point4) -> Mat4;
     fn g_sph(&self, x: SphVec4) -> Mat4;
+
     fn del_g(&self, x: Point4, i: u32) -> Mat4;
     fn del_g_sph(&self, x: SphVec4, i: u32) -> Mat4;
+
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32;
     fn christoffel_sph(&self, pos: SphVec4, mu: usize, nu: usize, lambda: usize) -> f32;
+
     fn step_along_null_geodesic(&self, s: Photon, h: f32) -> Photon;
 
     fn dot(&self, x: Point4, v1: Vec4, v2: Vec4) -> f32 {

@@ -64,7 +64,7 @@ impl Camera {
 
     pub fn ray_color(&self, mut ray: Photon, depth: u32, world: &World) -> Color {
         if depth <= 0 {
-            return Color {r: 0., g: 0., b: 0.};
+            return Color::BLACK;
         }
 
         while (ray.pos.space() - self.center).length() < self.max_distance {
@@ -72,7 +72,7 @@ impl Camera {
             for obj in &world.objects {
                 if let Some(hit) = obj.hit(&ray, world.metric.g(ray.pos)) {
                     let mut scattered = Photon { pos: hit.point, vel: ray.vel };
-                    let mut attenuation = Color { r: 0., g: 0., b: 0. };
+                    let mut attenuation = Color::BLACK;
 
                     if hit.material.scatter(&ray, &hit, &mut attenuation, &mut scattered) {
                         let bounced = self.ray_color(scattered, depth - 1, world);
@@ -91,7 +91,7 @@ impl Camera {
         }
 
         let a = 0.5 * (ray.vel.normalize().y + 1.0);
-        let mut col = (1.-a)*(Color {r: 255.0, g: 255.0, b: 255.0}) + a*(Color {r: 127.0, g: 190.0, b: 255.0});
+        let mut col = (1.-a)*(Color::WHITE) + a*(Color {r: 127.0, g: 190.0, b: 255.0});
         if ray.pos.x < 0. {
             col.b = 0.;
         }

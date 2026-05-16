@@ -5,7 +5,7 @@ use::glam::{Vec4, Mat4};
 
 pub trait Material {
     fn emission(&self) -> Color {
-        Color::ZERO
+        Color::BLACK
     }
 
     fn scatter(
@@ -82,7 +82,7 @@ pub struct BlackHole {}
 
 impl Material for BlackHole {
     fn emission(&self) -> Color {
-        Color::ZERO
+        Color::BLACK
     }
 
     fn scatter(
