@@ -1,20 +1,11 @@
-use crate::graphics::vector::Point3;
+use crate::graphics::{ray::Photon, vector::{Point3, Point4}};
 use glam::{Vec4, Mat4};
-
-pub type Point4 = Vec4;
-
-// Point4: ct, r, theta, phi
-
-pub struct State {
-    pub x: Vec4, // position
-    pub k: Vec4, // tangent vector
-}
 
 pub trait Metric {
     fn g(&self, x: Point4) -> Mat4;
     fn del_g(&self, x: Point4, i: u32) -> Mat4;
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32;
-    fn step_along_geodesic(&self, s: State, h: f32) -> State;
+    fn step_along_null_geodesic(&self, s: Photon, h: f32) -> Photon;
 
     fn dot(&self, x: Point4, v1: Vec4, v2: Vec4) -> f32 {
         v1.dot(self.g(x) * v2)
@@ -89,28 +80,28 @@ impl Metric for SchwartzschildMetric {
         gamma
     }
 
-    fn step_along_geodesic(&self, s: State, h: f32) -> State {
-        State {
-            x: {
-                let mut x_new = s.x;
+    fn step_along_null_geodesic(&self, s: Photon, h: f32) -> Photon {
+        Photon {
+            pos: {
+                let mut x_new = s.pos;
 
                 for mu in 0..4 {
-                    x_new[mu] += h * s.k[mu];
+                    x_new[mu] += h * s.vel[mu];
                 }
 
                 x_new
             },
 
-            k: {
-                let mut k_new = s.k;
+            vel: {
+                let mut k_new = s.vel;
 
                 for mu in 0..4 {
                     let mut acc = 0.0;
 
                     for alpha in 0..4 {
                         for beta in 0..4 {
-                            let gamma = self.christoffel(s.x, mu, alpha, beta);
-                            acc += gamma * s.k[alpha] * s.k[beta];
+                            let gamma = self.christoffel(s.pos, mu, alpha, beta);
+                            acc += gamma * s.vel[alpha] * s.vel[beta];
                         }
                     }
 

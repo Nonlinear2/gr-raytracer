@@ -1,4 +1,4 @@
-use crate::{graphics::{ray::Ray, vector::{self, Color, Point3}, world::World}};
+use crate::{graphics::{ray::Photon, vector::{self, Color, Point3}, world::World}};
 use glam::Vec3;
 use rand::RngExt;
 pub struct Camera {
@@ -61,7 +61,7 @@ impl Camera {
         }
     }
 
-    pub fn ray_color(&self, mut ray: Ray, depth: u32, world: &World) -> Color {
+    pub fn ray_color(&self, mut ray: Photon, depth: u32, world: &World) -> Color {
         if depth <= 0 {
             return Color {x: 0., y: 0., z: 0.};
         }
@@ -70,7 +70,7 @@ impl Camera {
             ray = ray.step(self.ray_step_size);
             for obj in &world.objects {
                 if let Some(hit) = obj.hit(&ray) {
-                    let mut scattered = Ray { pos: hit.point, vel: ray.vel };
+                    let mut scattered = Photon { pos: hit.point, vel: ray.vel };
                     let mut attenuation = Color { x: 0., y: 0., z: 0. };
 
                     if hit.material.scatter(&ray, &hit, &mut attenuation, &mut scattered) {
@@ -114,7 +114,7 @@ impl Camera {
             let mut color = Color {x: 0., y: 0., z: 0.};
             for _ in 0..self.samples_per_pixel {
                 let ray_direction = self.get_pixel_position(i, j, false) - self.center;
-                let ray = Ray{pos: self.center, vel: ray_direction};
+                let ray = Photon{pos: self.center, vel: ray_direction};
                 color += self.ray_color(ray, 3, &world);
             }
 
