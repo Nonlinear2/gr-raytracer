@@ -29,8 +29,10 @@ impl Photon {
         let x = pos_cart.x; let y = pos_cart.y; let z = pos_cart.z;
         let rho = (x*x + y*y).sqrt();
 
-        // Convert Cartesian velocity to spherical-basis components
-        let (v_r, v_th, v_ph) = if r > 1e-8 {
+        // Convert Cartesian velocity to spherical-basis components.
+        // At the polar axis, phi is undefined, so we pick a local azimuth from the
+        // velocity itself and keep the transverse direction instead of dropping it.
+        let (v_r, v_th, v_ph, phi_hint) = if r > 1e-8 {
             let dr_dx = x / r; let dr_dy = y / r; let dr_dz = z / r;
             let (dth_dx, dth_dy, dth_dz) = if rho > 1e-8 {
                 ( x*z / (r*r*rho), y*z / (r*r*rho), -rho / (r*r) )
@@ -41,9 +43,25 @@ impl Photon {
             (
                 dr_dx * vel.x + dr_dy * vel.y + dr_dz * vel.z,
                 dth_dx * vel.x + dth_dy * vel.y + dth_dz * vel.z,
-                dph_dx * vel.x + dph_dy * vel.y
+                dph_dx * vel.x + dph_dy * vel.y,
+                y.atan2(x),
             )
-        } else { (0.0, 0.0, 0.0) };
+        } else {
+            (0.0, 0.0, 0.0, 0.0)
+        };
+
+        let (v_r, v_th, v_ph, phi_hint) = if rho <= 1e-8 {
+            let pole_sign = if z >= 0.0 { 1.0 } else { -1.0 };
+            let tangential = (vel.x * vel.x + vel.y * vel.y).sqrt();
+            (
+                pole_sign * vel.z,
+                tangential / r.max(1e-8),
+                0.0,
+                vel.y.atan2(vel.x),
+            )
+        } else {
+            (v_r, v_th, v_ph, phi_hint)
+        };
 
         // Solve null condition in spherical basis
         let b = 2.0 * (g.col(0)[1] * v_r + g.col(0)[2] * v_th + g.col(0)[3] * v_ph);
@@ -59,7 +77,7 @@ impl Photon {
 
         // Convert spherical-basis velocity back to Cartesian
         let theta = if r > 1e-8 { (z / r).clamp(-1.0, 1.0).acos() } else { 0.0 };
-        let phi = y.atan2(x);
+    let phi = phi_hint;
         let sin_th = theta.sin(); let cos_th = theta.cos();
         let sin_ph = phi.sin(); let cos_ph = phi.cos();
         let e_r = Vec3::new(sin_th * cos_ph, sin_th * sin_ph, cos_th);

@@ -2,9 +2,6 @@ use crate::graphics::{ray::Photon, vector::{FourVector, Point3}, world::World};
 use crate::graphics::color::Color;
 use glam::{Vec3, Vec4};
 use rand::RngExt;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static TRACE_RAYS: AtomicUsize = AtomicUsize::new(0);
 pub struct Camera {
     pub center: Point3,
     pub focal_length: f32,
@@ -70,18 +67,8 @@ impl Camera {
             return Color::BLACK;
         }
 
-        let trace_id = TRACE_RAYS.fetch_add(1, Ordering::Relaxed);
-        let trace = trace_id < 3;
-
-        if trace {
-            println!("[trace {}] start pos={} vel={}", trace_id, ray.pos.space(), ray.vel.space());
-        }
-
-        for i in 0..2048 {
+        for _ in 0..2048 {
             if (ray.pos.space() - self.center).length() >= self.max_distance {
-                if trace {
-                    println!("[trace {}] background escape at step {} pos={}", trace_id, i, ray.pos.space());
-                }
                 break;
             }
 
@@ -89,31 +76,12 @@ impl Camera {
             ray = world.metric.step_along_null_geodesic(ray, self.ray_step_size);
             // println!("after {}", ray.pos.space());
 
-            if trace {
-                println!("[trace {}] step {} pos={}", trace_id, i, ray.pos.space());
-            }
-
             for obj in &world.objects {
                 if let Some(hit) = obj.hit(&ray, world.metric.g(ray.pos), world.metric.center()) {
-                    if trace {
-                        println!(
-                            "[trace {}] hit at step {} point={} normal={} emission={:?}",
-                            trace_id,
-                            i,
-                            hit.point.space(),
-                            hit.normal,
-                            hit.material.emission(),
-                        );
-                    }
-
                     let mut scattered = Photon { pos: hit.point, vel: ray.vel };
                     let mut attenuation = Color::BLACK;
 
                     if hit.material.scatter(&ray, &hit, &mut attenuation, &mut scattered) {
-                        if trace {
-                            println!("[trace {}] scattered attenuation={:?} new_pos={} new_vel={}", trace_id, attenuation, scattered.pos.space(), scattered.vel.space());
-                        }
-
                         let bounced = self.ray_color(scattered, depth - 1, world);
 
                         return hit.material.emission()
@@ -133,7 +101,7 @@ impl Camera {
             // }
         }
 
-        println!("reached 2048");
+        // println!("reached 2048");
 
         let a = 0.5 * (ray.vel.space().normalize().y + 1.0);
         let mut col = (1.-a)*(Color::WHITE) + a*(Color {r: 127.0, g: 190.0, b: 255.0});

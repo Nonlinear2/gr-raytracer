@@ -188,45 +188,60 @@ impl Metric for SchwartzschildMetric {
 
         // convert spatial velocity (cartesian basis) -> spherical-basis components
         // Use coordinates relative to the metric center (the spherical chart origin).
-        let v_sph = {
+        let (v_sph, phi_hint) = {
             let pos_rel = pos_cart - self.center;
             let x = pos_rel.x; let y = pos_rel.y; let z = pos_rel.z;
             let r = pos_rel.length();
             let rho = (x*x + y*y).sqrt();
 
             if r == 0.0 {
-                Vec3::ZERO
+                (Vec3::ZERO, 0.0)
             } else {
                 let vx = vel_cart.x; let vy = vel_cart.y; let vz = vel_cart.z;
 
                 // dr/dx, dr/dy, dr/dz
                 let dr_dx = x / r; let dr_dy = y / r; let dr_dz = z / r;
 
-                // dtheta/dx, dtheta/dy, dtheta/dz (handle poles)
-                let (dth_dx, dth_dy, dth_dz) = if rho > 1e-8 {
-                    ( x*z / (r*r*rho), y*z / (r*r*rho), -rho / (r*r) )
+                if rho <= 1e-8 {
+                    let pole_sign = if z >= 0.0 { 1.0 } else { -1.0 };
+                    let tangential = (vx * vx + vy * vy).sqrt();
+                    (
+                        Vec3::new(
+                            pole_sign * vz,
+                            tangential / r.max(1e-8),
+                            0.0,
+                        ),
+                        vy.atan2(vx),
+                    )
                 } else {
-                    (0.0, 0.0, 0.0)
-                };
+                    // dtheta/dx, dtheta/dy, dtheta/dz
+                    let (dth_dx, dth_dy, dth_dz) = (
+                        x * z / (r * r * rho),
+                        y * z / (r * r * rho),
+                        -rho / (r * r),
+                    );
 
-                // dphi/dx, dphi/dy, dphi/dz
-                let (dph_dx, dph_dy, _dph_dz) = if rho > 1e-8 {
-                    ( -y / (rho*rho), x / (rho*rho), 0.0 )
-                } else {
-                    (0.0, 0.0, 0.0)
-                };
+                    // dphi/dx, dphi/dy, dphi/dz
+                    let (dph_dx, dph_dy) = (-y / (rho * rho), x / (rho * rho));
 
-                let v_r = dr_dx * vx + dr_dy * vy + dr_dz * vz;
-                let v_th = dth_dx * vx + dth_dy * vy + dth_dz * vz;
-                let v_ph = dph_dx * vx + dph_dy * vy + 0.0 * vz;
-
-                Vec3::new(v_r, v_th, v_ph)
+                    (
+                        Vec3::new(
+                            dr_dx * vx + dr_dy * vy + dr_dz * vz,
+                            dth_dx * vx + dth_dy * vy + dth_dz * vz,
+                            dph_dx * vx + dph_dy * vy,
+                        ),
+                        y.atan2(x),
+                    )
+                }
             }
         };
 
         // 4-vector in spherical components: (t, v_r, v_theta, v_phi)
         let mut x_sph = pos_sph4.as_vec4();
-        let mut k_sph = Vec4::from_space_time(photon.vel[0], v_sph);
+        let k_sph = Vec4::from_space_time(photon.vel[0], v_sph);
+        if phi_hint != 0.0 {
+            x_sph[3] = phi_hint;
+        }
         // eprintln!("[step] k_sph before update: {:?}", k_sph);
         // eprintln!("[step] v_sph: {}", v_sph);
 
