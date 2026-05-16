@@ -2,12 +2,15 @@
 use glam::{Vec3, Vec4};
 
 pub trait FourVector {
-    fn from_space_time(time: f32, space: Vec3) -> Vec4;
+    type Space;
+    fn from_space_time(time: f32, space: Self::Space) -> Self;
     fn time(&self) -> f32;
-    fn space(&self) -> Vec3;
+    fn space(&self) -> Self::Space;
 }
 
 impl FourVector for Vec4 {
+    type Space = Vec3;
+
     fn from_space_time(time: f32, space: Vec3) -> Vec4 {
         Vec4::new(time, space.x, space.y, space.z)
     }
@@ -59,7 +62,6 @@ impl SphVec4 {
 
     /// Time / ct component
     pub fn ct(self) -> f32 { self.inner.x }
-    pub fn time(self) -> f32 { self.inner.x }
 
     /// Spatial spherical components
     pub fn r(self) -> f32 { self.inner.y }
@@ -74,6 +76,23 @@ impl SphVec4 {
 
     pub fn as_vec4(self) -> Vec4 { self.inner }
 }
+
+impl FourVector for SphVec4 {
+    type Space = SphVec3;
+
+    fn from_space_time(time: f32, space: SphVec3) -> SphVec4 {
+        SphVec4::new(time, space.r(), space.theta(), space.phi())
+    }
+
+    fn time(&self) -> f32 {
+        self.ct()
+    }
+
+    fn space(&self) -> SphVec3 {
+        SphVec3::new(self.r(), self.theta(), self.phi())
+    }
+}
+
 
 pub fn random_on_sphere() -> Vec3 {
     let mut rng = rand::rng();
@@ -97,3 +116,5 @@ pub fn random_on_hemisphere(v: Vec3) -> Vec3 {
 
 pub type Point3 = Vec3;
 pub type Point4 = Vec4;
+pub type SphPoint3 = SphVec3;
+pub type SphPoint4 = SphVec4;
