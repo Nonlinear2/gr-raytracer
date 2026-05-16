@@ -18,12 +18,19 @@ pub trait Metric {
 
 pub struct SchwartzschildMetric {
     pub center: Point3,
-    pub mass: f32,
+    pub r_s: f32,
 }
 
 impl SchwartzschildMetric {
-    fn r_s(&self) -> f32 { // schwartzschild radius
-        return self.mass; // r_s = 2GM/c^2.
+    pub fn new(center: Point3, r_s: f32) -> Self {
+        Self {
+            center: center,
+            r_s: r_s,
+        }
+    }
+
+    pub fn mass(&self) -> f32 { // schwartzschild radius
+        return self.r_s; // r_s = 2GM/c^2.
     }
 }
 
@@ -32,8 +39,8 @@ impl Metric for SchwartzschildMetric {
         let r = pos[1];
         let theta = pos[2];
         Mat4 {
-            x_axis: Vec4::new(1. - self.r_s() / r, 0., 0., 0.),
-            y_axis: Vec4::new(0., 1./(1. - self.r_s() / r), 0., 0.),
+            x_axis: Vec4::new(1. - self.r_s / r, 0., 0., 0.),
+            y_axis: Vec4::new(0., 1./(1. - self.r_s / r), 0., 0.),
             z_axis: Vec4::new(0., 0., r*r, 0.),
             w_axis: Vec4::new(0., 0., 0., r*r*theta.sin()*theta.sin()),
         }
@@ -45,8 +52,8 @@ impl Metric for SchwartzschildMetric {
         match i {
             0 => Mat4::ZERO,
             1 => Mat4 {
-                x_axis: Vec4::new(self.r_s() / (r*r), 0., 0., 0.),
-                y_axis: Vec4::new(0., -self.r_s() / (r*r*(1. - self.r_s() / r) * (1. - self.r_s() / r)), 0., 0.),
+                x_axis: Vec4::new(self.r_s / (r*r), 0., 0., 0.),
+                y_axis: Vec4::new(0., -self.r_s / (r*r*(1. - self.r_s / r) * (1. - self.r_s / r)), 0., 0.),
                 z_axis: Vec4::new(0., 0., 2.*r, 0.),
                 w_axis: Vec4::new(0., 0., 0., 2.*r*theta.sin()*theta.sin()),
             },

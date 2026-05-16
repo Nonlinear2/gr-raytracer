@@ -75,7 +75,7 @@ impl ApplicationHandler for App {
 fn main() {
 
     let world = World {
-        metric: SchwartzschildMetric::new(),
+        metric: Box::new(SchwartzschildMetric::new(Vec3 { x: 0., y: 0., z: -1. }, 0.2)),
         objects: vec![
             Box::new(Sphere {
                 center: Vec3 { x: 0., y: 0., z: -1. },

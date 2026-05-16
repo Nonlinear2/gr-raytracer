@@ -35,7 +35,7 @@ impl Photon {
         let mut c = 0.;
         for i in 1..4 {
             for j in 1..4 {
-                b += g.col(i)[j] * vel[i] * vel[j];
+                c += g.col(i)[j] * vel[i] * vel[j];
             }
         }
 
