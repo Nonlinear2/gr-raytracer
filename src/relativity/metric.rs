@@ -1,5 +1,5 @@
 use crate::graphics::{ray::Photon, vector::{FourVector, Point3, Point4, SphVec3, SphVec4}};
-use glam::{Vec4, Mat4};
+use glam::{Vec4, Mat4, Vec3};
 
 pub trait Metric {
     fn g(&self, x: Point4) -> Mat4;
@@ -41,12 +41,41 @@ impl SchwartzschildMetric {
 
     pub fn to_spherical_coordinates(&self, pos: Point3) -> SphVec3 {
         let relative_pos = pos - self.center;
-        let length = relative_pos.length();
-        SphVec3::new(
-            length,
-            if length > 0. { (relative_pos.z / length).acos() } else { 0. },
-            relative_pos.y.atan2(relative_pos.x),
-        )
+        let mut length = relative_pos.length();
+
+        // guard against NaN/Inf or non-physical small/negative radii produced
+        // by numerical errors elsewhere. Clamp to just outside the horizon.
+        if !length.is_finite() {
+            length = self.r_s + 1e-6;
+        }
+        if length <= self.r_s {
+            length = self.r_s + 1e-6;
+        }
+
+        let theta = if length > 0. {
+            // protect the acos argument against tiny numeric overshoot
+            let cos_theta = (relative_pos.z / length).clamp(-1.0, 1.0);
+            cos_theta.acos()
+        } else { 0. };
+
+        let phi = if relative_pos.x.is_finite() && relative_pos.y.is_finite() {
+            relative_pos.y.atan2(relative_pos.x)
+        } else { 0. };
+
+        // Guard against NaN theta/phi from numeric errors; default to safe fallback values
+        let theta = if theta.is_finite() && (0.0..=std::f32::consts::PI).contains(&theta) {
+            theta
+        } else {
+            std::f32::consts::PI / 2.0  // default to equator if invalid
+        };
+
+        let phi = if phi.is_finite() {
+            phi
+        } else {
+            0.0
+        };
+
+        SphVec3::new(length, theta, phi)
     }
 }
 
@@ -121,36 +150,106 @@ impl Metric for SchwartzschildMetric {
     }
 
     fn step_along_null_geodesic(&self, photon: Photon, h: f32) -> Photon {
+        // Integrate in the spherical coordinate chart to keep components and
+        // Christoffel symbols in the same basis. Convert back to Cartesian
+        // for the renderer/hit-testing.
+
+        // Cartesian spatial pos/vel
+            // Quick sanity check: if photon contains non-finite components, abort stepping.
+            let pos_cart = photon.pos.space();
+            if !(pos_cart.x.is_finite() && pos_cart.y.is_finite() && pos_cart.z.is_finite()) {
+                return photon;
+            }
+
+        let vel_cart = photon.vel.space();
+
+        // spherical position
+        let sph_pos = self.to_spherical_coordinates(pos_cart);
+        let pos_sph4 = SphVec4::new(photon.pos.time(), sph_pos.r(), sph_pos.theta(), sph_pos.phi());
+
+        // convert spatial velocity (cartesian basis) -> spherical-basis components
+        let v_sph = {
+            let x = pos_cart.x; let y = pos_cart.y; let z = pos_cart.z;
+            let r = pos_cart.length();
+            let rho = (x*x + y*y).sqrt();
+
+            if r == 0.0 {
+                Vec3::ZERO
+            } else {
+                let vx = vel_cart.x; let vy = vel_cart.y; let vz = vel_cart.z;
+
+                // dr/dx, dr/dy, dr/dz
+                let dr_dx = x / r; let dr_dy = y / r; let dr_dz = z / r;
+
+                // dtheta/dx, dtheta/dy, dtheta/dz (handle poles)
+                let (dth_dx, dth_dy, dth_dz) = if rho > 1e-8 {
+                    ( x*z / (r*r*rho), y*z / (r*r*rho), -rho / (r*r) )
+                } else {
+                    (0.0, 0.0, 0.0)
+                };
+
+                // dphi/dx, dphi/dy, dphi/dz
+                let (dph_dx, dph_dy, _dph_dz) = if rho > 1e-8 {
+                    ( -y / (rho*rho), x / (rho*rho), 0.0 )
+                } else {
+                    (0.0, 0.0, 0.0)
+                };
+
+                let v_r = dr_dx * vx + dr_dy * vy + dr_dz * vz;
+                let v_th = dth_dx * vx + dth_dy * vy + dth_dz * vz;
+                let v_ph = dph_dx * vx + dph_dy * vy + 0.0 * vz;
+
+                Vec3::new(v_r, v_th, v_ph)
+            }
+        };
+
+        // 4-vector in spherical components: (t, v_r, v_theta, v_phi)
+        let mut x_sph = pos_sph4.as_vec4();
+        let mut k_sph = Vec4::from_space_time(photon.vel[0], v_sph);
+
+        // update position in spherical components
+        for mu in 0..4 {
+            x_sph[mu] += h * k_sph[mu];
+        }
+
+        // update k in spherical components using spherical Christoffels
+        let mut k_new_sph = k_sph;
+        for mu in 0..4 {
+            let mut acc = 0.0;
+            for alpha in 0..4 {
+                for beta in 0..4 {
+                    let gamma = self.christoffel_sph(pos_sph4, alpha, beta, mu);
+                    acc += gamma * k_sph[alpha] * k_sph[beta];
+                }
+            }
+            k_new_sph[mu] -= h * acc;
+        }
+
+        // convert spherical-position back to cartesian space coords
+        // x_sph[1] may have become negative due to numerical error; clamp it
+        let r = x_sph[1].max(1e-8);
+        let theta = x_sph[2];
+        let phi = x_sph[3];
+        let sin_th = theta.sin(); let cos_th = theta.cos();
+        let sin_ph = phi.sin(); let cos_ph = phi.cos();
+
+        let pos_cart_new = Vec3::new(
+            r * sin_th * cos_ph,
+            r * sin_th * sin_ph,
+            r * cos_th,
+        );
+
+        // convert spherical-basis velocity components back to cartesian
+        let v_sph_new = Vec3::new(k_new_sph[1], k_new_sph[2], k_new_sph[3]);
+        let vx_new = (sin_th * cos_ph) * v_sph_new.x + (r * cos_th * cos_ph) * v_sph_new.y + (-r * sin_th * sin_ph) * v_sph_new.z;
+        let vy_new = (sin_th * sin_ph) * v_sph_new.x + (r * cos_th * sin_ph) * v_sph_new.y + (r * sin_th * cos_ph) * v_sph_new.z;
+        let vz_new = (cos_th) * v_sph_new.x + (-r * sin_th) * v_sph_new.y + 0.0 * v_sph_new.z;
+
+        let vel_cart_new = Vec3::new(vx_new, vy_new, vz_new);
+
         Photon {
-            pos: {
-                let mut x_new = photon.pos;
-
-                for mu in 0..4 {
-                    x_new[mu] += h * photon.vel[mu];
-                }
-
-                x_new
-            },
-
-            vel: {
-                let mut k_new = photon.vel;
-
-                for mu in 0..4 {
-                    let mut acc = 0.0;
-
-                    for alpha in 0..4 {
-                        for beta in 0..4 {
-                            let gamma = self.christoffel(photon.pos, alpha, beta, mu);
-                            acc += gamma * photon.vel[alpha] * photon.vel[beta];
-                        }
-                    }
-
-                    k_new[mu] -= h * acc;
-                }
-
-                k_new
-            },
+            pos: Vec4::from_space_time(x_sph[0], pos_cart_new),
+            vel: Vec4::from_space_time(k_new_sph[0], vel_cart_new),
         }
     }
-
 }

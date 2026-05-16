@@ -109,10 +109,14 @@ impl Camera {
 
     pub fn render(&self, frame: &mut [u8], world: &World) {
         for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
+            if idx % 10000 == 0 {
+                println!("pixels computed: {}", idx);
+            }
+
             let i = idx % self.img_width as usize;
             let j = idx / self.img_width as usize;
 
-            let mut color = Color {r: 0., g: 0., b: 0.};
+            let mut color = Color::BLACK;
             for _ in 0..self.samples_per_pixel {
                 let ray_direction = self.get_pixel_position(i, j, false) - self.center;
 

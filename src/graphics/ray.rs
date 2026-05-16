@@ -32,12 +32,14 @@ impl Photon {
             g.col(0)[3] * vel.z
         );
     
+        let vx = vel.x; let vy = vel.y; let vz = vel.z;
         let mut c = 0.;
-        for i in 1..4 {
-            for j in 1..4 {
-                c += g.col(i)[j] * vel[i] * vel[j];
-            }
-        }
+        c += g.col(1)[1] * vx * vx;
+        c += 2.0 * g.col(1)[2] * vx * vy;
+        c += 2.0 * g.col(1)[3] * vx * vz;
+        c += g.col(2)[2] * vy * vy;
+        c += 2.0 * g.col(2)[3] * vy * vz;
+        c += g.col(3)[3] * vz * vz;
 
         let k_0 = positive_root(g.col(0)[0], b, c);
 
