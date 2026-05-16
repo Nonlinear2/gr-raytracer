@@ -47,10 +47,4 @@ impl Photon {
         }
 
     }
-    pub fn step(&self, step_size: f32) -> Photon {
-        Photon {
-            pos: self.pos + self.vel.normalize() * step_size,
-            vel: self.vel,
-        }
-    }
 }

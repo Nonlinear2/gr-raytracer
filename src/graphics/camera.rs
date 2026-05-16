@@ -67,7 +67,7 @@ impl Camera {
         }
 
         while (ray.pos.space() - self.center).length() < self.max_distance {
-            ray = ray.step(self.ray_step_size);
+            ray = world.metric.step_along_null_geodesic(ray, self.ray_step_size);
             for obj in &world.objects {
                 if let Some(hit) = obj.hit(&ray, world.metric.g(ray.pos)) {
                     let mut scattered = Photon { pos: hit.point, vel: ray.vel };

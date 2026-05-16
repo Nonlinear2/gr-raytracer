@@ -100,28 +100,28 @@ impl Metric for SchwartzschildMetric {
         gamma
     }
 
-    fn step_along_null_geodesic(&self, s: Photon, h: f32) -> Photon {
+    fn step_along_null_geodesic(&self, photon: Photon, h: f32) -> Photon {
         Photon {
             pos: {
-                let mut x_new = s.pos;
+                let mut x_new = photon.pos;
 
                 for mu in 0..4 {
-                    x_new[mu] += h * s.vel[mu];
+                    x_new[mu] += h * photon.vel[mu];
                 }
 
                 x_new
             },
 
             vel: {
-                let mut k_new = s.vel;
+                let mut k_new = photon.vel;
 
                 for mu in 0..4 {
                     let mut acc = 0.0;
 
                     for alpha in 0..4 {
                         for beta in 0..4 {
-                            let gamma = self.christoffel(s.pos, mu, alpha, beta);
-                            acc += gamma * s.vel[alpha] * s.vel[beta];
+                            let gamma = self.christoffel(photon.pos, mu, alpha, beta);
+                            acc += gamma * photon.vel[alpha] * photon.vel[beta];
                         }
                     }
 
