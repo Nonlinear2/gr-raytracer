@@ -37,6 +37,7 @@ impl Material for Diffuse {
         *attenuation = self.albedo;
         *scattered = Photon::from_space_vel(
             hit.g,
+            hit.metric_center,
             Vec4::from_space_time(hit.point.time(), hit.point.space() + 0.001 * hit.normal),
             (hit.normal + vector::random_on_sphere() / 2.0).normalize(),
         );
@@ -70,6 +71,7 @@ impl Material for Metal {
         *attenuation = self.albedo;
         *scattered = Photon::from_space_vel(
             hit.g,
+            hit.metric_center,
             Vec4::from_space_time(hit.point.time(), hit.point.space() + 0.001 * hit.normal),
             (reflected + fuzz * vector::random_on_sphere()).normalize(),
         );
@@ -97,7 +99,7 @@ impl Material for BlackHole {
 }
 
 pub trait Surface {
-    fn hit(&self, ray: &Photon, g: Mat4) -> Option<PhotonIntersection>;
+    fn hit(&self, ray: &Photon, g: Mat4, metric_center: Point3) -> Option<PhotonIntersection>;
 }
 
 pub struct Sphere {
@@ -107,11 +109,12 @@ pub struct Sphere {
 }
 
 impl Surface for Sphere {
-    fn hit(&self, ray: &Photon, g: Mat4) -> Option<PhotonIntersection> {
+    fn hit(&self, ray: &Photon, g: Mat4, metric_center: Point3) -> Option<PhotonIntersection> {
         let x = ray.pos.space() - self.center;
         if x.length() <= self.radius {
             return Some(PhotonIntersection {
                 g: g,
+                metric_center: metric_center,
                 point: Vec4::from_space_time(ray.pos.time(), self.center + self.radius * x.normalize()),
                 normal: x.normalize(),
                 material: self.material.as_ref(),

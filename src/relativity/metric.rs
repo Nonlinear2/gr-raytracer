@@ -2,6 +2,7 @@ use crate::graphics::{ray::Photon, vector::{FourVector, Point3, Point4, SphVec3,
 use glam::{Vec4, Mat4, Vec3};
 
 pub trait Metric {
+    fn center(&self) -> Point3;
     fn g(&self, x: Point4) -> Mat4;
     fn g_sph(&self, x: SphVec4) -> Mat4;
 
@@ -63,8 +64,11 @@ impl SchwartzschildMetric {
         } else { 0. };
 
         // Guard against NaN theta/phi from numeric errors; default to safe fallback values
+        // Also avoid exact poles (theta == 0 or PI) which make the spherical chart
+        // singular (sin theta == 0) and produce infinities when inverting the metric.
         let theta = if theta.is_finite() && (0.0..=std::f32::consts::PI).contains(&theta) {
-            theta
+            // clamp slightly away from the poles
+            theta.clamp(1e-6, std::f32::consts::PI - 1e-6)
         } else {
             std::f32::consts::PI / 2.0  // default to equator if invalid
         };
@@ -80,6 +84,10 @@ impl SchwartzschildMetric {
 }
 
 impl Metric for SchwartzschildMetric {
+    fn center(&self) -> Point3 {
+        self.center
+    }
+
     fn g(&self, pos: Point4) -> Mat4 {
         let sph_pos = self.to_spherical_coordinates(pos.space());
         self.g_sph(SphVec4::new(pos.time(), sph_pos.r(), sph_pos.theta(), sph_pos.phi()))
@@ -90,12 +98,18 @@ impl Metric for SchwartzschildMetric {
         let theta = pos.theta();
         assert!(r > self.r_s);
 
-        Mat4 {
+        let g = Mat4 {
             x_axis: Vec4::new(1. - self.r_s / r, 0., 0., 0.),
-            y_axis: Vec4::new(0., 1./(1. - self.r_s / r), 0., 0.),
-            z_axis: Vec4::new(0., 0., r*r, 0.),
-            w_axis: Vec4::new(0., 0., 0., r*r*theta.sin()*theta.sin()),
+            y_axis: Vec4::new(0., -1./(1. - self.r_s / r), 0., 0.),
+            z_axis: Vec4::new(0., 0., -r*r, 0.),
+            w_axis: Vec4::new(0., 0., 0., -r*r*theta.sin()*theta.sin()),
+        };
+        
+        if !g.determinant().is_finite() {
+            eprintln!("[g_sph] Degenerate metric: r={}, theta={}, det={}", r, theta, g.determinant());
         }
+        
+        g
     }
 
     fn del_g(&self, pos: Point4, i: u32) -> Mat4 {
@@ -110,15 +124,15 @@ impl Metric for SchwartzschildMetric {
             0 => Mat4::ZERO,
             1 => Mat4 {
                 x_axis: Vec4::new(self.r_s / (r*r), 0., 0., 0.),
-                y_axis: Vec4::new(0., -self.r_s / (r*r*(1. - self.r_s / r) * (1. - self.r_s / r)), 0., 0.),
-                z_axis: Vec4::new(0., 0., 2.*r, 0.),
-                w_axis: Vec4::new(0., 0., 0., 2.*r*theta.sin()*theta.sin()),
+                y_axis: Vec4::new(0., self.r_s / (r*r*(1. - self.r_s / r) * (1. - self.r_s / r)), 0., 0.),
+                z_axis: Vec4::new(0., 0., -2.*r, 0.),
+                w_axis: Vec4::new(0., 0., 0., -2.*r*theta.sin()*theta.sin()),
             },
             2 => Mat4 {
                 x_axis: Vec4::ZERO,
                 y_axis: Vec4::ZERO,
                 z_axis: Vec4::ZERO,
-                w_axis: Vec4::new(0., 0., 0., 2.*r*r*theta.cos()*theta.sin()),
+                w_axis: Vec4::new(0., 0., 0., -2.*r*r*theta.cos()*theta.sin()),
             },
             3 => Mat4::ZERO,
             _ => unreachable!()
@@ -146,6 +160,10 @@ impl Metric for SchwartzschildMetric {
               - d_alpha_g.col(mu)[nu]
             )
         }
+        if !gamma.is_finite() {
+            eprintln!("[christoffel] NaN detected: mu={}, nu={}, lambda={}, pos=({},{},{}), gamma={}", mu, nu, lambda, pos.r(), pos.theta(), pos.phi(), gamma);
+            eprintln!("[christoffel] g_inv determinant={:?}", g_inv.determinant());
+        }
         gamma
     }
 
@@ -166,11 +184,14 @@ impl Metric for SchwartzschildMetric {
         // spherical position
         let sph_pos = self.to_spherical_coordinates(pos_cart);
         let pos_sph4 = SphVec4::new(photon.pos.time(), sph_pos.r(), sph_pos.theta(), sph_pos.phi());
+        eprintln!("[step] sph_pos: r={}, theta={}, phi={}", sph_pos.r(), sph_pos.theta(), sph_pos.phi());
 
         // convert spatial velocity (cartesian basis) -> spherical-basis components
+        // Use coordinates relative to the metric center (the spherical chart origin).
         let v_sph = {
-            let x = pos_cart.x; let y = pos_cart.y; let z = pos_cart.z;
-            let r = pos_cart.length();
+            let pos_rel = pos_cart - self.center;
+            let x = pos_rel.x; let y = pos_rel.y; let z = pos_rel.z;
+            let r = pos_rel.length();
             let rho = (x*x + y*y).sqrt();
 
             if r == 0.0 {
@@ -206,6 +227,8 @@ impl Metric for SchwartzschildMetric {
         // 4-vector in spherical components: (t, v_r, v_theta, v_phi)
         let mut x_sph = pos_sph4.as_vec4();
         let mut k_sph = Vec4::from_space_time(photon.vel[0], v_sph);
+        eprintln!("[step] k_sph before update: {:?}", k_sph);
+        eprintln!("[step] v_sph: {}", v_sph);
 
         // update position in spherical components
         for mu in 0..4 {
@@ -224,6 +247,8 @@ impl Metric for SchwartzschildMetric {
             }
             k_new_sph[mu] -= h * acc;
         }
+        eprintln!("[step] k_new_sph after update: {:?}", k_new_sph);
+        eprintln!("[step] x_sph after position update: {:?}", x_sph);
 
         // convert spherical-position back to cartesian space coords
         // x_sph[1] may have become negative due to numerical error; clamp it
@@ -237,7 +262,7 @@ impl Metric for SchwartzschildMetric {
             r * sin_th * cos_ph,
             r * sin_th * sin_ph,
             r * cos_th,
-        );
+        ) + self.center;
 
         // convert spherical-basis velocity components back to cartesian
         let v_sph_new = Vec3::new(k_new_sph[1], k_new_sph[2], k_new_sph[3]);

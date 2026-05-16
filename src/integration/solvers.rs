@@ -7,7 +7,7 @@ pub fn positive_root(a: f32, b: f32, c: f32) -> f32 {
     }
 
     if delta < 0.0 {
-        // eprintln!(" negative discriminant delta={}", delta);
+        eprintln!(" negative discriminant delta={}", delta);
         // fallback: return the best real-valued estimate (use -b/(2a))
         return -b / (2.0 * a);
     }

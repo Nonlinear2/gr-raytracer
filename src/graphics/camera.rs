@@ -67,10 +67,17 @@ impl Camera {
             return Color::BLACK;
         }
 
-        while (ray.pos.space() - self.center).length() < self.max_distance {
+        for i in 0..2048 {
+            if (ray.pos.space() - self.center).length() >= self.max_distance {
+                break;
+            }
+
+            println!("before {}", ray.pos.space());
             ray = world.metric.step_along_null_geodesic(ray, self.ray_step_size);
+            println!("after {}", ray.pos.space());
+
             for obj in &world.objects {
-                if let Some(hit) = obj.hit(&ray, world.metric.g(ray.pos)) {
+                if let Some(hit) = obj.hit(&ray, world.metric.g(ray.pos), world.metric.center()) {
                     let mut scattered = Photon { pos: hit.point, vel: ray.vel };
                     let mut attenuation = Color::BLACK;
 
@@ -88,11 +95,15 @@ impl Camera {
                     return hit.material.emission();
                 }
             }
+
+            if i == 3 {
+                panic!();
+            }
         }
 
-        let a = 0.5 * (ray.vel.normalize().y + 1.0);
+        let a = 0.5 * (ray.vel.space().normalize().y + 1.0);
         let mut col = (1.-a)*(Color::WHITE) + a*(Color {r: 127.0, g: 190.0, b: 255.0});
-        if ray.pos.x < 0. {
+        if ray.pos.space().x < 0. {
             col.b = 0.;
         }
         col
@@ -109,7 +120,7 @@ impl Camera {
 
     pub fn render(&self, frame: &mut [u8], world: &World) {
         for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            if idx % 10000 == 0 {
+            if idx % 10 == 0 {
                 println!("pixels computed: {}", idx);
             }
 
@@ -121,12 +132,17 @@ impl Camera {
                 let ray_direction = self.get_pixel_position(i, j, false) - self.center;
 
                 let pos = Vec4::from_space_time(0., self.center);
+                
+                // Slightly perturb the ray origin off the metric axis to avoid pole singularity
+                let perturbed_pos = Vec4::from_space_time(0., self.center + Vec3::new(1e-4, 1e-4, 0.));
 
                 let ray = Photon::from_space_vel(
-                    world.metric.g(pos),
-                    pos,
+                    world.metric.g(perturbed_pos),
+                    world.metric.center(),
+                    perturbed_pos,
                     ray_direction
                 );
+                println!("initial ray {}, velocity {}", ray.pos, ray.vel);
 
                 color += self.ray_color(ray, 3, &world);
             }
