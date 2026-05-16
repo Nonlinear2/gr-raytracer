@@ -90,7 +90,11 @@ impl Camera {
         }
 
         let a = 0.5 * (ray.vel.normalize().y + 1.0);
-        return (1.-a)*(Color {x: 255.0, y: 255.0, z: 255.0}) + a*(Color {x: 127.0, y: 190.0, z: 255.0});
+        let mut col = (1.-a)*(Color {x: 255.0, y: 255.0, z: 255.0}) + a*(Color {x: 127.0, y: 190.0, z: 255.0});
+        if ray.pos.x < 0. {
+            col.z = 0.;
+        }
+        col
     }
 
     pub fn get_pixel_position(&self, i: usize, j: usize, offset: bool) -> Vec3 {

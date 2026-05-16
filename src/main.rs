@@ -13,6 +13,7 @@ use pixels::{Pixels, SurfaceTexture};
 use crate::graphics::{camera::Camera, surface::{Diffuse, Metal, Sphere}, vector::Color};
 use crate::graphics::world::World;
 use glam::Vec3;
+// use crate::relativity::metric::SchwartzschildMetric;
 
 const HEIGHT: u32 = 200;
 const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
@@ -74,6 +75,7 @@ impl ApplicationHandler for App {
 fn main() {
 
     let world = World {
+        // metric: SchwartzschildMetric::
         objects: vec![
             Box::new(Sphere {
                 center: Vec3 { x: 0., y: 0., z: -1. },

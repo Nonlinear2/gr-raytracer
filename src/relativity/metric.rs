@@ -14,7 +14,15 @@ pub trait Metric {
     fn g(&self, x: Point4) -> Mat4;
     fn del_g(&self, x: Point4, i: u32) -> Mat4;
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32;
-    fn step_along_null_geodesic(&self, s: State, h: f32) -> State;
+    fn step_along_geodesic(&self, s: State, h: f32) -> State;
+
+    fn dot(&self, x: Point4, v1: Vec4, v2: Vec4) -> f32 {
+        v1.dot(self.g(x) * v2)
+    }
+
+    fn norm(&self, x: Point4, v1: Vec4) -> f32 {
+        self.dot(x, v1, v1)
+    }
 }
 
 pub struct SchwartzschildMetric {
@@ -81,7 +89,7 @@ impl Metric for SchwartzschildMetric {
         gamma
     }
 
-    fn step_along_null_geodesic(&self, s: State, h: f32) -> State {
+    fn step_along_geodesic(&self, s: State, h: f32) -> State {
         State {
             x: {
                 let mut x_new = s.x;
