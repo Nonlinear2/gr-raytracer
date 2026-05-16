@@ -62,19 +62,19 @@ impl Metric for SchwartzschildMetric {
     }
 
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32 {
-        let g = self.g(pos).inverse().to_cols_array_2d();
+        let g_inv = self.g(pos).inverse();
         let mut gamma = 0.;
 
-        let d_mu_g = self.del_g(pos, mu as u32).to_cols_array_2d();
-        let d_nu_g = self.del_g(pos, nu as u32).to_cols_array_2d();
+        let d_mu_g = self.del_g(pos, mu as u32);
+        let d_nu_g = self.del_g(pos, nu as u32);
 
         for alpha in 0..4 {
-            let d_alpha_g = self.del_g(pos, alpha as u32).to_cols_array_2d();
+            let d_alpha_g = self.del_g(pos, alpha as u32);
 
-            gamma += 0.5 * g[lambda][alpha] * (
-                d_mu_g[alpha][nu]
-              + d_nu_g[alpha][mu]
-              - d_alpha_g[mu][nu]
+            gamma += 0.5 * g_inv.col(lambda)[alpha] * (
+                d_mu_g.col(alpha)[nu]
+              + d_nu_g.col(alpha)[mu]
+              - d_alpha_g.col(mu)[nu]
             )
         }
         gamma

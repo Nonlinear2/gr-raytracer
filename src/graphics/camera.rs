@@ -1,5 +1,5 @@
-use crate::{graphics::{ray::Photon, vector::{self, Color, Point3}, world::World}};
-use glam::Vec3;
+use crate::graphics::{ray::Photon, vector::{self, Color, FourVector, Point3}, world::World};
+use glam::{Vec3, Vec4};
 use rand::RngExt;
 pub struct Camera {
     pub center: Point3,
@@ -66,10 +66,10 @@ impl Camera {
             return Color {x: 0., y: 0., z: 0.};
         }
 
-        while (ray.pos - self.center).length() < self.max_distance {
+        while (ray.pos.space() - self.center).length() < self.max_distance {
             ray = ray.step(self.ray_step_size);
             for obj in &world.objects {
-                if let Some(hit) = obj.hit(&ray) {
+                if let Some(hit) = obj.hit(&ray, world.metric.g(ray.pos)) {
                     let mut scattered = Photon { pos: hit.point, vel: ray.vel };
                     let mut attenuation = Color { x: 0., y: 0., z: 0. };
 
@@ -114,7 +114,15 @@ impl Camera {
             let mut color = Color {x: 0., y: 0., z: 0.};
             for _ in 0..self.samples_per_pixel {
                 let ray_direction = self.get_pixel_position(i, j, false) - self.center;
-                let ray = Photon{pos: self.center, vel: ray_direction};
+
+                let pos = Vec4::from_space_time(0., self.center);
+
+                let ray = Photon::new(
+                    world.metric.g(pos),
+                    pos,
+                    ray_direction
+                );
+
                 color += self.ray_color(ray, 3, &world);
             }
 

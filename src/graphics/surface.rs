@@ -1,6 +1,6 @@
 use crate::graphics::ray::{PhotonIntersection, Photon};
 use crate::graphics::vector::{self, Color, Point3, FourVector};
-use::glam::Vec4;
+use::glam::{Vec4, Mat4};
 
 pub trait Material {
     fn emission(&self) -> Color {
@@ -34,10 +34,11 @@ impl Material for Diffuse {
         scattered: &mut Photon,
     ) -> bool {
         *attenuation = self.albedo;
-        *scattered = Photon {
-            pos: Vec4::from_space_time(hit.point.time(), hit.point.space() + 0.001 * hit.normal),
-            vel: (hit.normal + vector::random_on_sphere() / 2.0).normalize(),
-        };
+        *scattered = Photon::new(
+            hit.g,
+            Vec4::from_space_time(hit.point.time(), hit.point.space() + 0.001 * hit.normal),
+            (hit.normal + vector::random_on_sphere() / 2.0).normalize(),
+        );
 
         true
     }
@@ -61,22 +62,23 @@ impl Material for Metal {
         attenuation: &mut Color,
         scattered: &mut Photon,
     ) -> bool {
-        let incoming = ray.vel.normalize();
+        let incoming = ray.vel.space().normalize();
         let reflected = incoming - 2.0 * incoming.dot(hit.normal) * hit.normal;
         let fuzz = self.fuzz.clamp(0.0, 1.0);
 
         *attenuation = self.albedo;
-        *scattered = Photon {
-            pos: Vec4::from_space_time(hit.point.time(), hit.point.space() + 0.001 * hit.normal),
-            vel: (reflected + fuzz * vector::random_on_sphere()).normalize(),
-        };
+        *scattered = Photon::new(
+            hit.g,
+            Vec4::from_space_time(hit.point.time(), hit.point.space() + 0.001 * hit.normal),
+            (reflected + fuzz * vector::random_on_sphere()).normalize(),
+        );
 
-        scattered.vel.dot(hit.normal) > 0.0
+        scattered.vel.space().dot(hit.normal) > 0.0
     }
 }
 
 pub trait Surface {
-    fn hit(&self, ray: &Photon) -> Option<PhotonIntersection>;
+    fn hit(&self, ray: &Photon, g: Mat4) -> Option<PhotonIntersection>;
 }
 
 pub struct Sphere {
@@ -86,10 +88,11 @@ pub struct Sphere {
 }
 
 impl Surface for Sphere {
-    fn hit(&self, ray: &Photon) -> Option<PhotonIntersection> {
+    fn hit(&self, ray: &Photon, g: Mat4) -> Option<PhotonIntersection> {
         let x = ray.pos.space() - self.center;
         if x.length() <= self.radius {
             return Some(PhotonIntersection {
+                g: g,
                 point: Vec4::from_space_time(ray.pos.time(), self.center + self.radius * x.normalize()),
                 normal: x.normalize(),
                 material: self.material.as_ref(),

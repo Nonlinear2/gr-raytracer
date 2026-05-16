@@ -6,6 +6,7 @@ use glam::{Vec3, Vec4, Mat4};
 
 
 pub struct PhotonIntersection<'a> {
+    pub g: Mat4,
     pub point: Point4,
     pub normal: Vec3,
     pub material: &'a dyn Material
@@ -27,18 +28,18 @@ impl Photon {
 
         let mut b = 0.;
         for i in 1..4 {
-            b += g[0][i] * vel[i];
+            b += g.col(0)[i] * vel[i];
         }
         b *= 2.*vel[0];
     
         let mut c = 0.;
         for i in 1..4 {
             for j in 1..4 {
-                b += g[i][j] * vel[i] * vel[j];
+                b += g.col(i)[j] * vel[i] * vel[j];
             }
         }
 
-        let k_0 = positive_root(g[0][0], b, c);
+        let k_0 = positive_root(g.col(0)[0], b, c);
 
         Self {
             pos: pos,
