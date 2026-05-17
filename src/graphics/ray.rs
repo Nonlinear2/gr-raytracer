@@ -1,8 +1,5 @@
 use crate::graphics::vector::{CoordinateSystem, FourVector, Point3, Point4, ThreeVector};
 use crate::graphics::surface::Material;
-use crate::integration::solvers::positive_root;
-
-use glam::{Vec3, Vec4, Mat4};
 
 
 pub enum StopReason {

@@ -1,6 +1,5 @@
 ﻿use rand::RngExt;
 use glam::{Vec3, Vec4};
-use std::ops::{Index, IndexMut};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum CoordinateSystem {
@@ -71,7 +70,7 @@ impl ThreeVector {
                 }
                 let theta = (self.z() / r).acos();
 
-                let phi = self.y().atan2(self.x());
+                let phi = self.y().atan2(self.x()).rem_euclid(2.0 * std::f32::consts::PI);
 
                 Self::new_spherical(r, theta, phi)
             }
@@ -189,7 +188,7 @@ pub struct FourVector {
 }
 
 impl FourVector {
-    pub fn new_carthesian(t: f32, x: f32, y: f32, z: f32) -> Self {
+    pub fn new_cartesian(t: f32, x: f32, y: f32, z: f32) -> Self {
         Self {
             inner: Vec4::new(t, x, y, z),
             coordinate_system: CoordinateSystem::Cartesian,

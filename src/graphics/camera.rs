@@ -129,7 +129,7 @@ impl Camera {
 
             let mut color = Color::BLACK;
             for _ in 0..self.samples_per_pixel {
-                let ray_direction = self.get_pixel_position(i, j, false) - self.center;
+                let ray_direction = self.get_pixel_position(i, j, true) - self.center;
 
                 let ray = WorldPhoton::new(self.center, ray_direction);
 

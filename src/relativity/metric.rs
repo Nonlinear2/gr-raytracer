@@ -92,12 +92,12 @@ impl PseudoRiemanianManifold for Euclidean {
     }
 }
 
-pub struct Schwartzschild {
+pub struct Schwarzschild {
     pub center: Point3,
     pub r_s: f32,
 }
 
-impl Schwartzschild {
+impl Schwarzschild {
     pub fn new(center: Point3, r_s: f32) -> Self {
         assert!(center.coordinate_system == CoordinateSystem::Cartesian);
         Self {
@@ -111,7 +111,7 @@ impl Schwartzschild {
     }
 }
 
-impl PseudoRiemanianManifold for Schwartzschild {
+impl PseudoRiemanianManifold for Schwarzschild {
     fn coordinate_system(&self) -> CoordinateSystem {
         CoordinateSystem::Spherical
     }

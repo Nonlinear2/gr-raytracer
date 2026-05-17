@@ -13,7 +13,7 @@ use pixels::{Pixels, SurfaceTexture};
 use crate::{graphics::{camera::Camera, surface::{Metal, Sphere}, vector::Point3}};
 use crate::graphics::color::Color;
 use crate::graphics::world::World;
-use crate::relativity::metric::Schwartzschild;
+use crate::relativity::metric::Schwarzschild;
 
 const HEIGHT: u32 = 80;
 const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
@@ -75,7 +75,7 @@ impl ApplicationHandler for App {
 fn main() {
 
     let world = World {
-        manifold: Box::new(Schwartzschild::new(Point3::new_cartesian(0., 0., -1.), 0.25)), // Box::new(EuclideanMetric {}),
+        manifold: Box::new(Schwarzschild::new(Point3::new_cartesian(0., 0., -1.), 0.25)), // Box::new(EuclideanMetric {}),
         objects: vec![
             // Box::new(Sphere {
             //     center: Point3::new_cartesian(0., 0., -1.),
@@ -106,13 +106,6 @@ fn main() {
 
     let event_loop = EventLoop::new().unwrap();
 
-    // ControlFlow::Poll continuously runs the event loop, even if the OS hasn't
-    // dispatched any events. This is ideal for games and similar applications.
-    event_loop.set_control_flow(ControlFlow::Poll);
-
-    // ControlFlow::Wait pauses the event loop if no events are available to process.
-    // This is ideal for non-game applications that only update in response to user
-    // input, and uses significantly less power/CPU time than ControlFlow::Poll.
     event_loop.set_control_flow(ControlFlow::Wait);
 
     let mut app = App::new(buffer);

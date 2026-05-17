@@ -56,19 +56,6 @@ impl Material for Metal {
     }
 }
 
-pub struct NoMaterial {}
-
-impl Material for NoMaterial {
-    fn emission(&self) -> Color {
-        Color::BLACK
-    }
-
-    fn scatter(&self, _hit: &WorldPhotonState) -> Option<(Color, ThreeVector)> {
-        None
-    }
-}
-
-
 pub trait Surface {
     fn hit(&self, ray: &WorldPhoton) -> Option<WorldPhotonState<'_>>;
 }
