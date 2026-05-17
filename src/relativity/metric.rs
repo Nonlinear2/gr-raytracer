@@ -9,13 +9,13 @@ pub trait PseudoRiemanianManifold {
 
     fn coordinate_system(&self) -> CoordinateSystem;
 
-    fn is_singular(&self, x: Point4) -> bool;
-
-    fn create_photon(&self, x: Point3, vel: ThreeVector) -> Photon;
-
     fn world_to_chart(&self, x: Point3) -> Point3;
 
     fn chart_to_world(&self, x: Point3) -> Point3;
+
+    fn is_singular(&self, x: Point4) -> bool;
+
+    fn create_photon(&self, x: Point3, vel: ThreeVector) -> Photon;
 
     fn photon_to_world(&self, photon: Photon) -> WorldPhoton;
 
@@ -47,6 +47,16 @@ impl PseudoRiemanianManifold for Euclidean {
         CoordinateSystem::Cartesian
     }
 
+    fn world_to_chart(&self, x: Point3) -> Point3 {
+        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
+        x - self.center
+    }
+
+    fn chart_to_world(&self, x: Point3) -> Point3 {
+        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
+        x + self.center
+    }
+
     fn is_singular(&self, _x: Point4) -> bool {
         false
     }
@@ -56,16 +66,6 @@ impl PseudoRiemanianManifold for Euclidean {
             FourVector::from_space_time(0., x),
             FourVector::from_space_time(0., vel)
         )
-    }
-
-    fn world_to_chart(&self, x: Point3) -> Point3 {
-        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
-        x - self.center
-    }
-
-    fn chart_to_world(&self, x: Point3) -> Point3 {
-        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
-        x + self.center
     }
 
     fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
@@ -114,6 +114,16 @@ impl Schwartzschild {
 impl PseudoRiemanianManifold for Schwartzschild {
     fn coordinate_system(&self) -> CoordinateSystem {
         CoordinateSystem::Spherical
+    }
+
+    fn world_to_chart(&self, x: Point3) -> Point3 {
+        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
+        (x - self.center).to_spherical()
+    }
+
+    fn chart_to_world(&self, x: Point3) -> Point3 {
+        assert!(x.coordinate_system == CoordinateSystem::Spherical);
+        x.to_cartesian() + self.center
     }
 
     fn is_singular(&self, x: Point4) -> bool {
@@ -186,16 +196,6 @@ impl PseudoRiemanianManifold for Schwartzschild {
         Photon::new(FourVector::from_space_time(0.0, pos), FourVector::from_space_time(k_0, vel_sph))
     }
 
-    fn world_to_chart(&self, x: Point3) -> Point3 {
-        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
-        (x - self.center).to_spherical()
-    }
-
-    fn chart_to_world(&self, x: Point3) -> Point3 {
-        assert!(x.coordinate_system == CoordinateSystem::Spherical);
-        x.to_cartesian() + self.center
-    }
-
     fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
         assert!(photon.pos.coordinate_system == CoordinateSystem::Spherical);
         assert!(photon.vel.coordinate_system == CoordinateSystem::Spherical);
@@ -212,11 +212,7 @@ impl PseudoRiemanianManifold for Schwartzschild {
         let sin_phi = phi.sin();
         let cos_phi = phi.cos();
 
-        let pos_world = ThreeVector::new_cartesian(
-            r * sin_theta * cos_phi,
-            r * sin_theta * sin_phi,
-            r * cos_theta,
-        ) + self.center;
+        let pos_world = pos.to_cartesian() + self.center;
 
         let vel_world = ThreeVector::new_cartesian(
             sin_theta * cos_phi * vel.r() + r * cos_theta * cos_phi * vel.theta() - r * sin_theta * sin_phi * vel.phi(),
