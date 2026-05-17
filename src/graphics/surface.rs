@@ -80,6 +80,25 @@ impl Material for Metal {
     }
 }
 
+pub struct NoMaterial {}
+
+impl Material for NoMaterial {
+    fn emission(&self) -> Color {
+        Color::BLACK
+    }
+
+    fn scatter(
+        &self,
+        _ray: &Photon,
+        _hit: &PhotonIntersection,
+        _attenuation: &mut Color,
+        _scattered: &mut Photon,
+    ) -> bool {
+        false
+    }
+}
+
+
 pub struct BlackHole {}
 
 impl Material for BlackHole {
@@ -99,7 +118,7 @@ impl Material for BlackHole {
 }
 
 pub trait Surface {
-    fn hit(&self, ray: &Photon, g: Mat4, metric_center: Point3) -> Option<PhotonIntersection>;
+    fn hit(&self, ray: &Photon) -> Option<PhotonIntersection>;
 }
 
 pub struct Sphere {
@@ -109,12 +128,10 @@ pub struct Sphere {
 }
 
 impl Surface for Sphere {
-    fn hit(&self, ray: &Photon, g: Mat4, metric_center: Point3) -> Option<PhotonIntersection> {
+    fn hit(&self, ray: &Photon) -> Option<PhotonIntersection> {
         let x = ray.pos.space() - self.center;
         if x.length() <= self.radius {
             return Some(PhotonIntersection {
-                g: g,
-                metric_center: metric_center,
                 point: Vec4::from_space_time(ray.pos.time(), self.center + self.radius * x.normalize()),
                 normal: x.normalize(),
                 material: self.material.as_ref(),

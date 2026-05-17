@@ -1,7 +1,9 @@
 use crate::graphics::{surface::Surface};
 use crate::relativity::metric::PseudoRiemanianManifold;
 
+pub type Objects = Vec<Box<dyn Surface>>;
+
 pub struct World {
     pub metric: Box<dyn PseudoRiemanianManifold>,
-    pub objects: Vec<Box<dyn Surface>>,   
+    pub objects: Objects,   
 }

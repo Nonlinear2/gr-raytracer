@@ -1,11 +1,12 @@
-use crate::graphics::{ray::Photon, vector::{FourVector, Point3}, world::World};
+use crate::graphics::{ray::{Photon, StopReason}, vector::{FourVector, Point3, Point4, ThreeVector}, world::World};
 use crate::graphics::color::Color;
-use glam::{Vec3, Vec4};
+use crate::integration::integrate::integrate;
+
 use rand::RngExt;
 
 pub struct Camera {
     pub center: Point3,
-    const focal_length: f32,
+    pub focal_length: f32,
     pub viewport_height: f32,
     pub viewport_width: f32,
     pub max_distance: f32,
@@ -16,10 +17,10 @@ pub struct Camera {
     pub img_width: u32,
     pub img_height: u32,
 
-    pub viewport_u_vect: Vec3,
-    pub viewport_v_vect: Vec3,
-    pub pixel_delta_u: Vec3,
-    pub pixel_delta_v: Vec3,
+    pub viewport_u_vect: ThreeVector,
+    pub viewport_v_vect: ThreeVector,
+    pub pixel_delta_u: ThreeVector,
+    pub pixel_delta_v: ThreeVector,
     pub viewport_upper_left: Point3,
     pub first_pixel_loc: Point3,
 }
@@ -34,13 +35,16 @@ impl Camera {
         let viewport_height = 2.0;
         let viewport_width = viewport_height * a_ratio;
     
-        let viewport_u_vect = Vec3{x: viewport_width, y: 0., z: 0.};
-        let viewport_v_vect = Vec3{x: 0., y: -viewport_height, z: 0.};
+        let viewport_u_vect = ThreeVector::new_cartesian(viewport_width, 0., 0.);
+        let viewport_v_vect = ThreeVector::new_cartesian(0., -viewport_height, 0.);
 
-        let pixel_delta_u = viewport_u_vect / (img_width as f32);
-        let pixel_delta_v = viewport_v_vect / (img_height as f32);
+        let pixel_delta_u = viewport_u_vect * (1.0 / img_width as f32);
+        let pixel_delta_v = viewport_v_vect * (1.0 / img_height as f32);
 
-        let viewport_upper_left = center - Vec3{x: 0., y: 0., z: focal_length} - viewport_u_vect/2. - viewport_v_vect/2.;
+        let viewport_upper_left = center
+            - ThreeVector::new_cartesian(0., 0., focal_length)
+            - viewport_u_vect * 0.5
+            - viewport_v_vect * 0.5;
         let first_pixel_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
 
         Self {
@@ -63,68 +67,53 @@ impl Camera {
         }
     }
 
-    pub fn ray_color(&self, mut ray: Photon, depth: u32, world: &World) -> Color {
+    pub fn ray_color(&self, ray: Photon, depth: u32, world: &World) -> Color {
         if depth <= 0 {
             return Color::BLACK;
         }
 
-        for _ in 0..2048 {
-            if (ray.pos.space() - self.center).length() >= self.max_distance {
-                break;
-            }
+        let (hit, stop_reason) = integrate(ray, world);
+        
+        match stop_reason {
+            StopReason::HorizonHit => return Color::BLACK,
+            StopReason::MaxStepsReached => {
+                let tx = (ray.pos.space().x() / 5.0).floor() as i32;
+                let ty = (ray.pos.space().y() / 5.0).floor() as i32;
 
-            // println!("before {}", ray.pos.space());
-            ray = world.metric.step_along_null_geodesic(ray, self.ray_step_size);
-            // println!("after {}", ray.pos.space());
-
-            for obj in &world.objects {
-                if let Some(hit) = obj.hit(&ray, world.metric.g(ray.pos), world.metric.center()) {
-                    let mut scattered = Photon { pos: hit.point, vel: ray.vel };
-                    let mut attenuation = Color::BLACK;
-
-                    if hit.material.scatter(&ray, &hit, &mut attenuation, &mut scattered) {
-                        let bounced = self.ray_color(scattered, depth - 1, world);
-
-                        return hit.material.emission()
-                            + Color {
-                                r: attenuation.r * bounced.r / 255.0,
-                                g: attenuation.g * bounced.g / 255.0,
-                                b: attenuation.b * bounced.b / 255.0,
-                            };
-                    }
-
-                    return hit.material.emission();
+                if (tx + ty) % 2 == 0 {
+                    return Color {r: 100.0, g: 100.0, b: 100.0};
+                } else {
+                    return Color {r: 255.0, g: 255.0, b: 255.0};
                 }
+            },
+            StopReason::ObjectHit => {
+                let hit = hit.unwrap();
+                let mut scattered = Photon { pos: hit.point, vel: ray.vel };
+                let mut attenuation = Color::BLACK;
+
+                if hit.material.scatter(&ray, &hit, &mut attenuation, &mut scattered) {
+                    let bounced = self.ray_color(scattered, depth - 1, world);
+
+                    return hit.material.emission()
+                        + Color {
+                            r: attenuation.r * bounced.r / 255.0,
+                            g: attenuation.g * bounced.g / 255.0,
+                            b: attenuation.b * bounced.b / 255.0,
+                        };
+                }
+
+                return hit.material.emission();
             }
-
-            // if i == 10 {
-            //     panic!();
-            // }
-        }
-
-        // println!("reached 2048");
-
-        // let a = 0.5 * (ray.vel.space().normalize().y + 1.0);
-        // let mut col = (1.-a)*(Color::WHITE) + a*(Color {r: 127.0, g: 190.0, b: 255.0});
-        // if ray.pos.space().x < 0. {
-        //     col.b = 0.;
-        // }
-
-        let tx = (ray.pos.space().x / 5.0).floor() as i32;
-        let ty = (ray.pos.space().y / 5.0).floor() as i32;
-
-        if (tx + ty) % 2 == 0 {
-            Color {r: 100.0, g: 100.0, b: 100.0}
-        } else {
-            Color {r: 255.0, g: 255.0, b: 255.0}
         }
     }
 
-    pub fn get_pixel_position(&self, i: usize, j: usize, offset: bool) -> Vec3 {
+    pub fn get_pixel_position(&self, i: usize, j: usize, offset: bool) -> Point3 {
         let mut pos = self.first_pixel_loc + (self.pixel_delta_u * (i as f32)) + (self.pixel_delta_v * (j as f32));
         if offset {
             let mut rng = rand::rng();
-            pos += rng.random_range(-0.5..0.5) * self.pixel_delta_u + rng.random_range(-0.5..0.5) * self.pixel_delta_v;
+            pos = pos
+                + rng.random_range(-0.5..0.5) * self.pixel_delta_u
+                + rng.random_range(-0.5..0.5) * self.pixel_delta_v;
         }
         pos
     }
