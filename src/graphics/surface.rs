@@ -38,7 +38,7 @@ impl Material for Diffuse {
         *scattered = Photon::from_space_vel(
             hit.g,
             hit.metric_center,
-            Vec4::from_space_time(hit.point.time(), hit.point.space() + 0.001 * hit.normal),
+            FourVector::from_space_time(hit.point.time(), hit.point.space() + 0.001 * hit.normal),
             (hit.normal + vector::random_on_sphere() / 2.0).normalize(),
         );
 

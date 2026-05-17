@@ -220,25 +220,28 @@ impl IndexMut<usize> for FourVector {
     }
 }
 
-pub fn random_on_sphere() -> Vec3 {
+pub fn random_on_sphere(coordinate_system: CoordinateSystem) -> ThreeVector {
     let mut rng = rand::rng();
 
-    let phi = rng.random_range(0.0..2.*std::f32::consts::PI);
     let costheta: f32 = rng.random_range((-1.)..(1.));
-
     let theta = costheta.acos();
-    Vec3 {
-        x: theta.sin() * phi.cos(),
-        y: theta.sin() * phi.sin(),
-        z: theta.cos(),
+    let phi = rng.random_range(0.0..2.*std::f32::consts::PI);
+
+    match coordinate_system {
+        CoordinateSystem::Cartesian => ThreeVector::new_cartesian(
+            theta.sin() * phi.cos(),
+            theta.sin() * phi.sin(),
+            theta.cos()
+        ),
+        CoordinateSystem::Spherical => ThreeVector::new_spherical(1.0, theta, phi)
     }
 }
 
-// returns a random vector in the hemisphere aligned with v
-pub fn random_on_hemisphere(v: Vec3) -> Vec3 {
-    let vec = random_on_sphere();
-    if vec.dot(v) > 0.0 { vec } else { -vec }
-}
+// // returns a random vector in the hemisphere aligned with v
+// pub fn random_on_hemisphere(v: Vec3) -> Vec3 {
+//     let vec = random_on_sphere();
+//     if vec.dot(v) > 0.0 { vec } else { -vec }
+// }
 
 pub type Point3 = ThreeVector;
 pub type Point4 = FourVector;

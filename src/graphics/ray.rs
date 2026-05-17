@@ -1,4 +1,4 @@
-use crate::graphics::vector::{FourVector, Point3, Point4};
+use crate::graphics::vector::{Point3, Point4};
 use crate::graphics::surface::Material;
 use crate::integration::solvers::positive_root;
 
