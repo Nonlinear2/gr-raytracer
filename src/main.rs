@@ -14,7 +14,7 @@ use crate::{graphics::{camera::Camera, surface::{BlackHole, Diffuse, Metal, Sphe
 use crate::graphics::color::Color;
 use crate::graphics::world::World;
 use glam::Vec3;
-use crate::relativity::metric::SchwartzschildMetric;
+use crate::relativity::metric::Schwartzschild;
 
 const HEIGHT: u32 = 80;
 const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
@@ -76,7 +76,7 @@ impl ApplicationHandler for App {
 fn main() {
 
     let world = World {
-        metric: Box::new(SchwartzschildMetric::new(Point3::new_cartesian(0., 0., -1.), 0.25)), // Box::new(EuclideanMetric {}),
+        metric: Box::new(Schwartzschild::new(Point3::new_cartesian(0., 0., -1.), 0.25)), // Box::new(EuclideanMetric {}),
         objects: vec![
             Box::new(Sphere {
                 center: Point3::new_cartesian(0., 0., -1.),

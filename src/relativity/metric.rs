@@ -1,8 +1,13 @@
 use crate::graphics::{ray::Photon, vector::{CoordinateSystem, FourVector, Point3, Point4, ThreeVector}};
 use glam::{Vec4, Mat4, Vec3};
 
-pub trait Metric {
+pub trait PseudoRiemanianManifold {
+    // this trait only support manifolds with a single global chart, that we can access through
+    // the world_to_chart function
+
     fn coordinate_system(&self) -> CoordinateSystem;
+
+    fn world_to_chart(&self, x: Point3) -> Point3;
 
     fn g(&self, x: Point4) -> Mat4;
 
@@ -21,19 +26,24 @@ pub trait Metric {
     // }
 }
 
-pub struct EuclideanMetric {
-
+pub struct Euclidean {
+    pub center: Point3,
 }
 
 
-impl Metric for EuclideanMetric {
+impl PseudoRiemanianManifold for Euclidean {
 
     fn coordinate_system(&self) -> CoordinateSystem {
         CoordinateSystem::Cartesian
     }
 
+    fn world_to_chart(&self, x: Point3) -> Point3 {
+        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
+        x - self.center
+    }
+
     fn g(&self, x: Point4) -> Mat4 {
-        Mat4::ZERO
+        Mat4::IDENTITY
     }
 
     fn del_g(&self, x: Point4, i: u32) -> Mat4 {
@@ -49,13 +59,14 @@ impl Metric for EuclideanMetric {
     }
 }
 
-pub struct SchwartzschildMetric {
+pub struct Schwartzschild {
     pub center: Point3,
     pub r_s: f32,
 }
 
-impl SchwartzschildMetric {
+impl Schwartzschild {
     pub fn new(center: Point3, r_s: f32) -> Self {
+        assert!(center.coordinate_system == CoordinateSystem::Cartesian);
         Self {
             center: center,
             r_s: r_s,
@@ -67,9 +78,14 @@ impl SchwartzschildMetric {
     }
 }
 
-impl Metric for SchwartzschildMetric {
+impl PseudoRiemanianManifold for Schwartzschild {
     fn coordinate_system(&self) -> CoordinateSystem {
         CoordinateSystem::Spherical
+    }
+
+    fn world_to_chart(&self, x: Point3) -> Point3 {
+        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
+        (x - self.center).to_spherical()
     }
 
     fn g(&self, pos: Point4) -> Mat4 {

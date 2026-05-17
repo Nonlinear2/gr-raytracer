@@ -5,7 +5,7 @@ use rand::RngExt;
 
 pub struct Camera {
     pub center: Point3,
-    pub focal_length: f32,
+    const focal_length: f32,
     pub viewport_height: f32,
     pub viewport_width: f32,
     pub max_distance: f32,
@@ -28,7 +28,7 @@ impl Camera {
     pub fn new(img_width: u32, img_height: u32) -> Self {
         let a_ratio = (img_width as f32) / (img_height as f32);
 
-        let center = Point3{x: 0., y: 0., z: 0.};
+        let center = Point3::new_cartesian(0.,0.,0.);
         let focal_length = 1.0;
 
         let viewport_height = 2.0;

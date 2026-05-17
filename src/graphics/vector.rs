@@ -8,6 +8,7 @@ pub enum CoordinateSystem {
     Spherical,
 }
 
+#[derive(Clone, Copy, PartialEq)]
 pub struct ThreeVector {
     pub inner: Vec3,
     pub coordinate_system: CoordinateSystem
@@ -131,6 +132,20 @@ impl std::ops::Add for ThreeVector {
             self.inner.x + rhs.inner.x,
             self.inner.y + rhs.inner.y,
             self.inner.z + rhs.inner.z,
+            self.coordinate_system,
+        )
+    }
+}
+
+impl std::ops::Sub for ThreeVector {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        assert!(self.coordinate_system == rhs.coordinate_system);
+        Self::new(
+            self.inner.x - rhs.inner.x,
+            self.inner.y - rhs.inner.y,
+            self.inner.z - rhs.inner.z,
             self.coordinate_system,
         )
     }
