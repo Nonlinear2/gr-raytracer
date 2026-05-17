@@ -124,6 +124,50 @@ impl Index<usize> for ThreeVector {
     }
 }
 
+impl std::ops::Add for ThreeVector {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        assert!(self.coordinate_system == rhs.coordinate_system);
+        Self::new(
+            self.inner.x + rhs.inner.x,
+            self.inner.y + rhs.inner.y,
+            self.inner.z + rhs.inner.z,
+            self.coordinate_system,
+        )
+    }
+}
+
+impl std::ops::Neg for ThreeVector {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        Self::new_cartesian(-self.inner.x, -self.inner.y, -self.inner.z)
+    }
+}
+
+impl std::ops::Mul<f32> for ThreeVector {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self::new(
+            self.inner.x * rhs,
+            self.inner.y * rhs,
+            self.inner.z * rhs,
+            self.coordinate_system,
+        )
+    }
+}
+
+impl std::ops::Mul<ThreeVector> for f32 {
+    type Output = ThreeVector;
+
+    fn mul(self, rhs: ThreeVector) -> Self::Output {
+        rhs * self
+    }
+}
+
 pub struct FourVector {
     inner: Vec4,
     coordinate_system: CoordinateSystem
