@@ -1,5 +1,5 @@
 use crate::graphics::ray::{PhotonIntersection, Photon};
-use crate::graphics::vector::{self, Point3, FourVector};
+use crate::graphics::vector::{self, FourVector, Point3, ThreeVector};
 use crate::graphics::color::Color;
 use::glam::{Vec4, Mat4};
 
@@ -39,7 +39,7 @@ impl Material for Diffuse {
             hit.g,
             hit.metric_center,
             FourVector::from_space_time(hit.point.t(), hit.point.space() + 0.001 * hit.normal),
-            (hit.normal + vector::random_on_sphere() / 2.0).normalize(),
+            (hit.normal + vector::random_on_sphere(vector::CoordinateSystem::Cartesian) * 0.5).normalize(),
         );
 
         true
@@ -72,7 +72,7 @@ impl Material for Metal {
         *scattered = Photon::from_space_vel(
             hit.g,
             hit.metric_center,
-            Vec4::from_space_time(hit.point.time(), hit.point.space() + 0.001 * hit.normal),
+            ThreeVector::from_space_time(hit.point.t(), hit.point.space() + 0.001 * hit.normal),
             (reflected + fuzz * vector::random_on_sphere()).normalize(),
         );
 

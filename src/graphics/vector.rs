@@ -111,16 +111,12 @@ impl ThreeVector {
     pub fn as_vec3(self) -> Vec3 { self.inner }
 }
 
-impl Index<usize> for ThreeVector {
-    type Output = f32;
+impl std::ops::Neg for ThreeVector {
+    type Output = Self;
 
-    fn index(&self, index: usize) -> &Self::Output {
-        match index {
-            0 => &self.inner.x,
-            1 => &self.inner.y,
-            2 => &self.inner.z,
-            _ => panic!(),
-        }
+    fn neg(self) -> Self::Output {
+        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        Self::new_cartesian(-self.inner.x, -self.inner.y, -self.inner.z)
     }
 }
 
@@ -135,15 +131,6 @@ impl std::ops::Add for ThreeVector {
             self.inner.z + rhs.inner.z,
             self.coordinate_system,
         )
-    }
-}
-
-impl std::ops::Neg for ThreeVector {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
-        Self::new_cartesian(-self.inner.x, -self.inner.y, -self.inner.z)
     }
 }
 
@@ -190,48 +177,48 @@ impl FourVector {
         }
     }
 
-    fn from_space_time(time: f32, space: ThreeVector) -> Self {
+    pub fn from_space_time(time: f32, space: ThreeVector) -> Self {
         Self {
             inner: Vec4::new(time, space.inner.x, space.inner.y, space.inner.z),
             coordinate_system: space.coordinate_system
         }
     }
 
-    fn t(&self) -> f32 {
+    pub fn t(&self) -> f32 {
         self.inner[0]
     }
 
-    fn x(&self) -> f32 {
+    pub fn x(&self) -> f32 {
         assert!(self.coordinate_system == CoordinateSystem::Cartesian);
         self.inner[1]
     }
 
-    fn y(&self) -> f32 {
+    pub fn y(&self) -> f32 {
         assert!(self.coordinate_system == CoordinateSystem::Cartesian);
         self.inner[2]
     }
 
-    fn z(&self) -> f32 {
+    pub fn z(&self) -> f32 {
         assert!(self.coordinate_system == CoordinateSystem::Cartesian);
         self.inner[3]
     }
     
-    fn r(&self) -> f32 {
+    pub fn r(&self) -> f32 {
         assert!(self.coordinate_system == CoordinateSystem::Spherical);
         self.inner[1]
     }
 
-    fn theta(&self) -> f32 {
+    pub fn theta(&self) -> f32 {
         assert!(self.coordinate_system == CoordinateSystem::Spherical);
         self.inner[2]
     }
 
-    fn phi(&self) -> f32 {
+    pub fn phi(&self) -> f32 {
         assert!(self.coordinate_system == CoordinateSystem::Spherical);
         self.inner[3]
     }
 
-    fn space(&self) -> ThreeVector {
+    pub fn space(&self) -> ThreeVector {
         ThreeVector::new(self.inner[1], self.inner[2], self.inner[3], self.coordinate_system)
     }
 

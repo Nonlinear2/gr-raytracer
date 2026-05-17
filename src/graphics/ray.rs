@@ -1,4 +1,4 @@
-use crate::graphics::vector::{Point3, Point4};
+use crate::graphics::vector::{FourVector, Point3, Point4, ThreeVector};
 use crate::graphics::surface::Material;
 use crate::integration::solvers::positive_root;
 
@@ -9,14 +9,14 @@ pub struct PhotonIntersection<'a> {
     pub g: Mat4,
     pub metric_center: Point3,
     pub point: Point4,
-    pub normal: Vec3,
+    pub normal: ThreeVector,
     pub material: &'a dyn Material
 }
 
 
 pub struct Photon {
     pub pos: Point4,
-    pub vel: Vec4,
+    pub vel: FourVector,
 }
 
 impl Photon {
