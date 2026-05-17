@@ -116,6 +116,11 @@ impl ThreeVector {
         ThreeVector { inner: self.inner.normalize(), coordinate_system: CoordinateSystem::Cartesian }
     }
 
+    pub fn dot(&self, other: ThreeVector) -> f32 {
+        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        self.inner.dot(other.inner)
+    }
+
     pub fn as_vec3(self) -> Vec3 { self.inner }
 }
 
