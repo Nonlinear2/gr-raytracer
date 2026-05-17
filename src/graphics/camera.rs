@@ -4,6 +4,8 @@ use crate::integration::integrate::integrate;
 
 use rand::RngExt;
 
+const MAX_LIGHT_BOUNCES: u32 = 3;
+
 pub struct Camera {
     pub center: Point3,
     pub focal_length: f32,
@@ -88,11 +90,15 @@ impl Camera {
             },
             StopReason::ObjectHit => {
                 let hit = hit.unwrap();
-                let mut scattered = Photon { pos: hit.point, vel: ray.vel };
-                let mut attenuation = Color::BLACK;
 
-                if hit.material.scatter(&ray, &hit, &mut attenuation, &mut scattered) {
-                    let bounced = self.ray_color(scattered, depth - 1, world);
+                if let Some((attenuation, new_direction)) = hit.material.scatter(, &hit) { // ray.vel.space()
+                    
+                    let ray = world.metric.create_photon(
+                        hit.point,
+                        new_direction,
+                    );
+
+                    let bounced = self.ray_color(ray, depth - 1, world);
 
                     return hit.material.emission()
                         + Color {
@@ -131,17 +137,12 @@ impl Camera {
             for _ in 0..self.samples_per_pixel {
                 let ray_direction = self.get_pixel_position(i, j, false) - self.center;
 
-                let pos = Vec4::from_space_time(0., self.center);
-
-                let ray = Photon::from_space_vel(
-                    world.metric.g(pos),
-                    world.metric.center(),
-                    pos,
-                    ray_direction
+                let ray = world.metric.create_photon(
+                    self.center,
+                    ray_direction,
                 );
-                // println!("initial ray {}, velocity {}", ray.pos, ray.vel);
 
-                color += self.ray_color(ray, 3, &world);
+                color += self.ray_color(ray, MAX_LIGHT_BOUNCES, &world);
             }
 
             color /= self.samples_per_pixel as f32;

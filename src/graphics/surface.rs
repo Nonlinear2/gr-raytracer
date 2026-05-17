@@ -1,5 +1,5 @@
 use crate::graphics::ray::{PhotonIntersection, Photon};
-use crate::graphics::vector::{self, FourVector, Point3, ThreeVector};
+use crate::graphics::vector::{FourVector, Point3, ThreeVector, CoordinateSystem, random_on_sphere};
 use crate::graphics::color::Color;
 use::glam::{Vec4, Mat4};
 
@@ -8,13 +8,7 @@ pub trait Material {
         Color::BLACK
     }
 
-    fn scatter(
-        &self,
-        ray_in: &Photon,
-        hit: &PhotonIntersection,
-        attenuation: &mut Color,
-        scattered: &mut Photon,
-    ) -> bool;
+    fn scatter(&self, incoming: ThreeVector, hit: &PhotonIntersection) -> Option<(Color, ThreeVector)>;
 }
 
 pub struct Diffuse {
@@ -27,22 +21,11 @@ impl Material for Diffuse {
         self.emission
     }
 
-    fn scatter(
-        &self,
-        _ray: &Photon,
-        hit: &PhotonIntersection,
-        attenuation: &mut Color,
-        scattered: &mut Photon,
-    ) -> bool {
-        *attenuation = self.albedo;
-        *scattered = Photon::from_space_vel(
-            hit.g,
-            hit.metric_center,
-            FourVector::from_space_time(hit.point.t(), hit.point.space() + 0.001 * hit.normal),
-            (hit.normal + vector::random_on_sphere(vector::CoordinateSystem::Cartesian) * 0.5).normalize(),
-        );
-
-        true
+    fn scatter(&self, incoming: ThreeVector, hit: &PhotonIntersection) -> Option<(Color, ThreeVector)> {
+        assert!(incoming.coordinate_system == CoordinateSystem::Cartesian);
+        let new_direction = 
+            (hit.normal + random_on_sphere(CoordinateSystem::Cartesian) * 0.5).normalize();
+        Some((self.albedo, new_direction))
     }
 }
 
@@ -57,26 +40,22 @@ impl Material for Metal {
         self.emission
     }
 
-    fn scatter(
-        &self,
-        ray: &Photon,
-        hit: &PhotonIntersection,
-        attenuation: &mut Color,
-        scattered: &mut Photon,
-    ) -> bool {
-        let incoming = ray.vel.space().normalize();
+    fn scatter(&self, incoming: ThreeVector, hit: &PhotonIntersection) -> Option<(Color, ThreeVector)> {
+        assert!(incoming.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(0.0 <= self.fuzz);
+        assert!(self.fuzz <= 1.0);
+
+        let incoming = incoming.normalize();
         let reflected = incoming - 2.0 * incoming.dot(hit.normal) * hit.normal;
-        let fuzz = self.fuzz.clamp(0.0, 1.0);
 
-        *attenuation = self.albedo;
-        *scattered = Photon::from_space_vel(
-            hit.g,
-            hit.metric_center,
-            ThreeVector::from_space_time(hit.point.t(), hit.point.space() + 0.001 * hit.normal),
-            (reflected + fuzz * vector::random_on_sphere()).normalize(),
-        );
+        let new_direction = 
+            (reflected + self.fuzz * random_on_sphere(CoordinateSystem::Cartesian)).normalize();
 
-        scattered.vel.space().dot(hit.normal) > 0.0
+        if new_direction.dot(hit.normal) > 0.0 {
+            Some((self.albedo, new_direction))
+        } else {
+            None
+        }
     }
 }
 
@@ -87,35 +66,11 @@ impl Material for NoMaterial {
         Color::BLACK
     }
 
-    fn scatter(
-        &self,
-        _ray: &Photon,
-        _hit: &PhotonIntersection,
-        _attenuation: &mut Color,
-        _scattered: &mut Photon,
-    ) -> bool {
-        false
+    fn scatter(&self, _incoming: ThreeVector, _hit: &PhotonIntersection) -> Option<(Color, ThreeVector)> {
+        None
     }
 }
 
-
-pub struct BlackHole {}
-
-impl Material for BlackHole {
-    fn emission(&self) -> Color {
-        Color::BLACK
-    }
-
-    fn scatter(
-        &self,
-        _ray: &Photon,
-        _hit: &PhotonIntersection,
-        _attenuation: &mut Color,
-        _scattered: &mut Photon,
-    ) -> bool {
-        false
-    }
-}
 
 pub trait Surface {
     fn hit(&self, ray: &Photon) -> Option<PhotonIntersection>;
@@ -132,7 +87,7 @@ impl Surface for Sphere {
         let x = ray.pos.space() - self.center;
         if x.length() <= self.radius {
             return Some(PhotonIntersection {
-                point: Vec4::from_space_time(ray.pos.time(), self.center + self.radius * x.normalize()),
+                point: FourVector::from_space_time(ray.pos.t(), self.center + self.radius * x.normalize()),
                 normal: x.normalize(),
                 material: self.material.as_ref(),
             });

@@ -1,4 +1,4 @@
-use crate::graphics::{ray::{Photon, PhotonIntersection}, vector::{CoordinateSystem, FourVector, Point3, Point4, ThreeVector}, world::{Objects, World}};
+use crate::graphics::{ray::Photon, vector::{CoordinateSystem, FourVector, Point3, Point4, ThreeVector}, world::{Objects, World}};
 use crate::graphics::ray::StopReason;
 use crate::integration::solvers::positive_root;
 use glam::{Vec4, Mat4, Vec3};
