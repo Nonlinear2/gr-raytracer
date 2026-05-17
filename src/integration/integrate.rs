@@ -7,7 +7,7 @@ pub fn integrate(ray: Photon, world: &World) -> (Option<PhotonIntersection>, Sto
     for _ in 0..MAX_STEPS {
         ray_ = world.metric.step_along_null_geodesic(ray_, STEP_SIZE);
 
-        if world.metric.is_singular(ray.pos) {
+        if world.metric.is_singular(ray_.pos) {
             return (None, StopReason::HorizonHit);
         }
 

@@ -172,6 +172,7 @@ impl std::ops::Mul<ThreeVector> for f32 {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
 pub struct FourVector {
     pub inner: Vec4,
     pub coordinate_system: CoordinateSystem
@@ -242,29 +243,35 @@ impl FourVector {
     pub fn as_vec4(self) -> Vec4 { self.inner }
 }
 
-impl Index<usize> for FourVector {
-    type Output = f32;
 
-    fn index(&self, index: usize) -> &Self::Output {
-        match index {
-            0 => &self.inner.x,
-            1 => &self.inner.y,
-            2 => &self.inner.z,
-            3 => &self.inner.w,
-            _ => panic!(),
+impl std::ops::Add for FourVector {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        assert!(self.coordinate_system == rhs.coordinate_system);
+        Self {
+            inner: self.inner + rhs.inner,
+            coordinate_system: self.coordinate_system,
         }
     }
 }
 
-impl IndexMut<usize> for FourVector {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        match index {
-            0 => &mut self.inner.x,
-            1 => &mut self.inner.y,
-            2 => &mut self.inner.z,
-            3 => &mut self.inner.w,
-            _ => panic!(),
+impl std::ops::Mul<f32> for FourVector {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self {
+            inner: self.inner * rhs,
+            coordinate_system: self.coordinate_system,
         }
+    }
+}
+
+impl std::ops::Mul<FourVector> for f32 {
+    type Output = FourVector;
+
+    fn mul(self, rhs: FourVector) -> Self::Output {
+        rhs * self
     }
 }
 
