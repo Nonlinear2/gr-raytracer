@@ -69,7 +69,10 @@ impl PseudoRiemanianManifold for Euclidean {
     }
 
     fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
-        photon
+        assert!(photon.pos.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(photon.vel.coordinate_system == CoordinateSystem::Cartesian);
+
+        WorldPhoton::new(photon.pos.space() + self.center, photon.vel.space())
     }
 
     fn g(&self, _x: Point4) -> Mat4 {

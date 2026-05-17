@@ -1,4 +1,4 @@
-use crate::graphics::{ray::{Photon, WorldPhotonState, StopReason, WorldPhoton}, world::World};
+use crate::graphics::{ray::{WorldPhotonState, StopReason, WorldPhoton}, world::World};
 const MAX_STEPS: u32 = 1000;
 const STEP_SIZE: f32 = 0.01;
 

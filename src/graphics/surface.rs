@@ -1,4 +1,4 @@
-use crate::graphics::ray::{Photon, WorldPhotonState, WorldPhoton};
+use crate::graphics::ray::{WorldPhotonState, WorldPhoton};
 use crate::graphics::vector::{Point3, ThreeVector, CoordinateSystem, random_on_sphere};
 use crate::graphics::color::Color;
 

@@ -1,4 +1,4 @@
-use crate::graphics::{ray::{Photon, StopReason, WorldPhoton}, vector::{Point3, ThreeVector}, world::World};
+use crate::graphics::{ray::{StopReason, WorldPhoton}, vector::{Point3, ThreeVector}, world::World};
 use crate::graphics::color::Color;
 use crate::integration::integrate::integrate;
 
@@ -89,21 +89,20 @@ impl Camera {
                 }
             },
             StopReason::ObjectHit => {
-                if let Some((attenuation, new_direction)) = hit.material.scatter(hit) {
-                    
-                    let ray = WorldPhoton { pos: hit.world_photon.pos, vel: new_direction };
+                let material = hit.material.unwrap();
+                if let Some((attenuation, new_direction)) = material.scatter(&hit) {
+                    let ray = WorldPhoton::new(hit.world_photon.pos, new_direction);
 
                     let bounced = self.ray_color(ray, depth - 1, world);
 
-                    return hit.material.emission()
+                    return material.emission()
                         + Color {
                             r: attenuation.r * bounced.r / 255.0,
                             g: attenuation.g * bounced.g / 255.0,
                             b: attenuation.b * bounced.b / 255.0,
                         };
                 }
-
-                return hit.material.emission();
+                return material.emission();
             }
         }
     }
