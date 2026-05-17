@@ -103,12 +103,20 @@ impl Camera {
 
         // println!("reached 2048");
 
-        let a = 0.5 * (ray.vel.space().normalize().y + 1.0);
-        let mut col = (1.-a)*(Color::WHITE) + a*(Color {r: 127.0, g: 190.0, b: 255.0});
-        if ray.pos.space().x < 0. {
-            col.b = 0.;
+        // let a = 0.5 * (ray.vel.space().normalize().y + 1.0);
+        // let mut col = (1.-a)*(Color::WHITE) + a*(Color {r: 127.0, g: 190.0, b: 255.0});
+        // if ray.pos.space().x < 0. {
+        //     col.b = 0.;
+        // }
+
+        let tx = (ray.pos.space().x / 5.0).floor() as i32;
+        let ty = (ray.pos.space().y / 5.0).floor() as i32;
+
+        if (tx + ty) % 2 == 0 {
+            Color {r: 100.0, g: 100.0, b: 100.0}
+        } else {
+            Color {r: 255.0, g: 255.0, b: 255.0}
         }
-        col
     }
 
     pub fn get_pixel_position(&self, i: usize, j: usize, offset: bool) -> Vec3 {

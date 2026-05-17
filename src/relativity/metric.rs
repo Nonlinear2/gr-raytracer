@@ -23,6 +23,44 @@ pub trait Metric {
     // }
 }
 
+pub struct EuclideanMetric {
+
+}
+
+
+impl Metric for EuclideanMetric {
+    fn center(&self) -> Point3 {
+        Point3::ZERO
+    }
+
+    fn g(&self, x: Point4) -> Mat4 {
+        Mat4::ZERO
+    }
+
+    fn g_sph(&self, x: SphVec4) -> Mat4 {
+        Mat4::ZERO
+    }
+
+    fn del_g(&self, x: Point4, i: u32) -> Mat4 {
+        Mat4::ZERO
+    }
+
+    fn del_g_sph(&self, x: SphVec4, i: u32) -> Mat4 {
+        Mat4::ZERO
+    }
+
+    fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32 {
+        0.
+    }
+    fn christoffel_sph(&self, pos: SphVec4, mu: usize, nu: usize, lambda: usize) -> f32 {
+        0.
+    }
+
+    fn step_along_null_geodesic(&self, s: Photon, h: f32) -> Photon {
+        Photon::new(s.pos + s.vel * h, s.vel)
+    }
+}
+
 pub struct SchwartzschildMetric {
     pub center: Point3,
     pub r_s: f32,

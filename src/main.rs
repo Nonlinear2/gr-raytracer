@@ -16,7 +16,7 @@ use crate::graphics::world::World;
 use glam::Vec3;
 use crate::relativity::metric::SchwartzschildMetric;
 
-const HEIGHT: u32 = 100;
+const HEIGHT: u32 = 80;
 const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
 
 #[derive(Default)]
@@ -76,11 +76,11 @@ impl ApplicationHandler for App {
 fn main() {
 
     let world = World {
-        metric: Box::new(SchwartzschildMetric::new(Vec3 { x: 0., y: 0., z: -1. }, 0.2)),
+        metric: Box::new(SchwartzschildMetric::new(Vec3 { x: 0., y: 0., z: -1. }, 0.25)),
         objects: vec![
             Box::new(Sphere {
                 center: Vec3 { x: 0., y: 0., z: -1. },
-                radius: 0.5,
+                radius: 0.27,
                 // material: Box::new(Diffuse {
                 //     albedo: Color { x: 128., y: 0., z: 0. },
                 //     emission: Vec3 { x: 0., y: 0., z: 0. },
