@@ -9,11 +9,13 @@ pub enum CoordinateSystem {
 }
 
 pub struct ThreeVector {
-    inner: Vec3,
-    coordinate_system: CoordinateSystem
+    pub inner: Vec3,
+    pub coordinate_system: CoordinateSystem
 }
 
 impl ThreeVector {
+    pub const ZERO: Self = Self {inner: Vec3 { x: 0., y: 0., z: 0. }, coordinate_system: CoordinateSystem::Cartesian};
+
     pub fn new(x0: f32, x1: f32, x2: f32, coordinate_system: CoordinateSystem) -> Self {
         Self {
             inner: Vec3::new(x0, x1, x2),
@@ -156,8 +158,8 @@ impl std::ops::Mul<ThreeVector> for f32 {
 }
 
 pub struct FourVector {
-    inner: Vec4,
-    coordinate_system: CoordinateSystem
+    pub inner: Vec4,
+    pub coordinate_system: CoordinateSystem
 }
 
 impl FourVector {

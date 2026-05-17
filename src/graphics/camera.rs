@@ -2,6 +2,7 @@ use crate::graphics::{ray::Photon, vector::{FourVector, Point3}, world::World};
 use crate::graphics::color::Color;
 use glam::{Vec3, Vec4};
 use rand::RngExt;
+
 pub struct Camera {
     pub center: Point3,
     pub focal_length: f32,

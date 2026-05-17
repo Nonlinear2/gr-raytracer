@@ -10,7 +10,7 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::{graphics::{camera::Camera, surface::{BlackHole, Diffuse, Metal, Sphere}}, relativity::metric::EuclideanMetric};
+use crate::{graphics::{camera::Camera, surface::{BlackHole, Diffuse, Metal, Sphere}, vector::Point3}, relativity::metric::EuclideanMetric};
 use crate::graphics::color::Color;
 use crate::graphics::world::World;
 use glam::Vec3;
@@ -76,10 +76,10 @@ impl ApplicationHandler for App {
 fn main() {
 
     let world = World {
-        metric: Box::new(SchwartzschildMetric::new(Vec3 { x: 0., y: 0., z: -1. }, 0.25)), // Box::new(EuclideanMetric {}),
+        metric: Box::new(SchwartzschildMetric::new(Point3::new_cartesian(0., 0., -1.), 0.25)), // Box::new(EuclideanMetric {}),
         objects: vec![
             Box::new(Sphere {
-                center: Vec3 { x: 0., y: 0., z: -1. },
+                center: Point3::new_cartesian(0., 0., -1.),
                 radius: 0.27,
                 // material: Box::new(Diffuse {
                 //     albedo: Color { x: 128., y: 0., z: 0. },
@@ -88,7 +88,7 @@ fn main() {
                 material: Box::new(BlackHole {}),
             }),
             Box::new(Sphere {
-                center: Vec3 { x: 0.4, y: 0., z: -0.6 },
+                center: Point3::new_cartesian(0.4, 0., -0.6),
                 radius: 0.1,
                 material: Box::new(Metal {
                     albedo: Color::new(128., 128., 128.),

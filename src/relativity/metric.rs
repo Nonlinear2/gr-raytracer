@@ -1,16 +1,14 @@
-use crate::graphics::{ray::Photon, vector::{FourVector, Point3, Point4, SphVec3, SphVec4}};
+use crate::graphics::{ray::Photon, vector::{CoordinateSystem, FourVector, Point3, Point4, ThreeVector}};
 use glam::{Vec4, Mat4, Vec3};
 
 pub trait Metric {
-    fn center(&self) -> Point3;
+    fn coordinate_system(&self) -> CoordinateSystem;
+
     fn g(&self, x: Point4) -> Mat4;
-    fn g_sph(&self, x: SphVec4) -> Mat4;
 
     fn del_g(&self, x: Point4, i: u32) -> Mat4;
-    fn del_g_sph(&self, x: SphVec4, i: u32) -> Mat4;
 
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32;
-    fn christoffel_sph(&self, pos: SphVec4, mu: usize, nu: usize, lambda: usize) -> f32;
 
     fn step_along_null_geodesic(&self, s: Photon, h: f32) -> Photon;
 
@@ -29,15 +27,12 @@ pub struct EuclideanMetric {
 
 
 impl Metric for EuclideanMetric {
-    fn center(&self) -> Point3 {
-        Point3::ZERO
+
+    fn coordinate_system(&self) -> CoordinateSystem {
+        CoordinateSystem::Cartesian
     }
 
     fn g(&self, x: Point4) -> Mat4 {
-        Mat4::ZERO
-    }
-
-    fn g_sph(&self, x: SphVec4) -> Mat4 {
         Mat4::ZERO
     }
 
@@ -45,14 +40,7 @@ impl Metric for EuclideanMetric {
         Mat4::ZERO
     }
 
-    fn del_g_sph(&self, x: SphVec4, i: u32) -> Mat4 {
-        Mat4::ZERO
-    }
-
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32 {
-        0.
-    }
-    fn christoffel_sph(&self, pos: SphVec4, mu: usize, nu: usize, lambda: usize) -> f32 {
         0.
     }
 
@@ -80,16 +68,13 @@ impl SchwartzschildMetric {
 }
 
 impl Metric for SchwartzschildMetric {
-    fn center(&self) -> Point3 {
-        self.center
+    fn coordinate_system(&self) -> CoordinateSystem {
+        CoordinateSystem::Spherical
     }
 
     fn g(&self, pos: Point4) -> Mat4 {
-        let sph_pos = self.to_spherical_coordinates(pos.space());
-        self.g_sph(SphVec4::new(pos.time(), sph_pos.r(), sph_pos.theta(), sph_pos.phi()))
-    }
+        assert!(pos.coordinate_system == self.coordinate_system());
 
-    fn g_sph(&self, pos: SphVec4) -> Mat4 {
         let r = pos.r();
         let theta = pos.theta();
         assert!(r > self.r_s);
@@ -109,11 +94,8 @@ impl Metric for SchwartzschildMetric {
     }
 
     fn del_g(&self, pos: Point4, i: u32) -> Mat4 {
-        let sph_pos = self.to_spherical_coordinates(pos.space());
-        self.del_g_sph(SphVec4::new(pos.time(), sph_pos.r(), sph_pos.theta(), sph_pos.phi()), i)
-    }
+        assert!(pos.coordinate_system == self.coordinate_system());
 
-    fn del_g_sph(&self, pos: SphVec4, i: u32) -> Mat4 {
         let r = pos.r();
         let theta = pos.theta();
         match i {
@@ -136,19 +118,16 @@ impl Metric for SchwartzschildMetric {
     }
 
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32 {
-        let sph_pos = self.to_spherical_coordinates(pos.space());
-        self.christoffel_sph(SphVec4::new(pos.time(), sph_pos.r(), sph_pos.theta(), sph_pos.phi()), mu, nu, lambda)
-    }
+        assert!(pos.coordinate_system == self.coordinate_system());
 
-    fn christoffel_sph(&self, pos: SphVec4, mu: usize, nu: usize, lambda: usize) -> f32 {
-        let g_inv = self.g_sph(pos).inverse();
+        let g_inv = self.g(pos).inverse();
         let mut gamma = 0.;
 
-        let d_mu_g = self.del_g_sph(pos, mu as u32);
-        let d_nu_g = self.del_g_sph(pos, nu as u32);
+        let d_mu_g = self.del_g(pos, mu as u32);
+        let d_nu_g = self.del_g(pos, nu as u32);
 
         for alpha in 0..4 {
-            let d_alpha_g = self.del_g_sph(pos, alpha as u32);
+            let d_alpha_g = self.del_g(pos, alpha as u32);
 
             gamma += 0.5 * g_inv.col(lambda)[alpha] * (
                 d_mu_g.col(alpha)[nu]

@@ -20,7 +20,7 @@ pub struct Photon {
 }
 
 impl Photon {
-    pub fn from_space_vel(g: Mat4, metric_center: Point3, pos: Point4, vel: Vec3) -> Self {
+    pub fn from_space_vel(g: Mat4, metric_center: Point3, pos: Point4, vel: ThreeVector) -> Self {
         // Metric g is spherical-basis, vel is Cartesian-basis. Convert vel to spherical
         // to avoid mixing bases when solving the null condition g_ij k^i k^j = 0.
 
@@ -88,7 +88,7 @@ impl Photon {
         Self::new(pos, Vec4::from_space_time(k_0, vel_cart))
     }
 
-    pub fn new(pos: Point4, vel: Vec4) -> Self {
+    pub fn new(pos: Point4, vel: FourVector) -> Self {
         Self {
             pos: pos,
             vel: vel,
