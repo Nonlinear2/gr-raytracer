@@ -2,30 +2,75 @@
 use glam::{Vec3, Vec4};
 use std::ops::{Index, IndexMut};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SphVec3 {
-    inner: Vec3,
+#[derive(Clone, Copy, PartialEq)]
+pub enum CoordinateSystem {
+    Cartesian,
+    Spherical,
 }
 
-impl SphVec3 {
-    pub fn new(r: f32, theta: f32, phi: f32) -> Self {
-        assert!(r >= 0.0);
-        assert!((0.0..=std::f32::consts::PI).contains(&theta));
-        Self { inner: Vec3::new(r, theta, phi) }
+pub struct ThreeVector {
+    inner: Vec3,
+    coordinate_system: CoordinateSystem
+}
+
+impl ThreeVector {
+    pub fn new(x0: f32, x1: f32, x2: f32, coordinate_system: CoordinateSystem) -> Self {
+        Self {
+            inner: Vec3::new(x0, x1, x2),
+            coordinate_system: coordinate_system,
+        }
     }
 
-    pub fn r(self) -> f32 { self.inner.x }
-    pub fn theta(self) -> f32 { self.inner.y }
-    pub fn phi(self) -> f32 { self.inner.z }
+    pub fn new_carthesian(x: f32, y: f32, z: f32) -> Self {
+        Self {
+            inner: Vec3::new(x, y, z),
+            coordinate_system: CoordinateSystem::Cartesian,
+        }
+    }
 
-    pub fn with_r(mut self, r: f32) -> Self { self.inner.x = r; self }
-    pub fn with_theta(mut self, theta: f32) -> Self { self.inner.y = theta; self }
-    pub fn with_phi(mut self, phi: f32) -> Self { self.inner.z = phi; self }
+    pub fn new_spherical(t: f32, r: f32, theta: f32, phi: f32) -> Self {
+        assert!(r >= 0.0);
+        assert!((0.0..=std::f32::consts::PI).contains(&theta));
+        Self {
+            inner: Vec3::new(r, theta, phi),
+            coordinate_system: CoordinateSystem::Spherical,
+        }
+    }
+
+    pub fn x(&self) -> f32{
+        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        self.inner[0]
+    }
+
+    pub fn y(&self) -> f32{
+        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        self.inner[1]
+    }
+
+    pub fn z(&self) -> f32{
+        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        self.inner[2]
+    }
+
+    pub fn r(&self) -> f32{
+        assert!(self.coordinate_system == CoordinateSystem::Spherical);
+        self.inner[0]
+    }
+
+    pub fn theta(&self) -> f32{
+        assert!(self.coordinate_system == CoordinateSystem::Spherical);
+        self.inner[1]
+    }
+
+    pub fn phi(&self) -> f32{
+        assert!(self.coordinate_system == CoordinateSystem::Spherical);
+        self.inner[2]
+    }
 
     pub fn as_vec3(self) -> Vec3 { self.inner }
 }
 
-impl Index<usize> for SphVec3 {
+impl Index<usize> for ThreeVector {
     type Output = f32;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -38,72 +83,77 @@ impl Index<usize> for SphVec3 {
     }
 }
 
-impl IndexMut<usize> for SphVec3 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        match index {
-            0 => &mut self.inner.x,
-            1 => &mut self.inner.y,
-            2 => &mut self.inner.z,
-            _ => panic!(),
+pub struct FourVector {
+    inner: Vec4,
+    coordinate_system: CoordinateSystem
+}
+
+impl FourVector {
+    pub fn new_carthesian(t: f32, x: f32, y: f32, z: f32) -> Self {
+        Self {
+            inner: Vec4::new(t, x, y, z),
+            coordinate_system: CoordinateSystem::Cartesian,
         }
     }
-}
 
-
-pub trait FourVector {
-    type Space;
-    fn from_space_time(time: f32, space: Self::Space) -> Self;
-    fn time(&self) -> f32;
-    fn space(&self) -> Self::Space;
-}
-
-impl FourVector for Vec4 {
-    type Space = Vec3;
-
-    fn from_space_time(time: f32, space: Vec3) -> Vec4 {
-        Vec4::new(time, space.x, space.y, space.z)
-    }
-
-    fn time(&self) -> f32 {
-        self.x
-    }
-
-    fn space(&self) -> Vec3 {
-        Vec3::new(self.y, self.z, self.w)
-    }
-}
-
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SphVec4 {
-    inner: Vec4,
-}
-
-impl SphVec4 {
-    pub fn new(t: f32, r: f32, theta: f32, phi: f32) -> Self {
+    pub fn new_spherical(t: f32, r: f32, theta: f32, phi: f32) -> Self {
         assert!(r >= 0.0);
         assert!((0.0..=std::f32::consts::PI).contains(&theta));
-        Self { inner: Vec4::new(t, r, theta, phi) }
+        Self {
+            inner: Vec4::new(t, r, theta, phi),
+            coordinate_system: CoordinateSystem::Spherical,
+        }
     }
 
-    /// Time / ct component
-    pub fn t(self) -> f32 { self.inner.x }
+    fn from_space_time(time: f32, space: ThreeVector) -> Self {
+        Self {
+            inner: Vec4::new(time, space.inner.x, space.inner.y, space.inner.z),
+            coordinate_system: space.coordinate_system
+        }
+    }
 
-    /// Spatial spherical components
-    pub fn r(self) -> f32 { self.inner.y }
-    pub fn theta(self) -> f32 { self.inner.z }
-    pub fn phi(self) -> f32 { self.inner.w }
+    fn t(&self) -> f32 {
+        self.inner[0]
+    }
 
-    pub fn with_ct(mut self, ct: f32) -> Self { self.inner.x = ct; self }
-    pub fn with_time(mut self, t: f32) -> Self { self.inner.x = t; self }
-    pub fn with_r(mut self, r: f32) -> Self { self.inner.y = r; self }
-    pub fn with_theta(mut self, theta: f32) -> Self { self.inner.z = theta; self }
-    pub fn with_phi(mut self, phi: f32) -> Self { self.inner.w = phi; self }
+    fn x(&self) -> f32 {
+        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        self.inner[1]
+    }
+
+    fn y(&self) -> f32 {
+        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        self.inner[2]
+    }
+
+    fn z(&self) -> f32 {
+        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        self.inner[3]
+    }
+    
+    fn r(&self) -> f32 {
+        assert!(self.coordinate_system == CoordinateSystem::Spherical);
+        self.inner[1]
+    }
+
+    fn theta(&self) -> f32 {
+        assert!(self.coordinate_system == CoordinateSystem::Spherical);
+        self.inner[2]
+    }
+
+    fn phi(&self) -> f32 {
+        assert!(self.coordinate_system == CoordinateSystem::Spherical);
+        self.inner[3]
+    }
+
+    fn space(&self) -> ThreeVector {
+        ThreeVector::new(self.inner[1], self.inner[2], self.inner[3], self.coordinate_system)
+    }
 
     pub fn as_vec4(self) -> Vec4 { self.inner }
 }
 
-impl Index<usize> for SphVec4 {
+impl Index<usize> for FourVector {
     type Output = f32;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -117,7 +167,7 @@ impl Index<usize> for SphVec4 {
     }
 }
 
-impl IndexMut<usize> for SphVec4 {
+impl IndexMut<usize> for FourVector {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         match index {
             0 => &mut self.inner.x,
@@ -128,23 +178,6 @@ impl IndexMut<usize> for SphVec4 {
         }
     }
 }
-
-impl FourVector for SphVec4 {
-    type Space = SphVec3;
-
-    fn from_space_time(time: f32, space: SphVec3) -> SphVec4 {
-        SphVec4::new(time, space.r(), space.theta(), space.phi())
-    }
-
-    fn time(&self) -> f32 {
-        self.t()
-    }
-
-    fn space(&self) -> SphVec3 {
-        SphVec3::new(self.r(), self.theta(), self.phi())
-    }
-}
-
 
 pub fn random_on_sphere() -> Vec3 {
     let mut rng = rand::rng();
@@ -166,7 +199,5 @@ pub fn random_on_hemisphere(v: Vec3) -> Vec3 {
     if vec.dot(v) > 0.0 { vec } else { -vec }
 }
 
-pub type Point3 = Vec3;
-pub type Point4 = Vec4;
-pub type SphPoint3 = SphVec3;
-pub type SphPoint4 = SphVec4;
+pub type Point3 = ThreeVector;
+pub type Point4 = FourVector;

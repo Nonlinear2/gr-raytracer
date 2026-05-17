@@ -10,7 +10,7 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::graphics::{camera::Camera, surface::{BlackHole, Diffuse, Metal, Sphere}};
+use crate::{graphics::{camera::Camera, surface::{BlackHole, Diffuse, Metal, Sphere}}, relativity::metric::EuclideanMetric};
 use crate::graphics::color::Color;
 use crate::graphics::world::World;
 use glam::Vec3;
@@ -76,7 +76,7 @@ impl ApplicationHandler for App {
 fn main() {
 
     let world = World {
-        metric: Box::new(SchwartzschildMetric::new(Vec3 { x: 0., y: 0., z: -1. }, 0.25)),
+        metric: Box::new(SchwartzschildMetric::new(Vec3 { x: 0., y: 0., z: -1. }, 0.25)), // Box::new(EuclideanMetric {}),
         objects: vec![
             Box::new(Sphere {
                 center: Vec3 { x: 0., y: 0., z: -1. },
