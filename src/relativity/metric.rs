@@ -1,7 +1,6 @@
-use crate::graphics::{ray::Photon, vector::{CoordinateSystem, FourVector, Point3, Point4, ThreeVector}, world::{Objects, World}};
-use crate::graphics::ray::StopReason;
+use crate::graphics::{ray::{WorldPhoton, Photon}, vector::{CoordinateSystem, FourVector, Point3, Point4, ThreeVector}};
 use crate::integration::solvers::positive_root;
-use glam::{Vec4, Mat4, Vec3};
+use glam::{Vec4, Mat4};
 
 
 pub trait PseudoRiemanianManifold {
@@ -17,6 +16,8 @@ pub trait PseudoRiemanianManifold {
     fn world_to_chart(&self, x: Point3) -> Point3;
 
     fn chart_to_world(&self, x: Point3) -> Point3;
+
+    fn photon_to_world(&self, photon: Photon) -> WorldPhoton;
 
     fn g(&self, x: Point4) -> Mat4;
 
@@ -46,7 +47,7 @@ impl PseudoRiemanianManifold for Euclidean {
         CoordinateSystem::Cartesian
     }
 
-    fn is_singular(&self, x: Point4) -> bool {
+    fn is_singular(&self, _x: Point4) -> bool {
         false
     }
 
@@ -67,15 +68,19 @@ impl PseudoRiemanianManifold for Euclidean {
         x + self.center
     }
 
+    fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
+        photon
+    }
+
     fn g(&self, _x: Point4) -> Mat4 {
         Mat4::IDENTITY
     }
 
-    fn del_g(&self, x: Point4, i: u32) -> Mat4 {
+    fn del_g(&self, _x: Point4, _i: u32) -> Mat4 {
         Mat4::ZERO
     }
 
-    fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32 {
+    fn christoffel(&self, _pos: Point4, _mu: usize, _nu: usize, _lambda: usize) -> f32 {
         0.
     }
 
@@ -109,7 +114,7 @@ impl PseudoRiemanianManifold for Schwartzschild {
     }
 
     fn is_singular(&self, x: Point4) -> bool {
-        (x.space() - self.center).length() <= self.r_s    
+        x.r() <= self.r_s
     }
 
     fn create_photon(&self, x: Point3, vel: ThreeVector) -> Photon {
@@ -126,7 +131,7 @@ impl PseudoRiemanianManifold for Schwartzschild {
         let theta = pos.theta();
         let phi= pos.phi();
 
-        let (v_r, v_th, v_ph, phi_hint) = if r <= 1e-8 {
+        let (v_r, v_th, v_ph, _phi_hint) = if r <= 1e-8 {
             (0.0, 0.0, 0.0, 0.0)
         } else if rho <= 1e-8 {
             let pole_sign = if z >= 0.0 { 1.0 } else { -1.0 };
@@ -184,8 +189,42 @@ impl PseudoRiemanianManifold for Schwartzschild {
     }
 
     fn chart_to_world(&self, x: Point3) -> Point3 {
-        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(x.coordinate_system == CoordinateSystem::Spherical);
         x.to_cartesian() + self.center
+    }
+
+    fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
+        assert!(photon.pos.coordinate_system == CoordinateSystem::Spherical);
+        assert!(photon.vel.coordinate_system == CoordinateSystem::Spherical);
+
+        let pos = photon.pos.space();
+        let vel = photon.vel.space();
+
+        let r = pos.r();
+        let theta = pos.theta();
+        let phi = pos.phi();
+
+        let sin_theta = theta.sin();
+        let cos_theta = theta.cos();
+        let sin_phi = phi.sin();
+        let cos_phi = phi.cos();
+
+        let pos_world = ThreeVector::new_cartesian(
+            r * sin_theta * cos_phi,
+            r * sin_theta * sin_phi,
+            r * cos_theta,
+        ) + self.center;
+
+        let vel_world = ThreeVector::new_cartesian(
+            sin_theta * cos_phi * vel.r() + r * cos_theta * cos_phi * vel.theta() - r * sin_theta * sin_phi * vel.phi(),
+            sin_theta * sin_phi * vel.r() + r * cos_theta * sin_phi * vel.theta() + r * sin_theta * cos_phi * vel.phi(),
+            cos_theta * vel.r() - r * sin_theta * vel.theta(),
+        );
+
+        WorldPhoton::new(
+            pos_world,
+            vel_world,
+        )
     }
 
     fn g(&self, pos: Point4) -> Mat4 {
@@ -259,128 +298,27 @@ impl PseudoRiemanianManifold for Schwartzschild {
     }
 
     fn step_along_null_geodesic(&self, photon: Photon, h: f32) -> Photon {
-        // Integrate in the spherical coordinate chart to keep components and
-        // Christoffel symbols in the same basis. Convert back to Cartesian
-        // for the renderer/hit-testing.
+        let mut x = photon.pos.as_vec4();
+        let mut k = photon.vel.as_vec4();
 
-        // Cartesian spatial pos/vel
-            // Quick sanity check: if photon contains non-finite components, abort stepping.
-            let pos_cart = photon.pos.space();
-            if !(pos_cart.x.is_finite() && pos_cart.y.is_finite() && pos_cart.z.is_finite()) {
-                return photon;
-            }
-
-        let vel_cart = photon.vel.space();
-
-        // spherical position
-        let sph_pos = self.to_spherical_coordinates(pos_cart);
-        let pos_sph4 = SphVec4::new(photon.pos.time(), sph_pos.r(), sph_pos.theta(), sph_pos.phi());
-        // eprintln!("[step] sph_pos: r={}, theta={}, phi={}", sph_pos.r(), sph_pos.theta(), sph_pos.phi());
-
-        // convert spatial velocity (cartesian basis) -> spherical-basis components
-        // Use coordinates relative to the metric center (the spherical chart origin).
-        let (v_sph, phi_hint) = {
-            let pos_rel = pos_cart - self.center;
-            let x = pos_rel.x; let y = pos_rel.y; let z = pos_rel.z;
-            let r = pos_rel.length();
-            let rho = (x*x + y*y).sqrt();
-
-            if r == 0.0 {
-                (Vec3::ZERO, 0.0)
-            } else {
-                let vx = vel_cart.x; let vy = vel_cart.y; let vz = vel_cart.z;
-
-                // dr/dx, dr/dy, dr/dz
-                let dr_dx = x / r; let dr_dy = y / r; let dr_dz = z / r;
-
-                if rho <= 1e-8 {
-                    let pole_sign = if z >= 0.0 { 1.0 } else { -1.0 };
-                    let tangential = (vx * vx + vy * vy).sqrt();
-                    (
-                        Vec3::new(
-                            pole_sign * vz,
-                            tangential / r.max(1e-8),
-                            0.0,
-                        ),
-                        vy.atan2(vx),
-                    )
-                } else {
-                    // dtheta/dx, dtheta/dy, dtheta/dz
-                    let (dth_dx, dth_dy, dth_dz) = (
-                        x * z / (r * r * rho),
-                        y * z / (r * r * rho),
-                        -rho / (r * r),
-                    );
-
-                    // dphi/dx, dphi/dy, dphi/dz
-                    let (dph_dx, dph_dy) = (-y / (rho * rho), x / (rho * rho));
-
-                    (
-                        Vec3::new(
-                            dr_dx * vx + dr_dy * vy + dr_dz * vz,
-                            dth_dx * vx + dth_dy * vy + dth_dz * vz,
-                            dph_dx * vx + dph_dy * vy,
-                        ),
-                        y.atan2(x),
-                    )
-                }
-            }
-        };
-
-        // 4-vector in spherical components: (t, v_r, v_theta, v_phi)
-        let mut x_sph = pos_sph4.as_vec4();
-        let k_sph = Vec4::from_space_time(photon.vel[0], v_sph);
-        if phi_hint != 0.0 {
-            x_sph[3] = phi_hint;
-        }
-        // eprintln!("[step] k_sph before update: {:?}", k_sph);
-        // eprintln!("[step] v_sph: {}", v_sph);
-
-        // update position in spherical components
         for mu in 0..4 {
-            x_sph[mu] += h * k_sph[mu];
+            x[mu] += h * k[mu];
         }
 
-        // update k in spherical components using spherical Christoffels
-        let mut k_new_sph = k_sph;
+        let pos = photon.pos;
         for mu in 0..4 {
             let mut acc = 0.0;
             for alpha in 0..4 {
                 for beta in 0..4 {
-                    let gamma = self.christoffel_sph(pos_sph4, alpha, beta, mu);
-                    acc += gamma * k_sph[alpha] * k_sph[beta];
+                    acc += self.christoffel(pos, alpha, beta, mu) * k[alpha] * k[beta];
                 }
             }
-            k_new_sph[mu] -= h * acc;
+            k[mu] -= h * acc;
         }
-        // eprintln!("[step] k_new_sph after update: {:?}", k_new_sph);
-        // eprintln!("[step] x_sph after position update: {:?}", x_sph);
-
-        // convert spherical-position back to cartesian space coords
-        // x_sph[1] may have become negative due to numerical error; clamp it
-        let r = x_sph[1].max(1e-8);
-        let theta = x_sph[2];
-        let phi = x_sph[3];
-        let sin_th = theta.sin(); let cos_th = theta.cos();
-        let sin_ph = phi.sin(); let cos_ph = phi.cos();
-
-        let pos_cart_new = Vec3::new(
-            r * sin_th * cos_ph,
-            r * sin_th * sin_ph,
-            r * cos_th,
-        ) + self.center;
-
-        // convert spherical-basis velocity components back to cartesian
-        let v_sph_new = Vec3::new(k_new_sph[1], k_new_sph[2], k_new_sph[3]);
-        let vx_new = (sin_th * cos_ph) * v_sph_new.x + (r * cos_th * cos_ph) * v_sph_new.y + (-r * sin_th * sin_ph) * v_sph_new.z;
-        let vy_new = (sin_th * sin_ph) * v_sph_new.x + (r * cos_th * sin_ph) * v_sph_new.y + (r * sin_th * cos_ph) * v_sph_new.z;
-        let vz_new = (cos_th) * v_sph_new.x + (-r * sin_th) * v_sph_new.y + 0.0 * v_sph_new.z;
-
-        let vel_cart_new = Vec3::new(vx_new, vy_new, vz_new);
 
         Photon {
-            pos: Vec4::from_space_time(x_sph[0], pos_cart_new),
-            vel: Vec4::from_space_time(k_new_sph[0], vel_cart_new),
+            pos: FourVector { inner: x, coordinate_system: photon.pos.coordinate_system },
+            vel: FourVector { inner: k, coordinate_system: photon.vel.coordinate_system },
         }
     }
 }

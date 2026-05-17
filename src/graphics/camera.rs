@@ -1,4 +1,4 @@
-use crate::graphics::{ray::{Photon, StopReason}, vector::{FourVector, Point3, Point4, ThreeVector}, world::World};
+use crate::graphics::{ray::{Photon, StopReason, WorldPhoton}, vector::{Point3, ThreeVector}, world::World};
 use crate::graphics::color::Color;
 use crate::integration::integrate::integrate;
 
@@ -69,7 +69,7 @@ impl Camera {
         }
     }
 
-    pub fn ray_color(&self, ray: Photon, depth: u32, world: &World) -> Color {
+    pub fn ray_color(&self, ray: WorldPhoton, depth: u32, world: &World) -> Color {
         if depth <= 0 {
             return Color::BLACK;
         }
@@ -79,9 +79,8 @@ impl Camera {
         match stop_reason {
             StopReason::HorizonHit => return Color::BLACK,
             StopReason::MaxStepsReached => {
-                let ray_coords = world.manifold.chart_to_world(ray.pos);
-                let tx = (ray_coords.x() / 5.0).floor() as i32;
-                let ty = (ray_coords.y() / 5.0).floor() as i32;
+                let tx = (hit.world_photon.pos.x() / 5.0).floor() as i32;
+                let ty = (hit.world_photon.pos.y() / 5.0).floor() as i32;
 
                 if (tx + ty) % 2 == 0 {
                     return Color {r: 100.0, g: 100.0, b: 100.0};
@@ -90,14 +89,9 @@ impl Camera {
                 }
             },
             StopReason::ObjectHit => {
-                let hit = hit.unwrap();
-
-                if let Some((attenuation, new_direction)) = hit.material.scatter(, &hit) { // ray.vel.space()
+                if let Some((attenuation, new_direction)) = hit.material.scatter(hit) {
                     
-                    let ray = world.manifold.create_photon(
-                        hit.point,
-                        new_direction,
-                    );
+                    let ray = WorldPhoton { pos: hit.world_photon.pos, vel: new_direction };
 
                     let bounced = self.ray_color(ray, depth - 1, world);
 
@@ -138,10 +132,7 @@ impl Camera {
             for _ in 0..self.samples_per_pixel {
                 let ray_direction = self.get_pixel_position(i, j, false) - self.center;
 
-                let ray = world.manifold.create_photon(
-                    self.center,
-                    ray_direction,
-                );
+                let ray = WorldPhoton::new(self.center, ray_direction);
 
                 color += self.ray_color(ray, MAX_LIGHT_BOUNCES, &world);
             }

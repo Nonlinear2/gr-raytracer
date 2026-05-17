@@ -1,22 +1,39 @@
-use crate::graphics::{ray::{Photon, PhotonIntersection, StopReason}, world::World};
+use crate::graphics::{ray::{Photon, WorldPhotonState, StopReason, WorldPhoton}, world::World};
 const MAX_STEPS: u32 = 1000;
 const STEP_SIZE: f32 = 0.01;
 
-pub fn integrate(ray: Photon, world: &World) -> (Option<PhotonIntersection>, StopReason) {
-    let mut ray_ = ray;
-    for _ in 0..MAX_STEPS {
-        ray_ = world.manifold.step_along_null_geodesic(ray_, STEP_SIZE);
+pub fn integrate(world_ray: WorldPhoton, world: &World) -> (WorldPhotonState<'_>, StopReason) {
+    let mut ray = world.manifold.create_photon(world_ray.pos, world_ray.vel);
 
-        if world.manifold.is_singular(ray_.pos) {
-            return (None, StopReason::HorizonHit);
+    for _ in 0..MAX_STEPS {
+        ray = world.manifold.step_along_null_geodesic(ray, STEP_SIZE);
+
+        let world_ray = world.manifold.photon_to_world(ray);
+
+        if world.manifold.is_singular(ray.pos) {
+            return (
+                WorldPhotonState {
+                    world_photon: world_ray,
+                    normal: None,
+                    material: None,
+                },
+                StopReason::HorizonHit
+            );
         }
 
         for obj in &world.objects {
-            if let Some(hit) = obj.hit(&ray_) {
-                return (Some(hit), StopReason::ObjectHit);
+            if let Some(hit) = obj.hit(&world_ray) {
+                return (hit, StopReason::ObjectHit);
             }
         }
     }
 
-    return (None, StopReason::MaxStepsReached);
+    return (
+        WorldPhotonState {
+            world_photon: world_ray,
+            normal: None,
+            material: None,
+        },
+        StopReason::MaxStepsReached
+    );
 }
