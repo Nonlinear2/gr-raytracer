@@ -77,48 +77,6 @@ impl SchwartzschildMetric {
     pub fn mass(&self) -> f32 { // schwartzschild radius
         return self.r_s; // r_s = 2GM/c^2.
     }
-
-    pub fn to_spherical_coordinates(&self, pos: Point3) -> SphVec3 {
-        let relative_pos = pos - self.center;
-        let mut length = relative_pos.length();
-
-        // guard against NaN/Inf or non-physical small/negative radii produced
-        // by numerical errors elsewhere. Clamp to just outside the horizon.
-        if !length.is_finite() {
-            length = self.r_s + 1e-6;
-        }
-        if length <= self.r_s {
-            length = self.r_s + 1e-6;
-        }
-
-        let theta = if length > 0. {
-            // protect the acos argument against tiny numeric overshoot
-            let cos_theta = (relative_pos.z / length).clamp(-1.0, 1.0);
-            cos_theta.acos()
-        } else { 0. };
-
-        let phi = if relative_pos.x.is_finite() && relative_pos.y.is_finite() {
-            relative_pos.y.atan2(relative_pos.x)
-        } else { 0. };
-
-        // Guard against NaN theta/phi from numeric errors; default to safe fallback values
-        // Also avoid exact poles (theta == 0 or PI) which make the spherical chart
-        // singular (sin theta == 0) and produce infinities when inverting the metric.
-        let theta = if theta.is_finite() && (0.0..=std::f32::consts::PI).contains(&theta) {
-            // clamp slightly away from the poles
-            theta.clamp(1e-6, std::f32::consts::PI - 1e-6)
-        } else {
-            std::f32::consts::PI / 2.0  // default to equator if invalid
-        };
-
-        let phi = if phi.is_finite() {
-            phi
-        } else {
-            0.0
-        };
-
-        SphVec3::new(length, theta, phi)
-    }
 }
 
 impl Metric for SchwartzschildMetric {

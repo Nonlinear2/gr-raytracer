@@ -21,19 +21,57 @@ impl ThreeVector {
         }
     }
 
-    pub fn new_carthesian(x: f32, y: f32, z: f32) -> Self {
+    pub fn new_cartesian(x: f32, y: f32, z: f32) -> Self {
         Self {
             inner: Vec3::new(x, y, z),
             coordinate_system: CoordinateSystem::Cartesian,
         }
     }
 
-    pub fn new_spherical(t: f32, r: f32, theta: f32, phi: f32) -> Self {
+    pub fn new_spherical(r: f32, theta: f32, phi: f32) -> Self {
         assert!(r >= 0.0);
         assert!((0.0..=std::f32::consts::PI).contains(&theta));
         Self {
             inner: Vec3::new(r, theta, phi),
             coordinate_system: CoordinateSystem::Spherical,
+        }
+    }
+
+    pub fn length(&self) -> f32 {
+        match self.coordinate_system {
+            CoordinateSystem::Cartesian => self.inner.length(),
+            CoordinateSystem::Spherical => self.r(),
+        }
+    }
+
+    pub fn to_cartesian(self) -> Self {
+        match self.coordinate_system {
+            CoordinateSystem::Cartesian => self,
+            CoordinateSystem::Spherical => {
+
+                let x = self.r() * self.theta().sin() * self.phi().cos();
+                let y = self.r() * self.theta().sin() * self.phi().sin();
+                let z = self.r() * self.theta().cos();
+
+                Self::new_cartesian(x, y, z)
+            }
+        }
+    }
+
+    pub fn to_spherical(self) -> Self {
+        match self.coordinate_system {
+            CoordinateSystem::Spherical => self,
+            CoordinateSystem::Cartesian => {
+                let r = self.length();
+                if r == 0.0 {
+                    return Self::new_spherical(r, 0.0, 0.0);
+                }
+                let theta = (self.z() / r).acos();
+
+                let phi = self.y().atan2(self.x());
+
+                Self::new_spherical(r, theta, phi)
+            }
         }
     }
 
@@ -54,16 +92,19 @@ impl ThreeVector {
 
     pub fn r(&self) -> f32{
         assert!(self.coordinate_system == CoordinateSystem::Spherical);
+        assert!(self.inner[0] >= 0.);
         self.inner[0]
     }
 
     pub fn theta(&self) -> f32{
         assert!(self.coordinate_system == CoordinateSystem::Spherical);
+        assert!((0.0..=std::f32::consts::PI).contains(&self.inner[1]));
         self.inner[1]
     }
 
     pub fn phi(&self) -> f32{
         assert!(self.coordinate_system == CoordinateSystem::Spherical);
+        assert!((0.0..=(2.*std::f32::consts::PI)).contains(&self.inner[2]));
         self.inner[2]
     }
 
