@@ -75,7 +75,7 @@ impl ApplicationHandler for App {
 fn main() {
 
     let world = World {
-        metric: Box::new(Schwartzschild::new(Point3::new_cartesian(0., 0., -1.), 0.25)), // Box::new(EuclideanMetric {}),
+        manifold: Box::new(Schwartzschild::new(Point3::new_cartesian(0., 0., -1.), 0.25)), // Box::new(EuclideanMetric {}),
         objects: vec![
             // Box::new(Sphere {
             //     center: Point3::new_cartesian(0., 0., -1.),

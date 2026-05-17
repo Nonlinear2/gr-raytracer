@@ -16,6 +16,8 @@ pub trait PseudoRiemanianManifold {
 
     fn world_to_chart(&self, x: Point3) -> Point3;
 
+    fn chart_to_world(&self, x: Point3) -> Point3;
+
     fn g(&self, x: Point4) -> Mat4;
 
     fn del_g(&self, x: Point4, i: u32) -> Mat4;
@@ -60,7 +62,12 @@ impl PseudoRiemanianManifold for Euclidean {
         x - self.center
     }
 
-    fn g(&self, x: Point4) -> Mat4 {
+    fn chart_to_world(&self, x: Point3) -> Point3 {
+        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
+        x + self.center
+    }
+
+    fn g(&self, _x: Point4) -> Mat4 {
         Mat4::IDENTITY
     }
 
@@ -174,6 +181,11 @@ impl PseudoRiemanianManifold for Schwartzschild {
     fn world_to_chart(&self, x: Point3) -> Point3 {
         assert!(x.coordinate_system == CoordinateSystem::Cartesian);
         (x - self.center).to_spherical()
+    }
+
+    fn chart_to_world(&self, x: Point3) -> Point3 {
+        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
+        x.to_cartesian() + self.center
     }
 
     fn g(&self, pos: Point4) -> Mat4 {

@@ -1,13 +1,13 @@
-use crate::graphics::{ray::{Photon, PhotonIntersection, StopReason}, vector::ThreeVector, world::World};
+use crate::graphics::{ray::{Photon, PhotonIntersection, StopReason}, world::World};
 const MAX_STEPS: u32 = 1000;
 const STEP_SIZE: f32 = 0.01;
 
 pub fn integrate(ray: Photon, world: &World) -> (Option<PhotonIntersection>, StopReason) {
     let mut ray_ = ray;
     for _ in 0..MAX_STEPS {
-        ray_ = world.metric.step_along_null_geodesic(ray_, STEP_SIZE);
+        ray_ = world.manifold.step_along_null_geodesic(ray_, STEP_SIZE);
 
-        if world.metric.is_singular(ray_.pos) {
+        if world.manifold.is_singular(ray_.pos) {
             return (None, StopReason::HorizonHit);
         }
 

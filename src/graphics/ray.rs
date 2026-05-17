@@ -12,7 +12,7 @@ pub enum StopReason {
 }
 
 pub struct PhotonIntersection<'a> {
-    pub point: Point4,
+    pub point: Point3,
     pub normal: ThreeVector,
     pub material: &'a dyn Material
 }

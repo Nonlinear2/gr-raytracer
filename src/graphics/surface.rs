@@ -87,7 +87,7 @@ impl Surface for Sphere {
         let x = ray.pos.space() - self.center;
         if x.length() <= self.radius {
             return Some(PhotonIntersection {
-                point: FourVector::from_space_time(ray.pos.t(), self.center + self.radius * x.normalize()),
+                point: self.center + self.radius * x.normalize(),
                 normal: x.normalize(),
                 material: self.material.as_ref(),
             });

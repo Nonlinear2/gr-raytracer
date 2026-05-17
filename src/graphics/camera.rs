@@ -75,12 +75,13 @@ impl Camera {
         }
 
         let (hit, stop_reason) = integrate(ray, world);
-        
+
         match stop_reason {
             StopReason::HorizonHit => return Color::BLACK,
             StopReason::MaxStepsReached => {
-                let tx = (ray.pos.space().x() / 5.0).floor() as i32;
-                let ty = (ray.pos.space().y() / 5.0).floor() as i32;
+                let ray_coords = world.manifold.chart_to_world(ray.pos);
+                let tx = (ray_coords.x() / 5.0).floor() as i32;
+                let ty = (ray_coords.y() / 5.0).floor() as i32;
 
                 if (tx + ty) % 2 == 0 {
                     return Color {r: 100.0, g: 100.0, b: 100.0};
@@ -93,7 +94,7 @@ impl Camera {
 
                 if let Some((attenuation, new_direction)) = hit.material.scatter(, &hit) { // ray.vel.space()
                     
-                    let ray = world.metric.create_photon(
+                    let ray = world.manifold.create_photon(
                         hit.point,
                         new_direction,
                     );
@@ -137,7 +138,7 @@ impl Camera {
             for _ in 0..self.samples_per_pixel {
                 let ray_direction = self.get_pixel_position(i, j, false) - self.center;
 
-                let ray = world.metric.create_photon(
+                let ray = world.manifold.create_photon(
                     self.center,
                     ray_direction,
                 );
