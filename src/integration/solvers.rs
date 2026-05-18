@@ -1,16 +1,20 @@
 pub fn positive_root(a: f32, b: f32, c: f32) -> f32 {
-    let mut delta = b*b - 4.0*a*c;
+    let eps = 1e-8_f32;
 
-    // tolerate tiny negatives due to rounding
-    if delta < 0.0 && delta > -1e-6 {
-        delta = 0.0;
+    if a.abs() < eps {
+        if b.abs() < eps {
+            eprintln!("a and b close to zero");
+            return 0.0;
+        }
+        return (-c / b).clamp(-1e6, 1e6);
     }
+
+    let delta = b * b - 4.0 * a * c;
 
     if delta < 0.0 {
         eprintln!(" negative discriminant delta={}", delta);
-        // fallback: return the best real-valued estimate (use -b/(2a))
-        return -b / (2.0 * a);
+        return (-b / (2.0 * a)).clamp(-1e6, 1e6);
     }
 
-    (-b + delta.sqrt()) / (2.0 * a)
+    return ((-b + delta.sqrt()) / (2.0*a)).clamp(0., 1e6);
 }

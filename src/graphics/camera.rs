@@ -70,7 +70,8 @@ impl Camera {
         }
     }
 
-    pub fn debug_photon_trajectory(&self, world: &World) {
+    #[allow(dead_code)]
+    pub fn debug_ray_trajectory(&self, world: &World) {
         let i = self.img_width as usize / 4;
         let j = 0;
         let ray_direction = self.get_pixel_position(i, j, false) - self.center;

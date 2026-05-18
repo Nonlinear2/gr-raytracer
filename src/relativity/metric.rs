@@ -27,13 +27,6 @@ pub trait PseudoRiemanianManifold {
 
     fn step_along_null_geodesic(&self, s: Photon, h: f32) -> Photon;
 
-    // fn dot(&self, x: Point4, v1: Vec4, v2: Vec4) -> f32 {
-    //     v1.dot(self.g(x) * v2)
-    // }
-
-    // fn norm(&self, x: Point4, v1: Vec4) -> f32 {
-    //     self.dot(x, v1, v1)
-    // }
 }
 
 pub struct Euclidean {
@@ -106,6 +99,7 @@ impl Schwarzschild {
         }
     }
 
+    #[allow(dead_code)]
     pub fn mass(&self) -> f32 { // schwartzschild radius
         return self.r_s; // r_s = 2GM/c^2.
     }
@@ -206,6 +200,9 @@ impl PseudoRiemanianManifold for Schwarzschild {
         let r = pos.r();
         let theta = pos.theta();
         let phi = pos.phi();
+        let v_r = vel.inner[0];
+        let v_theta = vel.inner[1];
+        let v_phi = vel.inner[2];
 
         let sin_theta = theta.sin();
         let cos_theta = theta.cos();
@@ -215,9 +212,9 @@ impl PseudoRiemanianManifold for Schwarzschild {
         let pos_world = pos.to_cartesian() + self.center;
 
         let vel_world = ThreeVector::new_cartesian(
-            sin_theta * cos_phi * vel.r() + r * cos_theta * cos_phi * vel.theta() - r * sin_theta * sin_phi * vel.phi(),
-            sin_theta * sin_phi * vel.r() + r * cos_theta * sin_phi * vel.theta() + r * sin_theta * cos_phi * vel.phi(),
-            cos_theta * vel.r() - r * sin_theta * vel.theta(),
+            sin_theta * cos_phi * v_r + r * cos_theta * cos_phi * v_theta - r * sin_theta * sin_phi * v_phi,
+            sin_theta * sin_phi * v_r + r * cos_theta * sin_phi * v_theta + r * sin_theta * cos_phi * v_phi,
+            cos_theta * v_r - r * sin_theta * v_theta,
         );
 
         WorldPhoton::new(
@@ -273,15 +270,26 @@ impl PseudoRiemanianManifold for Schwarzschild {
 
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32 {
         assert!(pos.coordinate_system == self.coordinate_system());
+        // Avoid computing the inverse metric exactly at the coordinate singularities
+        // (the poles) where g contains factors of sin(theta)->0 causing g^{-1}
+        // to blow up. Perturb theta slightly when it is too close to 0 or PI.
+        let mut pos_for_metric = pos;
+        let theta = pos.theta();
+        let eps: f32 = 1e-6;
+        if theta <= eps || theta >= std::f32::consts::PI - eps {
+            let theta_adj = if theta <= eps { eps } else { std::f32::consts::PI - eps };
+            // eprintln!("[christoffel] perturbing theta from {} to {} to avoid pole", theta, theta_adj);
+            pos_for_metric = FourVector::new_spherical(pos.t(), pos.r(), theta_adj, pos.phi());
+        }
 
-        let g_inv = self.g(pos).inverse();
+        let g_inv = self.g(pos_for_metric).inverse();
         let mut gamma = 0.;
 
-        let d_mu_g = self.del_g(pos, mu as u32);
-        let d_nu_g = self.del_g(pos, nu as u32);
+        let d_mu_g = self.del_g(pos_for_metric, mu as u32);
+        let d_nu_g = self.del_g(pos_for_metric, nu as u32);
 
         for alpha in 0..4 {
-            let d_alpha_g = self.del_g(pos, alpha as u32);
+            let d_alpha_g = self.del_g(pos_for_metric, alpha as u32);
 
             gamma += 0.5 * g_inv.col(lambda)[alpha] * (
                 d_mu_g.col(alpha)[nu]
@@ -297,27 +305,58 @@ impl PseudoRiemanianManifold for Schwarzschild {
     }
 
     fn step_along_null_geodesic(&self, photon: Photon, h: f32) -> Photon {
-        let mut x = photon.pos.as_vec4();
+        let x = photon.pos.as_vec4();
         let mut k = photon.vel.as_vec4();
 
+        // 1. compute velocity update using CURRENT position
         for mu in 0..4 {
-            x[mu] += h * k[mu];
-        }
-
-        let pos = photon.pos;
-        for mu in 0..4 {
-            let mut acc = 0.0;
+            let mut acc = 0.0_f32;
             for alpha in 0..4 {
                 for beta in 0..4 {
-                    acc += self.christoffel(pos, alpha, beta, mu) * k[alpha] * k[beta];
+                    let gamma = self.christoffel(photon.pos, alpha, beta, mu);
+                    acc += gamma * k[alpha] * k[beta];
                 }
             }
             k[mu] -= h * acc;
         }
 
+        // 2. update position using CURRENT (pre-step) velocity
+        let mut new_x = x;
+        for mu in 0..4 {
+            new_x[mu] += h * photon.vel.as_vec4()[mu];
+        }
+
+        // 3. fix up spherical coordinates
+        let mut r     = new_x[1];
+        let mut theta = new_x[2];
+        let mut phi   = new_x[3];
+
+        if r < 0.0 {
+            r = -r;
+            theta = std::f32::consts::PI - theta;
+            k[1] = -k[1];
+            k[2] = -k[2];
+            phi += std::f32::consts::PI;
+        }
+
+        while theta < 0.0 {
+            theta = -theta;
+            k[2] = -k[2];
+            phi += std::f32::consts::PI;
+        }
+        while theta > std::f32::consts::PI {
+            theta = 2.0 * std::f32::consts::PI - theta;
+            k[2] = -k[2];
+            phi += std::f32::consts::PI;
+        }
+
+        new_x[1] = r;
+        new_x[2] = theta.clamp(0.0, std::f32::consts::PI);
+        new_x[3] = phi.rem_euclid(std::f32::consts::TAU);
+
         Photon {
-            pos: FourVector { inner: x, coordinate_system: photon.pos.coordinate_system },
-            vel: FourVector { inner: k, coordinate_system: photon.vel.coordinate_system },
+            pos: FourVector { inner: new_x, coordinate_system: photon.pos.coordinate_system },
+            vel: FourVector { inner: k,     coordinate_system: photon.vel.coordinate_system },
         }
     }
 }
