@@ -27,6 +27,8 @@ pub trait PseudoRiemanianManifold {
 
     fn g(&self, x: Point4) -> Mat4;
 
+    fn g_inv(&self, x: Point4) -> Mat4;
+
     fn del_g(&self, x: Point4, i: u32) -> Mat4;
 
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32;
@@ -90,6 +92,10 @@ impl PseudoRiemanianManifold for Euclidean {
     }
 
     fn g(&self, _x: Point4) -> Mat4 {
+        Mat4::IDENTITY
+    }
+
+    fn g_inv(&self, _x: Point4) -> Mat4 {
         Mat4::IDENTITY
     }
 
@@ -275,6 +281,24 @@ impl PseudoRiemanianManifold for Schwarzschild {
         g
     }
 
+    fn g_inv(&self, pos: Point4) -> Mat4 {
+        assert!(pos.coordinate_system == self.coordinate_system());
+        assert!(pos.theta().sin() != 0.);
+
+        let r = pos.r();
+        let theta = pos.theta();
+        assert!(r > self.r_s);
+
+        let g_inv = Mat4 {
+            x_axis: Vec4::new(1. / (1. - self.r_s / r), 0., 0., 0.),
+            y_axis: Vec4::new(0., self.r_s / r - 1., 0., 0.),
+            z_axis: Vec4::new(0., 0., -1./(r*r), 0.),
+            w_axis: Vec4::new(0., 0., 0., -1./(r*r*theta.sin()*theta.sin())),
+        };
+
+        g_inv
+    }
+
     fn del_g(&self, pos: Point4, i: u32) -> Mat4 {
         assert!(pos.coordinate_system == self.coordinate_system());
 
@@ -313,7 +337,7 @@ impl PseudoRiemanianManifold for Schwarzschild {
             pos_for_metric = FourVector::new_spherical(pos.t(), pos.r(), theta_adj, pos.phi());
         }
 
-        let g_inv = self.g(pos_for_metric).inverse();
+        let g_inv = self.g_inv(pos_for_metric);
         let mut gamma = 0.;
 
         let d_mu_g = self.del_g(pos_for_metric, mu as u32);
@@ -352,35 +376,7 @@ impl PseudoRiemanianManifold for Schwarzschild {
             }
         }
 
-        let (mut new_x, mut new_k) = euler::euler_step(x, k, del_x, del_k);
-
-        // 3. fix up spherical coordinates
-        let mut r     = new_x[1];
-        let mut theta = new_x[2];
-        let mut phi   = new_x[3];
-
-        if r < 0.0 {
-            r = -r;
-            theta = std::f32::consts::PI - theta;
-            new_k[1] = -new_k[1];
-            new_k[2] = -new_k[2];
-            phi += std::f32::consts::PI;
-        }
-
-        while theta < 0.0 {
-            theta = -theta;
-            new_k[2] = -new_k[2];
-            phi += std::f32::consts::PI;
-        }
-        while theta > std::f32::consts::PI {
-            theta = 2.0 * std::f32::consts::PI - theta;
-            new_k[2] = -new_k[2];
-            phi += std::f32::consts::PI;
-        }
-
-        new_x[1] = r;
-        new_x[2] = theta.clamp(0.0, std::f32::consts::PI);
-        new_x[3] = phi.rem_euclid(std::f32::consts::TAU);
+        let (new_x, new_k) = euler::euler_step(x, k, del_x, del_k);
 
         Photon {
             pos: new_x,
