@@ -164,17 +164,19 @@ impl PseudoRiemanianManifold for Schwarzschild {
         let x = rel.x();
         let y = rel.y();
         let z = rel.z();
-        let rho = (x * x + y * y).sqrt();
+        let rho = (x * x + y * y).sqrt(); // distance to the z axis
         let pos = rel.to_spherical();
         let r = pos.r();
         let theta = pos.theta();
 
+        // if the photon is close to the z axis, spherical coordinates become singular, and v_phi becomes unphysical.
+        // we set it to 0.0 arbitrairly.
         let (v_r, v_th, v_ph) = if rho <= SPH_EPS {
             let pole_sign = if z >= 0.0 { 1.0 } else { -1.0 };
             let tangential = (vel.x() * vel.x() + vel.y() * vel.y()).sqrt();
             (
                 pole_sign * vel.z(),
-                tangential / r.max(1e-8),
+                tangential / r,
                 0.0,
             )
         } else {
@@ -194,8 +196,8 @@ impl PseudoRiemanianManifold for Schwarzschild {
         };
 
         let vel_sph = ThreeVector::new(v_r, v_th, v_ph, CoordinateSystem::Spherical);
-        let pos = if rho <= 1e-8 {
-            let phi_hint = vel.y().atan2(vel.x()).rem_euclid(std::f32::consts::TAU);
+        let pos = if rho <= SPH_EPS {
+            let phi_hint = vel.to_spherical().phi();
             ThreeVector::new_spherical(r, theta, phi_hint)
         } else {
             pos

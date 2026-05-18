@@ -103,7 +103,7 @@ fn main() {
     
     let camera: Camera = Camera::new(WIDTH, HEIGHT);
 
-    // camera.debug_photon(&world);
+    // camera.debug_ray_trajectory(&world);
     // return;
 
     let start = Instant::now();
