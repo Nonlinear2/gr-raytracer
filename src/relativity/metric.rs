@@ -158,6 +158,7 @@ impl PseudoRiemanianManifold for Schwarzschild {
     fn create_photon(&self, x: Point3, vel: ThreeVector) -> Photon {
         assert!(x.coordinate_system == CoordinateSystem::Cartesian);
         assert!(vel.coordinate_system == CoordinateSystem::Cartesian);
+        assert!((x - self.center).length() > SPH_EPS);
 
         let rel = x - self.center;
         let x = rel.x();
@@ -167,18 +168,14 @@ impl PseudoRiemanianManifold for Schwarzschild {
         let pos = rel.to_spherical();
         let r = pos.r();
         let theta = pos.theta();
-        let phi= pos.phi();
 
-        let (v_r, v_th, v_ph, _phi_hint) = if r <= 1e-8 {
-            (0.0, 0.0, 0.0, 0.0)
-        } else if rho <= 1e-8 {
+        let (v_r, v_th, v_ph) = if rho <= SPH_EPS {
             let pole_sign = if z >= 0.0 { 1.0 } else { -1.0 };
             let tangential = (vel.x() * vel.x() + vel.y() * vel.y()).sqrt();
             (
                 pole_sign * vel.z(),
                 tangential / r.max(1e-8),
                 0.0,
-                vel.y().atan2(vel.x()).rem_euclid(std::f32::consts::TAU),
             )
         } else {
             let dr_dx = x / r;
@@ -193,7 +190,6 @@ impl PseudoRiemanianManifold for Schwarzschild {
                 dr_dx * vel.x() + dr_dy * vel.y() + dr_dz * vel.z(),
                 dth_dx * vel.x() + dth_dy * vel.y() + dth_dz * vel.z(),
                 dph_dx * vel.x() + dph_dy * vel.y(),
-                phi,
             )
         };
 
@@ -205,20 +201,24 @@ impl PseudoRiemanianManifold for Schwarzschild {
             pos
         };
 
-        let pos_sph4 = FourVector::from_space_time(0.0, pos);
-        let g = self.g(pos_sph4);
+        let photon_x= FourVector::from_space_time(0.0, pos);
+
+        // compute k^0 such that <k, k> = 0 so that the photon's trajectory be lightlike.
+        // we need to solve g_mu_nu k^mu k^nu = 0 for k^0 which is a quadratic equation
+
+        let g = self.g(photon_x);
         let b = 2.0 * (g.col(0)[1] * v_r + g.col(0)[2] * v_th + g.col(0)[3] * v_ph);
-        let mut c = 0.0;
-        c += g.col(1)[1] * v_r * v_r;
-        c += 2.0 * g.col(1)[2] * v_r * v_th;
-        c += 2.0 * g.col(1)[3] * v_r * v_ph;
-        c += g.col(2)[2] * v_th * v_th;
-        c += 2.0 * g.col(2)[3] * v_th * v_ph;
-        c += g.col(3)[3] * v_ph * v_ph;
+        let c = 
+              g.col(1)[1] * v_r * v_r
+            + 2.0 * g.col(1)[2] * v_r * v_th
+            + 2.0 * g.col(1)[3] * v_r * v_ph
+            + g.col(2)[2] * v_th * v_th
+            + 2.0 * g.col(2)[3] * v_th * v_ph
+            + g.col(3)[3] * v_ph * v_ph;
 
         let k_0 = positive_root(g.col(0)[0], b, c);
 
-        Photon::new(FourVector::from_space_time(0.0, pos), FourVector::from_space_time(k_0, vel_sph))
+        Photon::new(photon_x, FourVector::from_space_time(k_0, vel_sph))
     }
 
     fn photon_to_world_pos(&self, photon: Photon) -> ThreeVector {
