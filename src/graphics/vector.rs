@@ -62,17 +62,26 @@ impl ThreeVector {
     }
 
     pub fn to_spherical(self) -> Self {
+        assert!(self.length() != 0.0);
         match self.coordinate_system {
             CoordinateSystem::Spherical => self,
             CoordinateSystem::Cartesian => {
                 let r = self.length();
-                if r == 0.0 {
-                    return Self::new_spherical(r, 0.0, 0.0);
-                }
                 let theta = (self.z() / r).acos();
-
                 let phi = self.y().atan2(self.x()).rem_euclid(2.0 * std::f32::consts::PI);
 
+                Self::new_spherical(r, theta, phi)
+            }
+        }
+    }
+
+    pub fn to_spherical_on_z_axis(self, phi: f32) -> Self {
+        assert!(self.length() != 0.0);
+        match self.coordinate_system {
+            CoordinateSystem::Spherical => self,
+            CoordinateSystem::Cartesian => {
+                let r = self.length();
+                let theta = (self.z() / r).acos();
                 Self::new_spherical(r, theta, phi)
             }
         }
