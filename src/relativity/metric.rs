@@ -2,6 +2,7 @@ use crate::{graphics::{ray::{Photon, WorldPhoton}, vector::{CoordinateSystem, Fo
 use crate::integration::solvers::positive_root;
 use glam::{Vec4, Mat4};
 
+const SPH_EPS: f32 = 1e-8;
 
 pub trait PseudoRiemanianManifold {
     // this trait only support manifolds with a single global chart, that we can access through
@@ -283,7 +284,9 @@ impl PseudoRiemanianManifold for Schwarzschild {
 
     fn g_inv(&self, pos: Point4) -> Mat4 {
         assert!(pos.coordinate_system == self.coordinate_system());
-        assert!(pos.theta().sin() != 0.);
+        assert!(pos.r() > self.r_s);
+        assert!(pos.theta() >= SPH_EPS);
+        assert!(pos.theta() <= std::f32::consts::PI - SPH_EPS);
 
         let r = pos.r();
         let theta = pos.theta();
@@ -324,27 +327,16 @@ impl PseudoRiemanianManifold for Schwarzschild {
     }
 
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32 {
-        assert!(pos.coordinate_system == self.coordinate_system());
-        // Avoid computing the inverse metric exactly at the coordinate singularities
-        // (the poles) where g contains factors of sin(theta)->0 causing g^{-1}
-        // to blow up. Perturb theta slightly when it is too close to 0 or PI.
-        let mut pos_for_metric = pos;
-        let theta = pos.theta();
-        let eps: f32 = 1e-6;
-        if theta <= eps || theta >= std::f32::consts::PI - eps {
-            let theta_adj = if theta <= eps { eps } else { std::f32::consts::PI - eps };
-            // eprintln!("[christoffel] perturbing theta from {} to {} to avoid pole", theta, theta_adj);
-            pos_for_metric = FourVector::new_spherical(pos.t(), pos.r(), theta_adj, pos.phi());
-        }
+        assert!(pos.coordinate_system == CoordinateSystem::Spherical);
 
-        let g_inv = self.g_inv(pos_for_metric);
+        let g_inv = self.g_inv(pos);
         let mut gamma = 0.;
 
-        let d_mu_g = self.del_g(pos_for_metric, mu as u32);
-        let d_nu_g = self.del_g(pos_for_metric, nu as u32);
+        let d_mu_g = self.del_g(pos, mu as u32);
+        let d_nu_g = self.del_g(pos, nu as u32);
 
         for alpha in 0..4 {
-            let d_alpha_g = self.del_g(pos_for_metric, alpha as u32);
+            let d_alpha_g = self.del_g(pos, alpha as u32);
 
             gamma += 0.5 * g_inv.col(lambda)[alpha] * (
                 d_mu_g.col(alpha)[nu]
@@ -360,17 +352,24 @@ impl PseudoRiemanianManifold for Schwarzschild {
     }
 
     fn step_along_null_geodesic(&self, photon: Photon) -> Photon {
-        let x = photon.pos;
+        let mut x = photon.pos;
+
+        // avoid coordinate chart singularity for theta = 0 or theta = pi      
+        if x.theta() < SPH_EPS || x.theta() > std::f32::consts::PI - SPH_EPS {
+            let theta_adj = if x.theta() <= SPH_EPS { SPH_EPS } else { std::f32::consts::PI - SPH_EPS };
+            // eprintln!("[christoffel] perturbing theta from {} to {} to avoid pole", theta, theta_adj);
+            x = FourVector::new_spherical(x.t(), x.r(), theta_adj, x.phi());
+        }
+
         let k = photon.vel;
 
         let del_x = k;
 
         let mut del_k = FourVector::ZERO_SPH;
-
         for mu in 0..4 {
             for alpha in 0..4 {
                 for beta in 0..4 {
-                    let gamma = self.christoffel(photon.pos, alpha, beta, mu);
+                    let gamma = self.christoffel(x, alpha, beta, mu);
                     del_k[mu] -= gamma * k[alpha] * k[beta];
                 }
             }
