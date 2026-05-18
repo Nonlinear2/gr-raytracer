@@ -1,4 +1,5 @@
 pub mod camera;
+pub mod point;
 pub mod vector;
 pub mod ray;
 pub mod surface;

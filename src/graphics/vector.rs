@@ -1,139 +1,99 @@
 ﻿use rand::RngExt;
 use glam::{Vec3, Vec4};
 
+/// basis of the tangent space at a point (unspecified) of a given chart on R^3/R^4 (that is, a coordinate system).
+/// the tangent space identified with R^3/R^4 thus the basis is composed of vectors.
+/// (see proposition 3.2 J.Lee smooth manifolds).
 #[derive(Clone, Copy, PartialEq)]
-pub enum CoordinateSystem {
+pub enum TangentSpace {
     Cartesian,
-    Spherical,
+    Spherical, 
 }
 
+/// vector of a given tangent space.
+/// this struct assumes that the tangent space basis vectors are orthonormal.
+/// This is the case for cartesian and spherical tangent spaces.
 #[derive(Clone, Copy, PartialEq)]
 pub struct ThreeVector {
     pub inner: Vec3,
-    pub coordinate_system: CoordinateSystem
+    pub vector_space: TangentSpace
 }
 
 impl ThreeVector {
-    pub const ZERO_CART: Self = Self {inner: Vec3::new(0., 0., 0.), coordinate_system: CoordinateSystem::Cartesian};
-    pub const ZERO_SPH: Self = Self {inner: Vec3::new(0., 0., 0.), coordinate_system: CoordinateSystem::Spherical};
+    pub const ZERO_CART: Self = Self {inner: Vec3::new(0., 0., 0.), vector_space: TangentSpace::Cartesian};
+    pub const ZERO_SPH: Self = Self {inner: Vec3::new(0., 0., 0.), vector_space: TangentSpace::Spherical};
 
-    pub fn new(x0: f32, x1: f32, x2: f32, coordinate_system: CoordinateSystem) -> Self {
+    pub fn new(x0: f32, x1: f32, x2: f32, space: TangentSpace) -> Self {
         Self {
             inner: Vec3::new(x0, x1, x2),
-            coordinate_system: coordinate_system,
+            vector_space: space,
         }
     }
 
     pub fn new_cartesian(x: f32, y: f32, z: f32) -> Self {
         Self {
             inner: Vec3::new(x, y, z),
-            coordinate_system: CoordinateSystem::Cartesian,
+            vector_space: TangentSpace::Cartesian,
         }
     }
 
+    // here the arguments are the components along the basis e_r, e_theta, e_phi of the tangent space.
+    // So r, theta, phi can be anything (negative, outside of -pi, pi, ...)
     pub fn new_spherical(r: f32, theta: f32, phi: f32) -> Self {
-        assert!(r >= 0.0);
-        assert!((0.0..=std::f32::consts::PI).contains(&theta));
         Self {
             inner: Vec3::new(r, theta, phi),
-            coordinate_system: CoordinateSystem::Spherical,
+            vector_space: TangentSpace::Spherical,
         }
     }
 
     pub fn length(&self) -> f32 {
-        match self.coordinate_system {
-            CoordinateSystem::Cartesian => self.inner.length(),
-            CoordinateSystem::Spherical => self.r(),
-        }
-    }
-
-    pub fn to_cartesian(self) -> Self {
-        match self.coordinate_system {
-            CoordinateSystem::Cartesian => self,
-            CoordinateSystem::Spherical => {
-
-                let x = self.r() * self.theta().sin() * self.phi().cos();
-                let y = self.r() * self.theta().sin() * self.phi().sin();
-                let z = self.r() * self.theta().cos();
-
-                Self::new_cartesian(x, y, z)
-            }
-        }
-    }
-
-    pub fn to_spherical(self) -> Self {
-        assert!(self.length() != 0.0);
-        match self.coordinate_system {
-            CoordinateSystem::Spherical => self,
-            CoordinateSystem::Cartesian => {
-                let r = self.length();
-                let theta = (self.z() / r).acos();
-                let phi = self.y().atan2(self.x()).rem_euclid(2.0 * std::f32::consts::PI);
-
-                Self::new_spherical(r, theta, phi)
-            }
-        }
-    }
-
-    pub fn to_spherical_on_z_axis(self, phi: f32) -> Self {
-        assert!(self.length() != 0.0);
-        match self.coordinate_system {
-            CoordinateSystem::Spherical => self,
-            CoordinateSystem::Cartesian => {
-                let r = self.length();
-                let theta = (self.z() / r).acos();
-                Self::new_spherical(r, theta, phi)
-            }
-        }
+        self.inner.length()
     }
 
     pub fn x(&self) -> f32{
-        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.vector_space == TangentSpace::Cartesian);
         assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn y(&self) -> f32{
-        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.vector_space == TangentSpace::Cartesian);
         assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn z(&self) -> f32{
-        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.vector_space == TangentSpace::Cartesian);
         assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn r(&self) -> f32{
-        assert!(self.coordinate_system == CoordinateSystem::Spherical);
-        assert!(self.inner[0] >= 0.);
+        assert!(self.vector_space == TangentSpace::Spherical);
         assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn theta(&self) -> f32{
-        assert!(self.coordinate_system == CoordinateSystem::Spherical);
-        assert!((0.0..=std::f32::consts::PI).contains(&self.inner[1]));
+        assert!(self.vector_space == TangentSpace::Spherical);
         assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn phi(&self) -> f32{
-        assert!(self.coordinate_system == CoordinateSystem::Spherical);
+        assert!(self.vector_space == TangentSpace::Spherical);
         assert!((0.0..=std::f32::consts::TAU).contains(&self.inner[2]));
         assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn normalize(&self) -> ThreeVector {
-        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
         assert!(self.length() != 0.);
-        ThreeVector { inner: self.inner.normalize(), coordinate_system: CoordinateSystem::Cartesian }
+        ThreeVector { inner: self.inner.normalize(), vector_space: TangentSpace::Cartesian }
     }
 
     pub fn dot(&self, other: ThreeVector) -> f32 {
-        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.vector_space == TangentSpace::Cartesian);
         self.inner.dot(other.inner)
     }
 
@@ -168,8 +128,7 @@ impl std::ops::Neg for ThreeVector {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
-        Self::new_cartesian(-self.inner.x, -self.inner.y, -self.inner.z)
+        Self::new(-self.inner.x, -self.inner.y, -self.inner.z, self.vector_space)
     }
 }
 
@@ -177,12 +136,12 @@ impl std::ops::Add for ThreeVector {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        assert!(self.coordinate_system == rhs.coordinate_system);
+        assert!(self.vector_space == rhs.vector_space);
         Self::new(
             self.inner.x + rhs.inner.x,
             self.inner.y + rhs.inner.y,
             self.inner.z + rhs.inner.z,
-            self.coordinate_system,
+            self.vector_space,
         )
     }
 }
@@ -191,12 +150,12 @@ impl std::ops::Sub for ThreeVector {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        assert!(self.coordinate_system == rhs.coordinate_system);
+        assert!(self.vector_space == rhs.vector_space);
         Self::new(
             self.inner.x - rhs.inner.x,
             self.inner.y - rhs.inner.y,
             self.inner.z - rhs.inner.z,
-            self.coordinate_system,
+            self.vector_space,
         )
     }
 }
@@ -209,7 +168,7 @@ impl std::ops::Mul<f32> for ThreeVector {
             self.inner.x * rhs,
             self.inner.y * rhs,
             self.inner.z * rhs,
-            self.coordinate_system,
+            self.vector_space,
         )
     }
 }
@@ -222,36 +181,39 @@ impl std::ops::Mul<ThreeVector> for f32 {
     }
 }
 
+/// vector of a given tangent space.
+/// this struct assumes that the tangent space basis vectors are orthonormal.
+/// This is the case for cartesian and spherical tangent spaces.
 #[derive(Clone, Copy, PartialEq)]
 pub struct FourVector {
     pub inner: Vec4,
-    pub coordinate_system: CoordinateSystem
+    pub vector_space: TangentSpace,
 }
 
 impl FourVector {
-    pub const ZERO_CART: Self = Self {inner: Vec4::new(0., 0., 0., 0.), coordinate_system: CoordinateSystem::Cartesian};
-    pub const ZERO_SPH: Self = Self {inner: Vec4::new(0., 0., 0., 0.), coordinate_system: CoordinateSystem::Spherical};
+    pub const ZERO_CART: Self = Self {inner: Vec4::new(0., 0., 0., 0.), vector_space: TangentSpace::Cartesian};
+    pub const ZERO_SPH: Self = Self {inner: Vec4::new(0., 0., 0., 0.), vector_space: TangentSpace::Spherical};
 
     pub fn new_cartesian(t: f32, x: f32, y: f32, z: f32) -> Self {
         Self {
             inner: Vec4::new(t, x, y, z),
-            coordinate_system: CoordinateSystem::Cartesian,
+            vector_space: TangentSpace::Cartesian,
         }
     }
 
+    // here the arguments are the components along the basis e_t, e_r, e_theta, e_phi of the tangent space.
+    // So r, theta, phi can be anything (negative, outside of -pi, pi, ...)
     pub fn new_spherical(t: f32, r: f32, theta: f32, phi: f32) -> Self {
-        assert!(r >= 0.0);
-        assert!((0.0..=std::f32::consts::PI).contains(&theta));
         Self {
             inner: Vec4::new(t, r, theta, phi),
-            coordinate_system: CoordinateSystem::Spherical,
+            vector_space: TangentSpace::Spherical,
         }
     }
 
     pub fn from_space_time(time: f32, space: ThreeVector) -> Self {
         Self {
             inner: Vec4::new(time, space.inner.x, space.inner.y, space.inner.z),
-            coordinate_system: space.coordinate_system
+            vector_space: space.vector_space
         }
     }
 
@@ -261,46 +223,43 @@ impl FourVector {
     }
 
     pub fn x(&self) -> f32 {
-        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.vector_space == TangentSpace::Cartesian);
         assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn y(&self) -> f32 {
-        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.vector_space == TangentSpace::Cartesian);
         assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn z(&self) -> f32 {
-        assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.vector_space == TangentSpace::Cartesian);
         assert!(self.inner[3].is_finite());
         self.inner[3]
     }
     
     pub fn r(&self) -> f32 {
-        assert!(self.coordinate_system == CoordinateSystem::Spherical);
-        assert!(self.inner[1] >= 0.);
+        assert!(self.vector_space == TangentSpace::Spherical);
         assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn theta(&self) -> f32 {
-        assert!(self.coordinate_system == CoordinateSystem::Spherical);
-        assert!((0.0..=std::f32::consts::PI).contains(&self.inner[2]));
+        assert!(self.vector_space == TangentSpace::Spherical);
         assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn phi(&self) -> f32 {
-        assert!(self.coordinate_system == CoordinateSystem::Spherical);
-        assert!((0.0..=std::f32::consts::TAU).contains(&self.inner[3]));
+        assert!(self.vector_space == TangentSpace::Spherical);
         assert!(self.inner[3].is_finite());
         self.inner[3]
     }
 
     pub fn space(&self) -> ThreeVector {
-        ThreeVector::new(self.inner[1], self.inner[2], self.inner[3], self.coordinate_system)
+        ThreeVector::new(self.inner[1], self.inner[2], self.inner[3], self.vector_space)
     }
 
     pub fn as_vec4(self) -> Vec4 { self.inner }
@@ -336,10 +295,10 @@ impl std::ops::Add for FourVector {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        assert!(self.coordinate_system == rhs.coordinate_system);
+        assert!(self.vector_space == rhs.vector_space);
         Self {
             inner: self.inner + rhs.inner,
-            coordinate_system: self.coordinate_system,
+            vector_space: self.vector_space,
         }
     }
 }
@@ -350,7 +309,7 @@ impl std::ops::Mul<f32> for FourVector {
     fn mul(self, rhs: f32) -> Self::Output {
         Self {
             inner: self.inner * rhs,
-            coordinate_system: self.coordinate_system,
+            vector_space: self.vector_space,
         }
     }
 }
@@ -364,18 +323,19 @@ impl std::ops::Mul<FourVector> for f32 {
 }
 
 #[allow(dead_code)]
-pub fn random_on_sphere(coordinate_system: CoordinateSystem) -> ThreeVector {
+pub fn random_on_sphere(vector_space: TangentSpace) -> ThreeVector {
     let mut rng = rand::rng();
 
     let costheta: f32 = rng.random_range((-1.)..(1.));
     let theta = costheta.acos();
     let phi = rng.random_range(0.0..std::f32::consts::TAU);
 
-    let v = ThreeVector::new_spherical(1.0, theta, phi);
-    match coordinate_system {
-        CoordinateSystem::Spherical => v,
-        CoordinateSystem::Cartesian => v.to_cartesian(),
-    }
+    ThreeVector::new(
+        theta.sin() * phi.cos(),
+        theta.sin() * phi.sin(),
+        costheta,
+        vector_space
+    )
 }
 
 // // returns a random vector in the hemisphere aligned with v
@@ -383,6 +343,3 @@ pub fn random_on_sphere(coordinate_system: CoordinateSystem) -> ThreeVector {
 //     let vec = random_on_sphere();
 //     if vec.dot(v) > 0.0 { vec } else { -vec }
 // }
-
-pub type Point3 = ThreeVector;
-pub type Point4 = FourVector;
