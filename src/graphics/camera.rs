@@ -4,7 +4,8 @@ use crate::integration::integrate::integrate;
 
 use rand::RngExt;
 
-const MAX_LIGHT_BOUNCES: u32 = 3;
+const MAX_LIGHT_BOUNCES: u32 = 1;
+const SAMPLES_PER_PIXEL: u32 = 1;
 
 pub struct Camera {
     pub center: Point3,
@@ -56,7 +57,7 @@ impl Camera {
             viewport_width: viewport_width,
             max_distance: 5.,
             ray_step_size: 0.02,
-            samples_per_pixel: 30,
+            samples_per_pixel: SAMPLES_PER_PIXEL,
             img_width: img_width,
             img_height: img_height,
 
@@ -69,6 +70,28 @@ impl Camera {
         }
     }
 
+    pub fn debug_photon_trajectory(&self, world: &World) {
+        let i = self.img_width as usize / 4;
+        let j = 0;
+        let ray_direction = self.get_pixel_position(i, j, false) - self.center;
+        let mut photon: crate::graphics::ray::Photon = world.manifold.create_photon(self.center, ray_direction);
+
+        println!("x,y,z");
+
+        for _step in 0..500 {
+            let world_photon = world.manifold.photon_to_world(photon);
+            let p = world_photon.pos;
+            println!("{:.6}, {:.6}, {:.6}", p.x(), p.y(), p.z());
+
+            if world.manifold.is_singular(photon.pos) {
+                eprintln!("hit singularity");
+                break;
+            }
+
+            photon = world.manifold.step_along_null_geodesic(photon, self.ray_step_size);
+        }
+    }
+
     pub fn ray_color(&self, ray: WorldPhoton, depth: u32, world: &World) -> Color {
         if depth <= 0 {
             return Color::BLACK;
@@ -78,15 +101,18 @@ impl Camera {
 
         match stop_reason {
             StopReason::HorizonHit => return Color::BLACK,
-            StopReason::MaxStepsReached => {
-                let tx = (hit.world_photon.pos.x() / 5.0).floor() as i32;
-                let ty = (hit.world_photon.pos.y() / 5.0).floor() as i32;
+            StopReason::BackgroundReached => {
+                let tx = (hit.world_photon.pos.x() * 2.).floor() as i32;
+                let ty = (hit.world_photon.pos.y() * 2.).floor() as i32;
 
                 if (tx + ty) % 2 == 0 {
-                    return Color {r: 100.0, g: 100.0, b: 100.0};
+                    return Color::new(35.0, 35.0, 35.0);
                 } else {
-                    return Color {r: 255.0, g: 255.0, b: 255.0};
+                    return Color::new(235.0, 235.0, 235.0);
                 }
+            },
+            StopReason::MaxStepsReached => {
+                Color { r: 255., g: 0., b: 0. }
             },
             StopReason::ObjectHit => {
                 let material = hit.material.unwrap();

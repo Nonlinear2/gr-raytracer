@@ -4,6 +4,7 @@ use crate::graphics::surface::Material;
 
 pub enum StopReason {
     MaxStepsReached,
+    BackgroundReached,
     ObjectHit,
     HorizonHit,
 }

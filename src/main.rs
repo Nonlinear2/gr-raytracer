@@ -86,21 +86,24 @@ fn main() {
             //     // }),
             //     material: Box::new( {}),
             // }),
-            Box::new(Sphere {
-                center: Point3::new_cartesian(0.4, 0., -0.6),
-                radius: 0.1,
-                material: Box::new(Metal {
-                    albedo: Color::new(128., 128., 128.),
-                    emission: Color::new(0., 0., 0.),
-                    fuzz: 0.15,
-                }),
-            })
+            // Box::new(Sphere {
+            //     center: Point3::new_cartesian(0.4, 0., -0.6),
+            //     radius: 0.1,
+            //     material: Box::new(Metal {
+            //         albedo: Color::new(128., 128., 128.),
+            //         emission: Color::new(0., 0., 0.),
+            //         fuzz: 0.15,
+            //     }),
+            // })
         ],
     };
 
     let mut buffer = vec![0u8; (WIDTH * HEIGHT * 4) as usize];
     
     let camera: Camera = Camera::new(WIDTH, HEIGHT);
+
+    // camera.debug_photon(&world);
+    // return;
 
     camera.render(buffer.as_mut_slice(), &world);
 
