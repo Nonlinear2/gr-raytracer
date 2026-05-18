@@ -79,39 +79,46 @@ impl ThreeVector {
 
     pub fn x(&self) -> f32{
         assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn y(&self) -> f32{
         assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn z(&self) -> f32{
         assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn r(&self) -> f32{
         assert!(self.coordinate_system == CoordinateSystem::Spherical);
         assert!(self.inner[0] >= 0.);
+        assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn theta(&self) -> f32{
         assert!(self.coordinate_system == CoordinateSystem::Spherical);
         assert!((0.0..=std::f32::consts::PI).contains(&self.inner[1]));
+        assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn phi(&self) -> f32{
         assert!(self.coordinate_system == CoordinateSystem::Spherical);
-        assert!((0.0..=(2.*std::f32::consts::PI)).contains(&self.inner[2]));
+        assert!((0.0..=std::f32::consts::TAU).contains(&self.inner[2]));
+        assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn normalize(&self) -> ThreeVector {
         assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.length() != 0.);
         ThreeVector { inner: self.inner.normalize(), coordinate_system: CoordinateSystem::Cartesian }
     }
 
@@ -212,36 +219,46 @@ impl FourVector {
     }
 
     pub fn t(&self) -> f32 {
+        assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn x(&self) -> f32 {
         assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn y(&self) -> f32 {
         assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn z(&self) -> f32 {
         assert!(self.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(self.inner[3].is_finite());
         self.inner[3]
     }
     
     pub fn r(&self) -> f32 {
         assert!(self.coordinate_system == CoordinateSystem::Spherical);
+        assert!(self.inner[1] >= 0.);
+        assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn theta(&self) -> f32 {
         assert!(self.coordinate_system == CoordinateSystem::Spherical);
+        assert!((0.0..=std::f32::consts::PI).contains(&self.inner[2]));
+        assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn phi(&self) -> f32 {
         assert!(self.coordinate_system == CoordinateSystem::Spherical);
+        assert!((0.0..=std::f32::consts::TAU).contains(&self.inner[3]));
+        assert!(self.inner[3].is_finite());
         self.inner[3]
     }
 
@@ -291,13 +308,10 @@ pub fn random_on_sphere(coordinate_system: CoordinateSystem) -> ThreeVector {
     let theta = costheta.acos();
     let phi = rng.random_range(0.0..2.*std::f32::consts::PI);
 
+    let v = ThreeVector::new_spherical(1.0, theta, phi);
     match coordinate_system {
-        CoordinateSystem::Cartesian => ThreeVector::new_cartesian(
-            theta.sin() * phi.cos(),
-            theta.sin() * phi.sin(),
-            theta.cos()
-        ),
-        CoordinateSystem::Spherical => ThreeVector::new_spherical(1.0, theta, phi)
+        CoordinateSystem::Spherical => v,
+        CoordinateSystem::Cartesian => v.to_cartesian(),
     }
 }
 
