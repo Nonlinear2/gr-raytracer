@@ -14,7 +14,8 @@ pub struct ThreeVector {
 }
 
 impl ThreeVector {
-    pub const ZERO: Self = Self {inner: Vec3 { x: 0., y: 0., z: 0. }, coordinate_system: CoordinateSystem::Cartesian};
+    pub const ZERO_CART: Self = Self {inner: Vec3::new(0., 0., 0.), coordinate_system: CoordinateSystem::Cartesian};
+    pub const ZERO_SPH: Self = Self {inner: Vec3::new(0., 0., 0.), coordinate_system: CoordinateSystem::Spherical};
 
     pub fn new(x0: f32, x1: f32, x2: f32, coordinate_system: CoordinateSystem) -> Self {
         Self {
@@ -130,6 +131,30 @@ impl ThreeVector {
     pub fn as_vec3(self) -> Vec3 { self.inner }
 }
 
+impl std::ops::Index<usize> for ThreeVector {
+    type Output = f32;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0 => &self.inner.x,
+            1 => &self.inner.y,
+            2 => &self.inner.z,
+            _ => panic!("ThreeVector index out of bounds: {}", index),
+        }
+    }
+}
+
+impl std::ops::IndexMut<usize> for ThreeVector {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0 => &mut self.inner.x,
+            1 => &mut self.inner.y,
+            2 => &mut self.inner.z,
+            _ => panic!("ThreeVector index out of bounds: {}", index),
+        }
+    }
+}
+
 impl std::ops::Neg for ThreeVector {
     type Output = Self;
 
@@ -195,6 +220,9 @@ pub struct FourVector {
 }
 
 impl FourVector {
+    pub const ZERO_CART: Self = Self {inner: Vec4::new(0., 0., 0., 0.), coordinate_system: CoordinateSystem::Cartesian};
+    pub const ZERO_SPH: Self = Self {inner: Vec4::new(0., 0., 0., 0.), coordinate_system: CoordinateSystem::Spherical};
+
     pub fn new_cartesian(t: f32, x: f32, y: f32, z: f32) -> Self {
         Self {
             inner: Vec4::new(t, x, y, z),
@@ -269,6 +297,31 @@ impl FourVector {
     pub fn as_vec4(self) -> Vec4 { self.inner }
 }
 
+impl std::ops::Index<usize> for FourVector {
+    type Output = f32;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0 => &self.inner.x,
+            1 => &self.inner.y,
+            2 => &self.inner.z,
+            3 => &self.inner.w,
+            _ => panic!("FourVector index out of bounds: {}", index),
+        }
+    }
+}
+
+impl std::ops::IndexMut<usize> for FourVector {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0 => &mut self.inner.x,
+            1 => &mut self.inner.y,
+            2 => &mut self.inner.z,
+            3 => &mut self.inner.w,
+            _ => panic!("FourVector index out of bounds: {}", index),
+        }
+    }
+}
 
 impl std::ops::Add for FourVector {
     type Output = Self;

@@ -6,7 +6,6 @@ use rand::RngExt;
 
 const MAX_LIGHT_BOUNCES: u32 = 2;
 const SAMPLES_PER_PIXEL: u32 = 1;
-pub const RAY_STEP_SIZE: f32 = 0.01;
 
 pub struct Camera {
     pub center: Point3,
@@ -75,7 +74,7 @@ impl Camera {
                 break;
             }
 
-            photon = world.manifold.step_along_null_geodesic(photon, RAY_STEP_SIZE);
+            photon = world.manifold.step_along_null_geodesic(photon);
         }
     }
 

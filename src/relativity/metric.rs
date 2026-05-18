@@ -1,4 +1,4 @@
-use crate::graphics::{ray::{WorldPhoton, Photon}, vector::{CoordinateSystem, FourVector, Point3, Point4, ThreeVector}};
+use crate::{graphics::{ray::{Photon, WorldPhoton}, vector::{CoordinateSystem, FourVector, Point3, Point4, ThreeVector}}, integration::euler};
 use crate::integration::solvers::positive_root;
 use glam::{Vec4, Mat4};
 
@@ -31,7 +31,7 @@ pub trait PseudoRiemanianManifold {
 
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32;
 
-    fn step_along_null_geodesic(&self, s: Photon, h: f32) -> Photon;
+    fn step_along_null_geodesic(&self, s: Photon) -> Photon;
 
 }
 
@@ -101,8 +101,11 @@ impl PseudoRiemanianManifold for Euclidean {
         0.
     }
 
-    fn step_along_null_geodesic(&self, s: Photon, h: f32) -> Photon {
-        Photon::new(s.pos + s.vel * h, s.vel)
+    fn step_along_null_geodesic(&self, s: Photon) -> Photon {
+        let (x_new, k_new) = euler::euler_step(
+            s.pos, s.vel, s.vel, FourVector::ZERO_CART
+        ); 
+        Photon::new(x_new, k_new)
     }
 }
 
@@ -332,27 +335,24 @@ impl PseudoRiemanianManifold for Schwarzschild {
         gamma
     }
 
-    fn step_along_null_geodesic(&self, photon: Photon, h: f32) -> Photon {
-        let x = photon.pos.as_vec4();
-        let mut k = photon.vel.as_vec4();
+    fn step_along_null_geodesic(&self, photon: Photon) -> Photon {
+        let x = photon.pos;
+        let k = photon.vel;
 
-        // 1. compute velocity update using CURRENT position
+        let del_x = k;
+
+        let mut del_k = FourVector::ZERO_SPH;
+
         for mu in 0..4 {
-            let mut acc = 0.0_f32;
             for alpha in 0..4 {
                 for beta in 0..4 {
                     let gamma = self.christoffel(photon.pos, alpha, beta, mu);
-                    acc += gamma * k[alpha] * k[beta];
+                    del_k[mu] -= gamma * k[alpha] * k[beta];
                 }
             }
-            k[mu] -= h * acc;
         }
 
-        // 2. update position using CURRENT (pre-step) velocity
-        let mut new_x = x;
-        for mu in 0..4 {
-            new_x[mu] += h * photon.vel.as_vec4()[mu];
-        }
+        let (mut new_x, mut new_k) = euler::euler_step(x, k, del_x, del_k);
 
         // 3. fix up spherical coordinates
         let mut r     = new_x[1];
@@ -362,19 +362,19 @@ impl PseudoRiemanianManifold for Schwarzschild {
         if r < 0.0 {
             r = -r;
             theta = std::f32::consts::PI - theta;
-            k[1] = -k[1];
-            k[2] = -k[2];
+            new_k[1] = -new_k[1];
+            new_k[2] = -new_k[2];
             phi += std::f32::consts::PI;
         }
 
         while theta < 0.0 {
             theta = -theta;
-            k[2] = -k[2];
+            new_k[2] = -new_k[2];
             phi += std::f32::consts::PI;
         }
         while theta > std::f32::consts::PI {
             theta = 2.0 * std::f32::consts::PI - theta;
-            k[2] = -k[2];
+            new_k[2] = -new_k[2];
             phi += std::f32::consts::PI;
         }
 
@@ -383,8 +383,8 @@ impl PseudoRiemanianManifold for Schwarzschild {
         new_x[3] = phi.rem_euclid(std::f32::consts::TAU);
 
         Photon {
-            pos: FourVector { inner: new_x, coordinate_system: photon.pos.coordinate_system },
-            vel: FourVector { inner: k,     coordinate_system: photon.vel.coordinate_system },
+            pos: new_x,
+            vel: new_k,
         }
     }
 }

@@ -1,5 +1,4 @@
 use crate::graphics::{ray::{WorldPhotonState, StopReason, WorldPhoton}, world::World};
-use crate::graphics::camera::RAY_STEP_SIZE;
 
 const MAX_STEPS: u32 = 1000;
 
@@ -8,7 +7,7 @@ pub fn integrate(initial_ray: WorldPhoton, world: &World) -> (WorldPhotonState<'
     let mut world_ray = world.manifold.photon_to_world(ray);
 
     for _ in 0..MAX_STEPS {
-        ray = world.manifold.step_along_null_geodesic(ray, RAY_STEP_SIZE);
+        ray = world.manifold.step_along_null_geodesic(ray);
         world_ray = world.manifold.photon_to_world(ray);
 
         if world.manifold.is_singular(ray.pos) {
