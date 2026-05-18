@@ -11,6 +11,7 @@ pub enum StopReason {
 
 pub struct WorldPhotonState<'a> {
     pub world_photon: WorldPhoton,
+    #[allow(dead_code)]
     pub normal: Option<ThreeVector>,
     pub material: Option<&'a dyn Material>
 }

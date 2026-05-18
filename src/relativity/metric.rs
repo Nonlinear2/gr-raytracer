@@ -9,8 +9,10 @@ pub trait PseudoRiemanianManifold {
 
     fn coordinate_system(&self) -> CoordinateSystem;
 
+    #[allow(dead_code)]
     fn world_to_chart(&self, x: Point3) -> Point3;
 
+    #[allow(dead_code)]
     fn chart_to_world(&self, x: Point3) -> Point3;
 
     fn is_singular(&self, x: Point4) -> bool;
@@ -33,6 +35,7 @@ pub trait PseudoRiemanianManifold {
 
 }
 
+#[allow(dead_code)]
 pub struct Euclidean {
     pub center: Point3,
 }

@@ -6,25 +6,19 @@ use rand::RngExt;
 
 const MAX_LIGHT_BOUNCES: u32 = 2;
 const SAMPLES_PER_PIXEL: u32 = 1;
+pub const RAY_STEP_SIZE: f32 = 0.01;
 
 pub struct Camera {
     pub center: Point3,
-    pub focal_length: f32,
-    pub viewport_height: f32,
-    pub viewport_width: f32,
-    pub max_distance: f32,
-    pub ray_step_size: f32,
-
     pub samples_per_pixel: u32,
 
+    #[allow(dead_code)]
     pub img_width: u32,
+    #[allow(dead_code)]
     pub img_height: u32,
 
-    pub viewport_u_vect: ThreeVector,
-    pub viewport_v_vect: ThreeVector,
     pub pixel_delta_u: ThreeVector,
     pub pixel_delta_v: ThreeVector,
-    pub viewport_upper_left: Point3,
     pub first_pixel_loc: Point3,
 }
 
@@ -32,8 +26,8 @@ impl Camera {
     pub fn new(img_width: u32, img_height: u32) -> Self {
         let a_ratio = (img_width as f32) / (img_height as f32);
 
-        let center = Point3::new_cartesian(0.,0.,0.);
-        let focal_length = 1.0;
+        let center: ThreeVector = Point3::new_cartesian(0.,0.,0.);
+        const FOCAL_LENGTH: f32 = 1.0;
 
         let viewport_height = 2.0;
         let viewport_width = viewport_height * a_ratio;
@@ -45,28 +39,20 @@ impl Camera {
         let pixel_delta_v = viewport_v_vect * (1.0 / img_height as f32);
 
         let viewport_upper_left = center
-            - ThreeVector::new_cartesian(0., 0., focal_length)
+            - ThreeVector::new_cartesian(0., 0., FOCAL_LENGTH)
             - viewport_u_vect * 0.5
             - viewport_v_vect * 0.5;
         let first_pixel_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
 
         Self {
             center: center,
-            focal_length: focal_length,
-            viewport_height: viewport_height,
-            viewport_width: viewport_width,
-            max_distance: 5.,
-            ray_step_size: 0.02,
             samples_per_pixel: SAMPLES_PER_PIXEL,
             img_width: img_width,
             img_height: img_height,
 
-            viewport_u_vect: viewport_u_vect,
-            viewport_v_vect: viewport_v_vect,
+            first_pixel_loc: first_pixel_loc,
             pixel_delta_u: pixel_delta_u,
             pixel_delta_v: pixel_delta_v,
-            viewport_upper_left: viewport_upper_left,
-            first_pixel_loc: first_pixel_loc,
         }
     }
 
@@ -89,7 +75,7 @@ impl Camera {
                 break;
             }
 
-            photon = world.manifold.step_along_null_geodesic(photon, self.ray_step_size);
+            photon = world.manifold.step_along_null_geodesic(photon, RAY_STEP_SIZE);
         }
     }
 

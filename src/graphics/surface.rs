@@ -10,6 +10,7 @@ pub trait Material {
     fn scatter(&self, hit: &WorldPhotonState) -> Option<(Color, ThreeVector)>;
 }
 
+#[allow(dead_code)]
 pub struct Diffuse {
     pub albedo: Color,
     pub emission: Color,
@@ -27,6 +28,7 @@ impl Material for Diffuse {
     }
 }
 
+#[allow(dead_code)]
 pub struct Metal {
     pub albedo: Color,
     pub emission: Color,
@@ -60,6 +62,7 @@ pub trait Surface {
     fn hit(&self, ray: &WorldPhoton) -> Option<WorldPhotonState<'_>>;
 }
 
+#[allow(dead_code)]
 pub struct Sphere {
     pub center: Point3,
     pub radius: f32,

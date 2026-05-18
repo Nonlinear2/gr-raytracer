@@ -301,6 +301,7 @@ impl std::ops::Mul<FourVector> for f32 {
     }
 }
 
+#[allow(dead_code)]
 pub fn random_on_sphere(coordinate_system: CoordinateSystem) -> ThreeVector {
     let mut rng = rand::rng();
 
