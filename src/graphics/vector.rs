@@ -306,7 +306,7 @@ pub fn random_on_sphere(coordinate_system: CoordinateSystem) -> ThreeVector {
 
     let costheta: f32 = rng.random_range((-1.)..(1.));
     let theta = costheta.acos();
-    let phi = rng.random_range(0.0..2.*std::f32::consts::PI);
+    let phi = rng.random_range(0.0..std::f32::consts::TAU);
 
     let v = ThreeVector::new_spherical(1.0, theta, phi);
     match coordinate_system {

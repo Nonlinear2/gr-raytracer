@@ -17,6 +17,10 @@ pub trait PseudoRiemanianManifold {
 
     fn create_photon(&self, x: Point3, vel: ThreeVector) -> Photon;
 
+    fn photon_to_world_pos(&self, photon: Photon) -> ThreeVector;
+
+    fn photon_to_world_vel(&self, photon: Photon) -> ThreeVector;
+
     fn photon_to_world(&self, photon: Photon) -> WorldPhoton;
 
     fn g(&self, x: Point4) -> Mat4;
@@ -61,11 +65,25 @@ impl PseudoRiemanianManifold for Euclidean {
         )
     }
 
+    fn photon_to_world_pos(&self, photon: Photon) -> ThreeVector {
+        assert!(photon.pos.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(photon.vel.coordinate_system == CoordinateSystem::Cartesian);
+
+        photon.pos.space() + self.center
+    }
+
+    fn photon_to_world_vel(&self, photon: Photon) -> ThreeVector {
+        assert!(photon.pos.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(photon.vel.coordinate_system == CoordinateSystem::Cartesian);
+
+        photon.vel.space()
+    }
+
     fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
         assert!(photon.pos.coordinate_system == CoordinateSystem::Cartesian);
         assert!(photon.vel.coordinate_system == CoordinateSystem::Cartesian);
 
-        WorldPhoton::new(photon.pos.space() + self.center, photon.vel.space())
+        WorldPhoton::new(self.photon_to_world_pos(photon), self.photon_to_world_vel(photon))
     }
 
     fn g(&self, _x: Point4) -> Mat4 {
@@ -190,7 +208,14 @@ impl PseudoRiemanianManifold for Schwarzschild {
         Photon::new(FourVector::from_space_time(0.0, pos), FourVector::from_space_time(k_0, vel_sph))
     }
 
-    fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
+    fn photon_to_world_pos(&self, photon: Photon) -> ThreeVector {
+        assert!(photon.pos.coordinate_system == CoordinateSystem::Spherical);
+        assert!(photon.vel.coordinate_system == CoordinateSystem::Spherical);
+
+        photon.pos.space().to_cartesian() + self.center
+    }
+
+    fn photon_to_world_vel(&self, photon: Photon) -> ThreeVector {
         assert!(photon.pos.coordinate_system == CoordinateSystem::Spherical);
         assert!(photon.vel.coordinate_system == CoordinateSystem::Spherical);
 
@@ -209,17 +234,17 @@ impl PseudoRiemanianManifold for Schwarzschild {
         let sin_phi = phi.sin();
         let cos_phi = phi.cos();
 
-        let pos_world = pos.to_cartesian() + self.center;
-
-        let vel_world = ThreeVector::new_cartesian(
+        ThreeVector::new_cartesian(
             sin_theta * cos_phi * v_r + r * cos_theta * cos_phi * v_theta - r * sin_theta * sin_phi * v_phi,
             sin_theta * sin_phi * v_r + r * cos_theta * sin_phi * v_theta + r * sin_theta * cos_phi * v_phi,
             cos_theta * v_r - r * sin_theta * v_theta,
-        );
+        )
+    }
 
+    fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
         WorldPhoton::new(
-            pos_world,
-            vel_world,
+            self.photon_to_world_pos(photon),
+            self.photon_to_world_vel(photon),
         )
     }
 

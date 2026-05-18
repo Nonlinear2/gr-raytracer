@@ -15,6 +15,8 @@ use crate::graphics::color::Color;
 use crate::graphics::world::World;
 use crate::relativity::metric::Schwarzschild;
 
+use std::time::Instant;
+
 const HEIGHT: u32 = 80;
 const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
 
@@ -87,8 +89,8 @@ fn main() {
             //     material: Box::new( {}),
             // }),
             // Box::new(Sphere {
-            //     center: Point3::new_cartesian(0.4, 0., -0.6),
-            //     radius: 0.1,
+            //     center: Point3::new_cartesian(0.9, 0., -0.6),
+            //     radius: 0.4,
             //     material: Box::new(Metal {
             //         albedo: Color::new(128., 128., 128.),
             //         emission: Color::new(0., 0., 0.),
@@ -105,7 +107,12 @@ fn main() {
     // camera.debug_photon(&world);
     // return;
 
+    let start = Instant::now();
+
     camera.render(buffer.as_mut_slice(), &world);
+
+    let elapsed = start.elapsed();
+    println!("Elapsed time: {:?}", elapsed);
 
     let event_loop = EventLoop::new().unwrap();
 

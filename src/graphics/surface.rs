@@ -71,7 +71,7 @@ impl Surface for Sphere {
         let x = ray.pos - self.center;
         if x.length() <= self.radius {
             return Some(WorldPhotonState {
-                world_photon: *ray,
+                world_photon: WorldPhoton { pos: self.center + x.normalize() * (1.000001 * self.radius), vel: ray.vel },
                 normal: Some(x.normalize()),
                 material: Some(self.material.as_ref()),
             });

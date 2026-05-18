@@ -4,7 +4,7 @@ use crate::integration::integrate::integrate;
 
 use rand::RngExt;
 
-const MAX_LIGHT_BOUNCES: u32 = 1;
+const MAX_LIGHT_BOUNCES: u32 = 2;
 const SAMPLES_PER_PIXEL: u32 = 1;
 
 pub struct Camera {
