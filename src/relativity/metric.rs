@@ -1,26 +1,32 @@
-use crate::{graphics::{ray::{Photon, WorldPhoton}, vector::{CoordinateSystem, FourVector, Point3, Point4, ThreeVector}}, integration::euler};
+use crate::graphics::ray::{Photon, WorldPhoton};
+use crate::graphics::point::{Chart, Point3, Point4};
+use crate::graphics::vector::{TangentSpace, ThreeVector, FourVector};
+use crate::integration::euler;
+
 use crate::integration::solvers::positive_root;
 use glam::{Vec4, Mat4};
 
 const SPH_EPS: f32 = 1e-8;
 
+/// this trait only support manifolds with a single global chart
+/// whose type we can access through the chart function
 pub trait PseudoRiemanianManifold {
-    // this trait only support manifolds with a single global chart, that we can access through
-    // the world_to_chart function
 
-    fn coordinate_system(&self) -> CoordinateSystem;
+    fn chart(&self) -> Chart;
 
+    /// takes a Point3 in world and converts it to a point in the manifold without the t component
     #[allow(dead_code)]
-    fn world_to_chart(&self, x: Point3) -> Point3;
+    fn world_to_chart_space(&self, x: Point3) -> Point3;
 
+    /// takes a Point3 in the manifold without the t component and converts it to a point in world 
     #[allow(dead_code)]
-    fn chart_to_world(&self, x: Point3) -> Point3;
+    fn chart_space_to_world(&self, x: Point3) -> Point3;
 
     fn is_singular(&self, x: Point4) -> bool;
 
     fn create_photon(&self, x: Point3, vel: ThreeVector) -> Photon;
 
-    fn photon_to_world_pos(&self, photon: Photon) -> ThreeVector;
+    fn photon_to_world_pos(&self, photon: Photon) -> Point3;
 
     fn photon_to_world_vel(&self, photon: Photon) -> ThreeVector;
 
@@ -46,17 +52,17 @@ pub struct Euclidean {
 
 impl PseudoRiemanianManifold for Euclidean {
 
-    fn coordinate_system(&self) -> CoordinateSystem {
-        CoordinateSystem::Cartesian
+    fn chart(&self) -> Chart {
+        Chart::Cartesian
     }
 
-    fn world_to_chart(&self, x: Point3) -> Point3 {
-        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
+    fn world_to_chart_space(&self, x: Point3) -> Point3 {
+        assert!(x.chart == Chart::Cartesian);
         x - self.center
     }
 
-    fn chart_to_world(&self, x: Point3) -> Point3 {
-        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
+    fn chart_space_to_world(&self, x: Point3) -> Point3 {
+        assert!(x.chart == Chart::Cartesian);
         x + self.center
     }
 
@@ -66,28 +72,28 @@ impl PseudoRiemanianManifold for Euclidean {
 
     fn create_photon(&self, x: Point3, vel: ThreeVector) -> Photon {
         Photon::new(
-            FourVector::from_space_time(0., x),
+            Point4::from_space_time(0., x),
             FourVector::from_space_time(0., vel)
         )
     }
 
-    fn photon_to_world_pos(&self, photon: Photon) -> ThreeVector {
-        assert!(photon.pos.coordinate_system == CoordinateSystem::Cartesian);
-        assert!(photon.vel.coordinate_system == CoordinateSystem::Cartesian);
+    fn photon_to_world_pos(&self, photon: Photon) -> Point3 {
+        assert!(photon.pos.chart == Chart::Cartesian);
+        assert!(photon.vel.vector_space == TangentSpace::Cartesian);
 
         photon.pos.space() + self.center
     }
 
     fn photon_to_world_vel(&self, photon: Photon) -> ThreeVector {
-        assert!(photon.pos.coordinate_system == CoordinateSystem::Cartesian);
-        assert!(photon.vel.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(photon.pos.chart == Chart::Cartesian);
+        assert!(photon.vel.vector_space == TangentSpace::Cartesian);
 
         photon.vel.space()
     }
 
     fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
-        assert!(photon.pos.coordinate_system == CoordinateSystem::Cartesian);
-        assert!(photon.vel.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(photon.pos.chart == Chart::Cartesian);
+        assert!(photon.vel.vector_space == TangentSpace::Cartesian);
 
         WorldPhoton::new(self.photon_to_world_pos(photon), self.photon_to_world_vel(photon))
     }
@@ -110,8 +116,8 @@ impl PseudoRiemanianManifold for Euclidean {
 
     fn step_along_null_geodesic(&self, s: Photon) -> Photon {
         let (x_new, k_new) = euler::euler_step(
-            s.pos, s.vel, s.vel, FourVector::ZERO_CART
-        ); 
+            s.pos, s.vel, s.vel.as_point4(), FourVector::ZERO_CART
+        );
         Photon::new(x_new, k_new)
     }
 }
@@ -122,8 +128,9 @@ pub struct Schwarzschild {
 }
 
 impl Schwarzschild {
+    // center is a Point in world space
     pub fn new(center: Point3, r_s: f32) -> Self {
-        assert!(center.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(center.chart == Chart::Cartesian);
         Self {
             center: center,
             r_s: r_s,
@@ -137,17 +144,17 @@ impl Schwarzschild {
 }
 
 impl PseudoRiemanianManifold for Schwarzschild {
-    fn coordinate_system(&self) -> CoordinateSystem {
-        CoordinateSystem::Spherical
+    fn chart(&self) -> Chart {
+        Chart::Spherical
     }
 
-    fn world_to_chart(&self, x: Point3) -> Point3 {
-        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
+    fn world_to_chart_space(&self, x: Point3) -> Point3 {
+        assert!(x.chart == Chart::Cartesian);
         (x - self.center).to_spherical()
     }
 
-    fn chart_to_world(&self, x: Point3) -> Point3 {
-        assert!(x.coordinate_system == CoordinateSystem::Spherical);
+    fn chart_space_to_world(&self, x: Point3) -> Point3 {
+        assert!(x.chart == Chart::Spherical);
         x.to_cartesian() + self.center
     }
 
@@ -155,10 +162,12 @@ impl PseudoRiemanianManifold for Schwarzschild {
         x.r() <= self.r_s
     }
 
+    /// x is a point in world
+    /// vel is a vector in the tangent space of world
     fn create_photon(&self, x: Point3, vel: ThreeVector) -> Photon {
-        assert!(x.coordinate_system == CoordinateSystem::Cartesian);
-        assert!(vel.coordinate_system == CoordinateSystem::Cartesian);
-        assert!((x - self.center).length() > SPH_EPS);
+        assert!(x.chart == Chart::Cartesian);
+        assert!(vel.vector_space == TangentSpace::Cartesian);
+        assert!((x - self.center).distance_to_zero() > SPH_EPS);
 
         let rel = x - self.center;
         let x = rel.x();
@@ -167,7 +176,8 @@ impl PseudoRiemanianManifold for Schwarzschild {
         let rho = (x * x + y * y).sqrt(); // distance to the z axis
 
         let pos = if rho <= SPH_EPS {
-            rel.to_spherical_on_z_axis(vel.to_spherical().phi()) // keep pos basis vectors aligned with velocity
+            // keep pos tangent vectors aligned with velocity
+            rel.to_spherical_on_z_axis(vel.y().atan2(vel.x()).rem_euclid(std::f32::consts::TAU))
         } else {
             rel.to_spherical()
         };
@@ -200,9 +210,9 @@ impl PseudoRiemanianManifold for Schwarzschild {
             )
         };
 
-        let vel_sph = ThreeVector::new(v_r, v_th, v_ph, CoordinateSystem::Spherical);
+        let vel_sph = ThreeVector::new(v_r, v_th, v_ph, TangentSpace::Spherical);
 
-        let photon_x= FourVector::from_space_time(0.0, pos);
+        let photon_x= Point4::from_space_time(0.0, pos);
 
         // compute k^0 such that <k, k> = 0 so that the photon's trajectory be lightlike.
         // we need to solve g_mu_nu k^mu k^nu = 0 for k^0 which is a quadratic equation
@@ -222,16 +232,16 @@ impl PseudoRiemanianManifold for Schwarzschild {
         Photon::new(photon_x, FourVector::from_space_time(k_0, vel_sph))
     }
 
-    fn photon_to_world_pos(&self, photon: Photon) -> ThreeVector {
-        assert!(photon.pos.coordinate_system == CoordinateSystem::Spherical);
-        assert!(photon.vel.coordinate_system == CoordinateSystem::Spherical);
+    fn photon_to_world_pos(&self, photon: Photon) -> Point3 {
+        assert!(photon.pos.chart == Chart::Spherical);
+        assert!(photon.vel.vector_space == TangentSpace::Spherical);
 
         photon.pos.space().to_cartesian() + self.center
     }
 
     fn photon_to_world_vel(&self, photon: Photon) -> ThreeVector {
-        assert!(photon.pos.coordinate_system == CoordinateSystem::Spherical);
-        assert!(photon.vel.coordinate_system == CoordinateSystem::Spherical);
+        assert!(photon.pos.chart == Chart::Spherical);
+        assert!(photon.vel.vector_space == TangentSpace::Spherical);
 
         let pos = photon.pos.space();
         let vel = photon.vel.space();
@@ -263,7 +273,7 @@ impl PseudoRiemanianManifold for Schwarzschild {
     }
 
     fn g(&self, pos: Point4) -> Mat4 {
-        assert!(pos.coordinate_system == self.coordinate_system());
+        assert!(pos.chart == Chart::Spherical);
 
         let r = pos.r();
         let theta = pos.theta();
@@ -284,7 +294,7 @@ impl PseudoRiemanianManifold for Schwarzschild {
     }
 
     fn g_inv(&self, pos: Point4) -> Mat4 {
-        assert!(pos.coordinate_system == self.coordinate_system());
+        assert!(pos.chart == Chart::Spherical);
         assert!(pos.r() > self.r_s);
         assert!(pos.theta() >= SPH_EPS);
         assert!(pos.theta() <= std::f32::consts::PI - SPH_EPS);
@@ -304,7 +314,7 @@ impl PseudoRiemanianManifold for Schwarzschild {
     }
 
     fn del_g(&self, pos: Point4, i: u32) -> Mat4 {
-        assert!(pos.coordinate_system == self.coordinate_system());
+        assert!(pos.chart == Chart::Spherical);
 
         let r = pos.r();
         let theta = pos.theta();
@@ -328,7 +338,7 @@ impl PseudoRiemanianManifold for Schwarzschild {
     }
 
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32 {
-        assert!(pos.coordinate_system == CoordinateSystem::Spherical);
+        assert!(pos.chart == Chart::Spherical);
 
         let g_inv = self.g_inv(pos);
         let mut gamma = 0.;
@@ -359,12 +369,10 @@ impl PseudoRiemanianManifold for Schwarzschild {
         if x.theta() < SPH_EPS || x.theta() > std::f32::consts::PI - SPH_EPS {
             let theta_adj = if x.theta() <= SPH_EPS { SPH_EPS } else { std::f32::consts::PI - SPH_EPS };
             // eprintln!("[christoffel] perturbing theta from {} to {} to avoid pole", theta, theta_adj);
-            x = FourVector::new_spherical(x.t(), x.r(), theta_adj, x.phi());
+            x = Point4::new_spherical(x.t(), x.r(), theta_adj, x.phi());
         }
 
         let k = photon.vel;
-
-        let del_x = k;
 
         let mut del_k = FourVector::ZERO_SPH;
         for mu in 0..4 {
@@ -376,7 +384,7 @@ impl PseudoRiemanianManifold for Schwarzschild {
             }
         }
 
-        let (new_x, new_k) = euler::euler_step(x, k, del_x, del_k);
+        let (new_x, new_k) = euler::euler_step(x, k, k.as_point4(), del_k);
 
         Photon {
             pos: new_x,

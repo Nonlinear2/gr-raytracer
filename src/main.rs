@@ -10,7 +10,8 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::{graphics::{camera::Camera, vector::Point3}};
+use crate::graphics::camera::Camera;
+use crate::graphics::point::Point3;
 use crate::graphics::world::World;
 use crate::relativity::metric::Schwarzschild;
 

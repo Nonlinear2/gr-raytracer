@@ -1,4 +1,4 @@
-use crate::graphics::{ray::{StopReason, WorldPhoton}, vector::{Point3, ThreeVector}, world::World};
+use crate::graphics::{ray::{StopReason, WorldPhoton}, point::Point3, vector::ThreeVector, world::World};
 use crate::graphics::color::Color;
 use crate::integration::integrate::integrate;
 
@@ -16,16 +16,16 @@ pub struct Camera {
     #[allow(dead_code)]
     pub img_height: u32,
 
+    pub first_pixel_loc: Point3,
     pub pixel_delta_u: ThreeVector,
     pub pixel_delta_v: ThreeVector,
-    pub first_pixel_loc: Point3,
 }
 
 impl Camera {
     pub fn new(img_width: u32, img_height: u32) -> Self {
         let a_ratio = (img_width as f32) / (img_height as f32);
 
-        let center: ThreeVector = Point3::new_cartesian(0.,0.,0.);
+        let center: Point3 = Point3::new_cartesian(0.,0.,0.);
         const FOCAL_LENGTH: f32 = 1.0;
 
         let viewport_height = 2.0;
@@ -38,10 +38,10 @@ impl Camera {
         let pixel_delta_v = viewport_v_vect * (1.0 / img_height as f32);
 
         let viewport_upper_left = center
-            - ThreeVector::new_cartesian(0., 0., FOCAL_LENGTH)
-            - viewport_u_vect * 0.5
-            - viewport_v_vect * 0.5;
-        let first_pixel_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
+            - Point3::new_cartesian(0., 0., FOCAL_LENGTH)
+            - viewport_u_vect.as_point3() * 0.5
+            - viewport_v_vect.as_point3() * 0.5;
+        let first_pixel_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v).as_point3();
 
         Self {
             center: center,
@@ -59,7 +59,7 @@ impl Camera {
     pub fn debug_ray_trajectory(&self, world: &World) {
         let i = self.img_width as usize / 4;
         let j = 0;
-        let ray_direction = self.get_pixel_position(i, j, false) - self.center;
+        let ray_direction = (self.get_pixel_position(i, j, false) - self.center).as_threevector();
         let mut photon: crate::graphics::ray::Photon = world.manifold.create_photon(self.center, ray_direction);
 
         println!("x,y,z");
@@ -120,12 +120,12 @@ impl Camera {
     }
 
     pub fn get_pixel_position(&self, i: usize, j: usize, offset: bool) -> Point3 {
-        let mut pos = self.first_pixel_loc + (self.pixel_delta_u * (i as f32)) + (self.pixel_delta_v * (j as f32));
+        let mut pos = self.first_pixel_loc + (self.pixel_delta_u * (i as f32) + self.pixel_delta_v * (j as f32)).as_point3();
         if offset {
             let mut rng = rand::rng();
             pos = pos
-                + rng.random_range(-0.5..0.5) * self.pixel_delta_u
-                + rng.random_range(-0.5..0.5) * self.pixel_delta_v;
+                + rng.random_range(-0.5..0.5) * self.pixel_delta_u.as_point3()
+                + rng.random_range(-0.5..0.5) * self.pixel_delta_v.as_point3();
         }
         pos
     }
@@ -141,7 +141,7 @@ impl Camera {
 
             let mut color = Color::BLACK;
             for _ in 0..self.samples_per_pixel {
-                let ray_direction = self.get_pixel_position(i, j, true) - self.center;
+                let ray_direction = (self.get_pixel_position(i, j, true) - self.center).as_threevector();
 
                 let ray = WorldPhoton::new(self.center, ray_direction);
 

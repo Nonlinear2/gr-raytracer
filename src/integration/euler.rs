@@ -1,18 +1,17 @@
-use crate::graphics::vector::{CoordinateSystem, FourVector};
+use crate::graphics::{point::{Chart, Point4}, vector::FourVector};
 
 const EULER_STEP_SIZE: f32 = 0.01;
 
-pub fn euler_step(x: FourVector, k: FourVector, del_x: FourVector, del_k: FourVector) -> (FourVector, FourVector) {
-    assert!(x.coordinate_system == k.coordinate_system);
-    assert!(x.coordinate_system == del_x.coordinate_system);
-    assert!(x.coordinate_system == del_k.coordinate_system);
+pub fn euler_step(x: Point4, k: FourVector, del_x: Point4, del_k: FourVector) -> (Point4, FourVector) {
+    assert!(x.chart == del_x.chart);
+    assert!(k.vector_space == del_k.vector_space); // tangent basis
 
-    match x.coordinate_system {
-        CoordinateSystem::Cartesian => (
+    match x.chart {
+        Chart::Cartesian => (
             x + EULER_STEP_SIZE * del_x,
             k + EULER_STEP_SIZE * del_k,
         ),
-        CoordinateSystem::Spherical => {
+        Chart::Spherical => {
             let mut new_x = x + EULER_STEP_SIZE * del_x;
             let mut new_k = k + EULER_STEP_SIZE * del_k;
 

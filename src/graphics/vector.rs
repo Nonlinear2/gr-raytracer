@@ -1,6 +1,8 @@
 ﻿use rand::RngExt;
 use glam::{Vec3, Vec4};
 
+use crate::graphics::point::{Chart, Point3, Point4};
+
 /// basis of the tangent space at a point (unspecified) of a given chart on R^3/R^4 (that is, a coordinate system).
 /// the tangent space identified with R^3/R^4 thus the basis is composed of vectors.
 /// (see proposition 3.2 J.Lee smooth manifolds).
@@ -95,6 +97,17 @@ impl ThreeVector {
     pub fn dot(&self, other: ThreeVector) -> f32 {
         assert!(self.vector_space == TangentSpace::Cartesian);
         self.inner.dot(other.inner)
+    }
+
+    pub fn as_point3(self) -> Point3 {
+        match self.vector_space {
+            TangentSpace::Cartesian => Point3::new(
+                self.inner[0], self.inner[1], self.inner[2], Chart::Cartesian
+            ),
+            TangentSpace::Spherical => Point3::new(
+                self.inner[0], self.inner[1], self.inner[2], Chart::Spherical
+            )
+        }
     }
 
     pub fn as_vec3(self) -> Vec3 { self.inner }
@@ -194,6 +207,13 @@ impl FourVector {
     pub const ZERO_CART: Self = Self {inner: Vec4::new(0., 0., 0., 0.), vector_space: TangentSpace::Cartesian};
     pub const ZERO_SPH: Self = Self {inner: Vec4::new(0., 0., 0., 0.), vector_space: TangentSpace::Spherical};
 
+    pub fn new(x0: f32, x1: f32, x2: f32, x3: f32, space: TangentSpace) -> Self {
+        Self {
+            inner: Vec4::new(x0, x1, x2, x3),
+            vector_space: space,
+        }
+    }
+
     pub fn new_cartesian(t: f32, x: f32, y: f32, z: f32) -> Self {
         Self {
             inner: Vec4::new(t, x, y, z),
@@ -260,6 +280,17 @@ impl FourVector {
 
     pub fn space(&self) -> ThreeVector {
         ThreeVector::new(self.inner[1], self.inner[2], self.inner[3], self.vector_space)
+    }
+
+    pub fn as_point4(self) -> Point4 {
+        match self.vector_space {
+            TangentSpace::Cartesian => Point4::new(
+                self.inner[0], self.inner[1], self.inner[2], self.inner[3], Chart::Cartesian
+            ),
+            TangentSpace::Spherical => Point4::new(
+                self.inner[0], self.inner[1], self.inner[2], self.inner[3], Chart::Spherical
+            )
+        }
     }
 
     pub fn as_vec4(self) -> Vec4 { self.inner }

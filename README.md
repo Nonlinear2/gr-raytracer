@@ -25,3 +25,8 @@ k^\mu\\
 -\Gamma^\mu_{\alpha\beta}\,k^\nu\,k^\beta\\
 \end{pmatrix}
 $$
+
+### Code conventions
+- world means 3d space with no time component and cartesian coordinates centered on the camera.
+- photon objects will belong to the manifold, not to world.
+- we always write vector_space when talking about a vector space to avoid confusion with "space" meaning the ThreeVector representing space in a FourVector

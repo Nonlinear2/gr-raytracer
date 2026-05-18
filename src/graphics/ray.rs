@@ -1,6 +1,6 @@
-use crate::graphics::vector::{CoordinateSystem, FourVector, Point3, Point4, ThreeVector};
+use crate::graphics::point::{Chart, Point3, Point4};
+use crate::graphics::vector::{TangentSpace, ThreeVector, FourVector};
 use crate::graphics::surface::Material;
-
 
 pub enum StopReason {
     MaxStepsReached,
@@ -26,8 +26,8 @@ pub struct WorldPhoton {
 // unphysical photon in world coordinates
 impl WorldPhoton {
     pub fn new(pos: Point3, vel: ThreeVector) -> Self {
-        assert!(pos.coordinate_system == CoordinateSystem::Cartesian);
-        assert!(vel.coordinate_system == CoordinateSystem::Cartesian);
+        assert!(pos.chart == Chart::Cartesian);
+        assert!(vel.vector_space == TangentSpace::Cartesian);
 
         Self {
             pos: pos,

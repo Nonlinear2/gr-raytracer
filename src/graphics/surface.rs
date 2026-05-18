@@ -1,5 +1,6 @@
 use crate::graphics::ray::{WorldPhotonState, WorldPhoton};
-use crate::graphics::vector::{Point3, ThreeVector, CoordinateSystem, random_on_sphere};
+use crate::graphics::point::{Chart, Point3};
+use crate::graphics::vector::{TangentSpace, ThreeVector, random_on_sphere};
 use crate::graphics::color::Color;
 
 pub trait Material {
@@ -23,7 +24,7 @@ impl Material for Diffuse {
 
     fn scatter(&self, hit: &WorldPhotonState) -> Option<(Color, ThreeVector)> {
         let new_direction = 
-            (hit.normal.unwrap() + random_on_sphere(CoordinateSystem::Cartesian) * 0.5).normalize();
+            (hit.normal.unwrap() + random_on_sphere(TangentSpace::Cartesian) * 0.5).normalize();
         Some((self.albedo, new_direction))
     }
 }
@@ -48,7 +49,7 @@ impl Material for Metal {
         let reflected = incoming - 2.0 * incoming.dot(hit.normal.unwrap()) * hit.normal.unwrap();
 
         let new_direction = 
-            (reflected + self.fuzz * random_on_sphere(CoordinateSystem::Cartesian)).normalize();
+            (reflected + self.fuzz * random_on_sphere(TangentSpace::Cartesian)).normalize();
 
         if new_direction.dot(hit.normal.unwrap()) > 0.0 {
             Some((self.albedo, new_direction))
@@ -72,10 +73,10 @@ pub struct Sphere {
 impl Surface for Sphere {
     fn hit(&self, ray: &WorldPhoton) -> Option<WorldPhotonState<'_>> {
         let x = ray.pos - self.center;
-        if x.length() <= self.radius {
+        if x.distance_to_zero() <= self.radius {
             return Some(WorldPhotonState {
-                world_photon: WorldPhoton { pos: self.center + x.normalize() * (1.000001 * self.radius), vel: ray.vel },
-                normal: Some(x.normalize()),
+                world_photon: WorldPhoton { pos: self.center + x * (1.000001 * self.radius / x.distance_to_zero()), vel: ray.vel },
+                normal: Some(x.as_threevector().normalize()),
                 material: Some(self.material.as_ref()),
             });
         } else {

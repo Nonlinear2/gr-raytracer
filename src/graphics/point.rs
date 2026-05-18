@@ -1,5 +1,7 @@
 use glam::{Vec3, Vec4};
 
+use crate::graphics::vector::{FourVector, TangentSpace, ThreeVector};
+
 // which global chart we use to describe points on the manifolds R^3 and R^4. Synonym for "coordinate system"
 // in R^4 Chart::Spherical represents the chart: (t, x, y, z) -> (t, (spherical on R^3 for x, y, z)).
 #[derive(Clone, Copy, PartialEq)]
@@ -20,10 +22,10 @@ impl Point3 {
     pub const ZERO_CART: Self = Self {inner: Vec3::new(0., 0., 0.), chart: Chart::Cartesian};
     pub const ZERO_SPH: Self = Self {inner: Vec3::new(0., 0., 0.), chart: Chart::Spherical};
 
-    pub fn new(x0: f32, x1: f32, x2: f32, coordinate_system: Chart) -> Self {
+    pub fn new(x0: f32, x1: f32, x2: f32, chart: Chart) -> Self {
         Self {
             inner: Vec3::new(x0, x1, x2),
-            chart: coordinate_system,
+            chart: chart,
         }
     }
 
@@ -140,6 +142,17 @@ impl Point3 {
     //     self.inner.dot(other.inner)
     // }
 
+    pub fn as_threevector(self) -> ThreeVector {
+        match self.chart {
+            Chart::Cartesian => ThreeVector::new(
+                self.inner[0], self.inner[1], self.inner[2], TangentSpace::Cartesian
+            ),
+            Chart::Spherical => ThreeVector::new(
+                self.inner[0], self.inner[1], self.inner[2], TangentSpace::Spherical
+            )
+        }
+    }
+
     pub fn as_vec3(self) -> Vec3 { self.inner }
 }
 
@@ -240,6 +253,13 @@ impl Point4 {
     pub const ZERO_CART: Self = Self {inner: Vec4::new(0., 0., 0., 0.), chart: Chart::Cartesian};
     pub const ZERO_SPH: Self = Self {inner: Vec4::new(0., 0., 0., 0.), chart: Chart::Spherical};
 
+    pub fn new(x0: f32, x1: f32, x2: f32, x3: f32, chart: Chart) -> Self {
+        Self {
+            inner: Vec4::new(x0, x1, x2, x3),
+            chart: chart,
+        }
+    }
+
     pub fn new_cartesian(t: f32, x: f32, y: f32, z: f32) -> Self {
         Self {
             inner: Vec4::new(t, x, y, z),
@@ -309,6 +329,17 @@ impl Point4 {
 
     pub fn space(&self) -> Point3 {
         Point3::new(self.inner[1], self.inner[2], self.inner[3], self.chart)
+    }
+
+    pub fn as_fourvector(self) -> FourVector {
+        match self.chart {
+            Chart::Cartesian => FourVector::new(
+                self.inner[0], self.inner[1], self.inner[2], self.inner[3], TangentSpace::Cartesian
+            ),
+            Chart::Spherical => FourVector::new(
+                self.inner[0], self.inner[1], self.inner[2], self.inner[3], TangentSpace::Spherical
+            )
+        }
     }
 
     pub fn as_vec4(self) -> Vec4 { self.inner }
