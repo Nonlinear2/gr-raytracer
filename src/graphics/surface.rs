@@ -3,12 +3,14 @@ use crate::graphics::point::Point3;
 use crate::graphics::vector::{TangentSpace, ThreeVector, random_on_sphere};
 use crate::graphics::color::Color;
 
+use rand::rngs::StdRng;
+
 pub trait Material {
     fn emission(&self) -> Color {
         Color::BLACK
     }
 
-    fn scatter(&self, hit: &WorldPhotonState) -> Option<(Color, ThreeVector)>;
+    fn scatter(&self, hit: &WorldPhotonState, rng: &mut StdRng) -> Option<(Color, ThreeVector)>;
 }
 
 #[allow(dead_code)]
@@ -22,9 +24,9 @@ impl Material for Diffuse {
         self.emission
     }
 
-    fn scatter(&self, hit: &WorldPhotonState) -> Option<(Color, ThreeVector)> {
+    fn scatter(&self, hit: &WorldPhotonState, rng: &mut StdRng) -> Option<(Color, ThreeVector)> {
         let new_direction = 
-            (hit.normal.unwrap() + random_on_sphere(TangentSpace::Cartesian) * 0.5).normalize();
+            (hit.normal.unwrap() + random_on_sphere(TangentSpace::Cartesian, rng) * 0.5).normalize();
         Some((self.albedo, new_direction))
     }
 }
@@ -41,7 +43,7 @@ impl Material for Metal {
         self.emission
     }
 
-    fn scatter(&self, hit: &WorldPhotonState) -> Option<(Color, ThreeVector)> {
+    fn scatter(&self, hit: &WorldPhotonState, rng: &mut StdRng) -> Option<(Color, ThreeVector)> {
         assert!(0.0 <= self.fuzz);
         assert!(self.fuzz <= 1.0);
 
@@ -51,7 +53,7 @@ impl Material for Metal {
         let reflected = incoming - 2.0 * incoming.dot(hit.normal.unwrap()) * hit.normal.unwrap();
         println!("[Metal::scatter] reflected: {}", reflected.as_vec3());
         
-        let noise = self.fuzz * random_on_sphere(TangentSpace::Cartesian);
+        let noise = self.fuzz * random_on_sphere(TangentSpace::Cartesian, rng);
         println!("[Metal::scatter] noise: {}, fuzz: {}", noise.as_vec3(), self.fuzz);
         
         let pre_norm = reflected + noise;

@@ -15,10 +15,12 @@ use crate::graphics::point::Point3;
 use crate::graphics::world::World;
 use crate::relativity::metric::Schwarzschild;
 
+use rand::{rngs::StdRng, SeedableRng};
 use std::time::Instant;
 
 const HEIGHT: u32 = 80;
 const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
+const RNG_SEED: u64 = 0;
 
 #[derive(Default)]
 struct App {
@@ -108,8 +110,9 @@ fn main() {
     // return;
 
     let start = Instant::now();
+    let mut rng = StdRng::seed_from_u64(RNG_SEED);
 
-    camera.render(buffer.as_mut_slice(), &world);
+    camera.render(buffer.as_mut_slice(), &world, &mut rng);
 
     let elapsed = start.elapsed();
     println!("Elapsed time: {:?}", elapsed);

@@ -7,6 +7,7 @@ use crate::integration::solvers::positive_root;
 use glam::{Vec4, Mat4};
 
 const SPH_EPS: f32 = 1e-3;
+const V_PHI_THRESHOLD: f32 = 20.;
 
 /// this trait only support 4-manifolds with a single global chart
 /// whose type we can access through the chart function

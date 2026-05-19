@@ -1,4 +1,4 @@
-﻿use rand::RngExt;
+﻿use rand::{rngs::StdRng, RngExt};
 use glam::{Vec3, Vec4};
 
 use crate::graphics::point::{Chart, Point3, Point4};
@@ -354,9 +354,7 @@ impl std::ops::Mul<FourVector> for f32 {
 }
 
 #[allow(dead_code)]
-pub fn random_on_sphere(vector_space: TangentSpace) -> ThreeVector {
-    let mut rng = rand::rng();
-
+pub fn random_on_sphere(vector_space: TangentSpace, rng: &mut StdRng) -> ThreeVector {
     let costheta: f32 = rng.random_range((-1.)..(1.));
     let theta = costheta.acos();
     let phi = rng.random_range(0.0..std::f32::consts::TAU);

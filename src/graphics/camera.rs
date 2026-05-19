@@ -2,7 +2,7 @@ use crate::graphics::{ray::{StopReason, WorldPhoton}, point::Point3, vector::Thr
 use crate::graphics::color::Color;
 use crate::integration::integrate::integrate;
 
-use rand::RngExt;
+use rand::{rngs::StdRng, RngExt};
 
 const MAX_LIGHT_BOUNCES: u32 = 2;
 const SAMPLES_PER_PIXEL: u32 = 1;
@@ -55,7 +55,7 @@ impl Camera {
         }
     }
 
-    pub fn ray_color(&self, ray: WorldPhoton, depth: u32, world: &World, debug: bool) -> Color {
+    pub fn ray_color(&self, ray: WorldPhoton, depth: u32, world: &World, debug: bool, rng: &mut StdRng) -> Color {
         if depth <= 0 {
             return Color::BLACK;
         }
@@ -79,10 +79,10 @@ impl Camera {
             },
             StopReason::ObjectHit => {
                 let material = hit.material.unwrap();
-                if let Some((attenuation, new_direction)) = material.scatter(&hit) {
+                if let Some((attenuation, new_direction)) = material.scatter(&hit, rng) {
                     let ray = WorldPhoton::new(hit.world_photon.pos, new_direction);
 
-                    let bounced = self.ray_color(ray, depth - 1, world, debug);
+                    let bounced = self.ray_color(ray, depth - 1, world, debug, rng);
 
                     return material.emission()
                         + Color {
@@ -96,10 +96,9 @@ impl Camera {
         }
     }
 
-    pub fn get_pixel_position(&self, i: usize, j: usize, offset: bool) -> Point3 {
+    pub fn get_pixel_position(&self, i: usize, j: usize, offset: bool, rng: &mut StdRng) -> Point3 {
         let mut pos = self.first_pixel_loc + (self.pixel_delta_u * (i as f32) + self.pixel_delta_v * (j as f32)).as_point3();
         if offset {
-            let mut rng = rand::rng();
             pos = pos
                 + rng.random_range(-0.5..0.5) * self.pixel_delta_u.as_point3()
                 + rng.random_range(-0.5..0.5) * self.pixel_delta_v.as_point3();
@@ -107,7 +106,7 @@ impl Camera {
         pos
     }
 
-    pub fn render(&self, frame: &mut [u8], world: &World) {
+    pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
         for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
             if idx % 1 == 0 {
                 println!("pixels computed: {}", idx);
@@ -118,11 +117,11 @@ impl Camera {
 
             let mut color = Color::BLACK;
             for _ in 0..self.samples_per_pixel {
-                let ray_direction = (self.get_pixel_position(i, j, true) - self.center).as_threevector();
+                let ray_direction = (self.get_pixel_position(i, j, true, rng) - self.center).as_threevector();
 
                 let ray = WorldPhoton::new(self.center, ray_direction);
 
-                color += self.ray_color(ray, MAX_LIGHT_BOUNCES, &world, idx == 4526);
+                color += self.ray_color(ray, MAX_LIGHT_BOUNCES, &world, idx == 4385, rng);
             }
 
             color /= self.samples_per_pixel as f32;

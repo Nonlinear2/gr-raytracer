@@ -11,6 +11,8 @@ pub fn integrate(initial_ray: WorldPhoton, world: &World, debug: bool) -> (World
         world_ray = world.manifold.photon_to_world(ray);
 
         if debug {
+            println!("vel sph: {:.6}, {:.6}, {:.6}", ray.vel.r(), ray.vel.theta(), ray.vel.phi());
+            println!("vel: {:.6}, {:.6}, {:.6}", world_ray.vel.x(), world_ray.vel.y(), world_ray.vel.z());
             println!("{:.6}, {:.6}, {:.6}", world_ray.pos.x(), world_ray.pos.y(), world_ray.pos.z());
         }
 
