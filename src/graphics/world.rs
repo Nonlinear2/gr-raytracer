@@ -1,5 +1,5 @@
 use crate::graphics::{surface::Surface};
-use crate::relativity::metric::PseudoRiemanian4Manifold;
+use crate::geometry::manifold::PseudoRiemanian4Manifold;
 
 pub type Objects = Vec<Box<dyn Surface>>;
 

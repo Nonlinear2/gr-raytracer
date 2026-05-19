@@ -1,5 +1,5 @@
 mod graphics;
-mod relativity;
+mod geometry;
 mod integration;
 
 use winit::{
@@ -11,9 +11,9 @@ use winit::{
 use pixels::{Pixels, SurfaceTexture};
 
 use crate::graphics::{camera::Camera, color::Color, surface::{Metal, Sphere}};
-use crate::graphics::point::Point3;
+use crate::geometry::point::Point3;
 use crate::graphics::world::World;
-use crate::relativity::metric::Schwarzschild;
+use crate::geometry::manifold::Schwarzschild4Manifold;
 
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Instant;
@@ -79,7 +79,7 @@ impl ApplicationHandler for App {
 fn main() {
 
     let world = World {
-        manifold: Box::new(Schwarzschild::new(Point3::new_cartesian(0., 0., -1.), 0.25)), // Box::new(EuclideanMetric {}),
+        manifold: Box::new(Schwarzschild4Manifold::new(Point3::new_cartesian(0., 0., -1.), 0.25)), // Box::new(EuclideanMetric {}),
         objects: vec![
             // Box::new(Sphere {
             //     center: Point3::new_cartesian(0., 0., -1.),

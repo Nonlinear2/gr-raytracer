@@ -1,14 +1,10 @@
 use glam::{Vec3, Vec4};
 
-use crate::graphics::vector::{FourVector, TangentSpace, ThreeVector};
+use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
+use crate::geometry::manifold::Chart;
 
-// which global chart we use to describe points on the manifolds R^3 and R^4. Synonym for "coordinate system"
-// in R^4 Chart::Spherical represents the chart: (t, x, y, z) -> (t, (spherical on R^3 for x, y, z)).
-#[derive(Clone, Copy, PartialEq)]
-pub enum Chart { 
-    Cartesian,
-    Spherical,
-}
+// this file describes points on manifolds
+
 
 // Point3 is a point on the manifold R^3
 #[derive(Clone, Copy, PartialEq)]
@@ -20,7 +16,8 @@ pub struct Point3 {
 
 impl Point3 {
     pub const ZERO_CART: Self = Self {inner: Vec3::new(0., 0., 0.), chart: Chart::Cartesian};
-    pub const ZERO_SPH: Self = Self {inner: Vec3::new(0., 0., 0.), chart: Chart::Spherical};
+    pub const ZERO_SPHZ: Self = Self {inner: Vec3::new(0., 0., 0.), chart: Chart::SphericalZ};
+    pub const ZERO_SPHX: Self = Self {inner: Vec3::new(0., 0., 0.), chart: Chart::SphericalX};
 
     pub fn new(x0: f32, x1: f32, x2: f32, chart: Chart) -> Self {
         Self {

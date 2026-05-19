@@ -1,36 +1,183 @@
 use crate::graphics::ray::{Photon, WorldPhoton};
-use crate::graphics::point::{Chart, Point3, Point4};
-use crate::graphics::vector::{TangentSpace, ThreeVector, FourVector};
+use crate::geometry::point::{Point3, Point4};
+use crate::geometry::vector::{TangentSpace, ThreeVector, FourVector};
 use crate::integration::euler;
 
 use crate::integration::solvers::positive_root;
 use glam::{Vec4, Mat4};
 
 const SPH_EPS: f32 = 1e-3;
-const V_PHI_THRESHOLD: f32 = 20.;
 
-/// this trait only support 4-manifolds with a single global chart
-/// whose type we can access through the chart function
+/// which global chart we use to describe points on the submanifolds of R^4 obtained by fixing the time coordinate.
+/// Important points: 
+/// These charts will designate the maps from coordinates to "manifold" and not the opposite. They are technically inverse charts
+#[derive(Clone, Copy, PartialEq)]
+pub enum Chart {
+    CartesianWorld,
+    Cartesian, // cartesian with center point
+    SphericalZ, // spherical coordinates with center and (r: 1, theta: 0, phi: ...) pointing towards positive Z 
+    SphericalX, // spherical coordinates with center and (r: 1, theta: 0, phi: ...) pointing towards positive X 
+}
+
+// Atlas describing submanifolds of R^4 given by fixing the time coordinate (so this coordinate doesnt get converted).
+pub trait HasAtlas3 {
+    fn has_chart(&self, chart: Chart) -> bool; // should always have CartesianWorld
+    fn preferred_chart_for_point(&self, point: Point3) -> Chart;
+    fn transition_point(&self, from: Chart, to: Chart, p: Point3) -> Point3;
+    fn transition_vector(&self, from: Chart, to: Chart, p: Point3, v: ThreeVector) -> ThreeVector;
+}
+
+#[allow(dead_code)]
+pub struct EuclideanAtlas3 {
+    pub center: Point3,
+}
+
+pub struct SchwarzschildAtlas3 {
+    pub center: Point3,
+}
+
+impl HasAtlas3 for EuclideanAtlas3 {
+    fn has_chart(&self, chart: Chart) -> bool {
+        chart == Chart::Cartesian || chart == Chart::CartesianWorld
+    }
+
+    fn preferred_chart_for_point(&self, _point: Point3) -> Chart {
+        Chart::Cartesian
+    }
+
+    fn transition_point(&self, from: Chart, to: Chart, pos: Point3) -> Point3 {
+        match (from, to) {
+            (Chart::Cartesian, Chart::CartesianWorld) => pos - self.center,
+            (Chart::CartesianWorld, Chart::Cartesian) => pos + self.center,
+            _ => panic!()
+        }
+    }
+
+    fn transition_vector(&self, _from: Chart, _to: Chart, _p: Point3, v: ThreeVector) -> ThreeVector {
+        v
+    }
+}
+
+impl HasAtlas3 for SchwarzschildAtlas3 {
+    fn has_chart(&self, chart: Chart) -> bool {
+        chart == Chart::SphericalX || chart == Chart::SphericalZ || chart == Chart::CartesianWorld
+    }
+
+    fn preferred_chart_for_point(&self, _point: Point3) -> Chart {
+        todo!()
+    }
+
+    fn transition_point(&self, from: Chart, to: Chart, p: Point3) -> Point3 {
+        match (from, to) {
+        (Chart::CartesianWorld, Chart::SphericalZ) => {
+            (p - self.center).to_spherical()
+        },
+        (Chart::CartesianWorld, Chart::SphericalX) => {
+            todo!()
+        },
+
+        (Chart::SphericalZ, Chart::CartesianWorld) => {
+            p.to_cartesian() + self.center
+        },
+        (Chart::SphericalX, Chart::CartesianWorld) => {
+            todo!()
+        },
+
+        (Chart::SphericalX, Chart::SphericalZ) => {
+            todo!()
+        },
+        (Chart::SphericalZ, Chart::SphericalX) => {
+            todo!()
+        },
+        _ => panic!()
+        }
+    }
+
+    fn transition_vector(&self, from: Chart, to: Chart, p: Point3, v: ThreeVector) -> ThreeVector {
+        assert!(p.chart == from); // p must already be in the initial chart (see readme for explanations)
+
+        match (from, to) {
+        (Chart::CartesianWorld, Chart::SphericalZ) => {
+            // TODO: add guards against trying to convert to singular points on SphericalZ 
+            //     // if the point is close to the z axis, spherical coordinates become singular, and v_phi becomes unphysical.
+            //     // we set it to 0.0 arbitrairly.
+            // let (v_r, v_th, v_ph) = if rho <= SPH_EPS {
+            //     let pole_sign = if z >= 0.0 { 1.0 } else { -1.0 };
+            //     let tangential = (vel.x() * vel.x() + vel.y() * vel.y()).sqrt();
+            //     (
+            //         pole_sign * vel.z(),
+            //         tangential / r,
+            //         0.0,
+            //     )
+            // } else {
+            let rel = p - self.center;
+            let x = rel.x();
+            let y = rel.y();
+            let z = rel.z();
+            let rho = (x * x + y * y).sqrt(); // distance to the z axis
+            let r = (x * x + y * y + z * z).sqrt();
+
+            let dr_dx = x / r;
+            let dr_dy = y / r;
+            let dr_dz = z / r;
+            let dth_dx = x * z / (r * r * rho);
+            let dth_dy = y * z / (r * r * rho);
+            let dth_dz = -rho / (r * r);
+            let dph_dx = -y / (rho * rho);
+            let dph_dy = x / (rho * rho);
+            
+            ThreeVector::new(
+                dr_dx * v.x() + dr_dy * v.y() + dr_dz * v.z(),
+                dth_dx * v.x() + dth_dy * v.y() + dth_dz * v.z(),
+                dph_dx * v.x() + dph_dy * v.y(),
+                TangentSpace::SphericalZ
+            )
+        },
+
+        (Chart::CartesianWorld, Chart::SphericalX) => {
+            todo!()
+        },
+
+        (Chart::SphericalZ, Chart::CartesianWorld) => {
+            let r = p.r();
+            let theta = p.theta();
+            let phi = p.phi();
+            let v_r = v.r();
+            let v_theta = v.theta();
+            let v_phi = v.phi();
+
+            let sin_theta = theta.sin();
+            let cos_theta = theta.cos();
+            let sin_phi = phi.sin();
+            let cos_phi = phi.cos();
+
+            ThreeVector::new_cartesian(
+                sin_theta * cos_phi * v_r + r * cos_theta * cos_phi * v_theta - r * sin_theta * sin_phi * v_phi,
+                sin_theta * sin_phi * v_r + r * cos_theta * sin_phi * v_theta + r * sin_theta * cos_phi * v_phi,
+                cos_theta * v_r - r * sin_theta * v_theta,
+            )
+        },
+
+        (Chart::SphericalX, Chart::CartesianWorld) => {
+            todo!()
+        },
+
+        (Chart::SphericalX, Chart::SphericalZ) => {
+            todo!()
+        },
+        (Chart::SphericalZ, Chart::SphericalX) => {
+            todo!()
+        },
+        _ => panic!()
+        }
+    }
+}
+
 pub trait PseudoRiemanian4Manifold {
-
-    #[allow(dead_code)]
-    fn chart(&self) -> Chart;
-
-    /// takes a Point3 in world and converts it to a point in the manifold without the t component
-    #[allow(dead_code)]
-    fn world_to_chart_space(&self, x: Point3) -> Point3;
-
-    /// takes a Point3 in the manifold without the t component and converts it to a point in world 
-    #[allow(dead_code)]
-    fn chart_space_to_world(&self, x: Point3) -> Point3;
 
     fn is_singular(&self, x: Point4) -> bool;
 
-    fn create_photon(&self, x: Point3, vel: ThreeVector) -> Photon;
-
-    fn photon_to_world_pos(&self, photon: Photon) -> Point3;
-
-    fn photon_to_world_vel(&self, photon: Photon) -> ThreeVector;
+    fn world_to_photon(&self, world_photon: WorldPhoton) -> Photon;
 
     fn photon_to_world(&self, photon: Photon) -> WorldPhoton;
 
@@ -43,61 +190,42 @@ pub trait PseudoRiemanian4Manifold {
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32;
 
     fn step_along_null_geodesic(&self, s: Photon) -> Photon;
-
 }
 
-#[allow(dead_code)]
-pub struct Euclidean {
-    pub center: Point3,
+pub struct Euclidean4Manifold {
+    pub sub_atlas: EuclideanAtlas3 // atlas for fixed-time submanifolds
 }
 
-
-impl PseudoRiemanian4Manifold for Euclidean {
-
-    fn chart(&self) -> Chart {
-        Chart::Cartesian
-    }
-
-    fn world_to_chart_space(&self, x: Point3) -> Point3 {
-        assert!(x.chart == Chart::Cartesian);
-        x - self.center
-    }
-
-    fn chart_space_to_world(&self, x: Point3) -> Point3 {
-        assert!(x.chart == Chart::Cartesian);
-        x + self.center
-    }
+impl PseudoRiemanian4Manifold for Euclidean4Manifold {
 
     fn is_singular(&self, _x: Point4) -> bool {
         false
     }
 
-    fn create_photon(&self, x: Point3, vel: ThreeVector) -> Photon {
+    fn world_to_photon(&self, world_photon: WorldPhoton) -> Photon {
         Photon::new(
-            Point4::from_space_time(0., x),
-            FourVector::from_space_time(0., vel)
+            Point4::from_space_time(0., world_photon.pos),
+            FourVector::from_space_time(0., world_photon.vel)
         )
-    }
-
-    fn photon_to_world_pos(&self, photon: Photon) -> Point3 {
-        assert!(photon.pos.chart == Chart::Cartesian);
-        assert!(photon.vel.vector_space == TangentSpace::Cartesian);
-
-        photon.pos.space() + self.center
-    }
-
-    fn photon_to_world_vel(&self, photon: Photon) -> ThreeVector {
-        assert!(photon.pos.chart == Chart::Cartesian);
-        assert!(photon.vel.vector_space == TangentSpace::Cartesian);
-
-        photon.vel.space()
     }
 
     fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
         assert!(photon.pos.chart == Chart::Cartesian);
         assert!(photon.vel.vector_space == TangentSpace::Cartesian);
 
-        WorldPhoton::new(self.photon_to_world_pos(photon), self.photon_to_world_vel(photon))
+        WorldPhoton::new(
+            self.sub_atlas.transition_point(
+                Chart::Cartesian,
+                Chart::CartesianWorld,
+                photon.pos.space()
+            ),
+            self.sub_atlas.transition_vector(
+                Chart::Cartesian,
+                Chart::CartesianWorld,
+                Point3::ZERO_CART, // unused
+                photon.vel.space()
+            )
+        )
     }
 
     fn g(&self, _x: Point4) -> Mat4 {
@@ -124,49 +252,30 @@ impl PseudoRiemanian4Manifold for Euclidean {
     }
 }
 
-pub struct Schwarzschild {
-    pub center: Point3,
+pub struct Schwarzschild4Manifold {
+    pub sub_atlas: SchwarzschildAtlas3, // atlas for fixed-time submanifolds
     pub r_s: f32,
 }
 
-impl Schwarzschild {
+impl Schwarzschild4Manifold {
     // center is a Point in world space
     pub fn new(center: Point3, r_s: f32) -> Self {
         assert!(center.chart == Chart::Cartesian);
         Self {
-            center: center,
+            sub_atlas: SchwarzschildAtlas3 { center: center },
             r_s: r_s,
         }
     }
-
-    #[allow(dead_code)]
-    pub fn mass(&self) -> f32 { // schwartzschild radius
-        return self.r_s; // r_s = 2GM/c^2.
-    }
 }
 
-impl PseudoRiemanian4Manifold for Schwarzschild {
-    fn chart(&self) -> Chart {
-        Chart::Spherical
-    }
-
-    fn world_to_chart_space(&self, x: Point3) -> Point3 {
-        assert!(x.chart == Chart::Cartesian);
-        (x - self.center).to_spherical()
-    }
-
-    fn chart_space_to_world(&self, x: Point3) -> Point3 {
-        assert!(x.chart == Chart::Spherical);
-        x.to_cartesian() + self.center
-    }
-
+impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     fn is_singular(&self, x: Point4) -> bool {
         x.r() <= self.r_s
     }
 
     /// x is a point in world
     /// vel is a vector in the tangent space of world
-    fn create_photon(&self, x: Point3, vel: ThreeVector) -> Photon {
+    fn world_to_photon(&self, x: Point3, vel: ThreeVector) -> Photon {
         assert!(x.chart == Chart::Cartesian);
         assert!(vel.vector_space == TangentSpace::Cartesian);
         assert!((x - self.center).distance_to_zero() > SPH_EPS);
@@ -232,40 +341,7 @@ impl PseudoRiemanian4Manifold for Schwarzschild {
         let k_0 = positive_root(g.col(0)[0], b, c);
 
         Photon::new(photon_x, FourVector::from_space_time(k_0, vel_sph))
-    }
-
-    fn photon_to_world_pos(&self, photon: Photon) -> Point3 {
-        assert!(photon.pos.chart == Chart::Spherical);
-        assert!(photon.vel.vector_space == TangentSpace::Spherical);
-
-        photon.pos.space().to_cartesian() + self.center
-    }
-
-    fn photon_to_world_vel(&self, photon: Photon) -> ThreeVector {
-        assert!(photon.pos.chart == Chart::Spherical);
-        assert!(photon.vel.vector_space == TangentSpace::Spherical);
-
-        let pos = photon.pos.space();
-        let vel = photon.vel.space();
-
-        let r = pos.r();
-        let theta = pos.theta();
-        let phi = pos.phi();
-        let v_r = vel.inner[0];
-        let v_theta = vel.inner[1];
-        let v_phi = vel.inner[2];
-
-        let sin_theta = theta.sin();
-        let cos_theta = theta.cos();
-        let sin_phi = phi.sin();
-        let cos_phi = phi.cos();
-
-        ThreeVector::new_cartesian(
-            sin_theta * cos_phi * v_r + r * cos_theta * cos_phi * v_theta - r * sin_theta * sin_phi * v_phi,
-            sin_theta * sin_phi * v_r + r * cos_theta * sin_phi * v_theta + r * sin_theta * cos_phi * v_phi,
-            cos_theta * v_r - r * sin_theta * v_theta,
-        )
-    }
+    }        
 
     fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
         WorldPhoton::new(

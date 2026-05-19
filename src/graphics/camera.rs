@@ -1,4 +1,5 @@
-use crate::graphics::{ray::{StopReason, WorldPhoton}, point::Point3, vector::ThreeVector, world::World};
+use crate::graphics::{ray::{StopReason, WorldPhoton}, world::World};
+use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::integration::integrate::integrate;
 

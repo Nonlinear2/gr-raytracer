@@ -1,5 +1,5 @@
-use crate::graphics::point::{Chart, Point3, Point4};
-use crate::graphics::vector::{TangentSpace, ThreeVector, FourVector};
+use crate::geometry::point::{Point3, Point4};
+use crate::geometry::vector::{TangentSpace, ThreeVector, FourVector};
 use crate::graphics::surface::Material;
 
 pub enum StopReason {

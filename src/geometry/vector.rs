@@ -1,15 +1,17 @@
 ﻿use rand::{rngs::StdRng, RngExt};
 use glam::{Vec3, Vec4};
 
-use crate::graphics::point::{Chart, Point3, Point4};
+use crate::geometry::point::{Point3, Point4};
 
-/// basis of the tangent space at a point (unspecified) of a given chart on R^3/R^4 (that is, a coordinate system).
-/// the tangent space identified with R^3/R^4 thus the basis is composed of vectors.
+/// basis of the tangent space at a point (unspecified) of a given chart on R^3_t (that is, a coordinate system).
+/// the tangent space identified with R^3_t thus the basis is composed of vectors.
 /// (see proposition 3.2 J.Lee smooth manifolds).
 #[derive(Clone, Copy, PartialEq)]
 pub enum TangentSpace {
+    NoTangentSpace,
     Cartesian,
-    Spherical, 
+    SphericalZ,
+    SphericalX,
 }
 
 /// vector of a given tangent space.
@@ -84,7 +86,6 @@ impl ThreeVector {
 
     pub fn phi(&self) -> f32{
         assert!(self.vector_space == TangentSpace::Spherical);
-        assert!((0.0..=std::f32::consts::TAU).contains(&self.inner[2]));
         assert!(self.inner[2].is_finite());
         self.inner[2]
     }

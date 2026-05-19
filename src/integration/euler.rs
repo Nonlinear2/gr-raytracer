@@ -1,4 +1,4 @@
-use crate::graphics::{point::{Chart, Point4}, vector::FourVector};
+use crate::geometry::{manifold::Chart, point::Point4, vector::FourVector};
 
 const EULER_STEP_SIZE: f32 = 0.01;
 
@@ -11,13 +11,13 @@ pub fn euler_step(x: Point4, k: FourVector, del_x: Point4, del_k: FourVector) ->
             x + EULER_STEP_SIZE * del_x,
             k + EULER_STEP_SIZE * del_k,
         ),
-        Chart::Spherical => {
+        Chart::SphericalZ => {
             let mut new_x = Point4::new(
                 x[0] + EULER_STEP_SIZE * del_x[0],
                 x[1] + EULER_STEP_SIZE * del_x[1],
                 x[2] + EULER_STEP_SIZE * del_x[2],
                 x[3] + EULER_STEP_SIZE * del_x[3],
-                Chart::Spherical,
+                Chart::SphericalZ,
             );
             let mut new_k = k + EULER_STEP_SIZE * del_k;
 
@@ -48,6 +48,12 @@ pub fn euler_step(x: Point4, k: FourVector, del_x: Point4, del_k: FourVector) ->
             new_k[2] = k_theta;
 
             (new_x, new_k)
+        }
+        Chart::SphericalX => {
+            todo!();
+        }
+        Chart::CartesianWorld => {
+            panic!();
         }
     }
 }
