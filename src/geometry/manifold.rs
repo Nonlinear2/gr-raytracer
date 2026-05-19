@@ -336,7 +336,7 @@ pub struct Schwarzschild4Manifold {
 impl Schwarzschild4Manifold {
     // center is a Point in world space
     pub fn new(center: Point3, r_s: f32) -> Self {
-        assert!(center.chart == Chart::Cartesian);
+        assert!(center.chart == Chart::CartesianWorld);
         Self {
             sub_atlas: SchwarzschildAtlas3 { center: center },
             r_s: r_s,
