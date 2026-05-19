@@ -172,7 +172,28 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
         },
 
         (Chart::CartesianWorld, Chart::SphericalX) => {
-            todo!()
+            let rel = p - self.center;
+            let x = rel.x();
+            let y = rel.y();
+            let z = rel.z();
+            let rho = (y * y + z * z).sqrt(); // distance to the x axis
+            let r = (x * x + y * y + z * z).sqrt();
+
+            let dr_dx = x / r;
+            let dr_dy = y / r;
+            let dr_dz = z / r;
+            let dth_dx = -rho / (r * r);
+            let dth_dy = x * y / (r * r * rho);
+            let dth_dz = x * z / (r * r * rho);
+            let dph_dy = -z / (rho * rho);
+            let dph_dz = y / (rho * rho);
+
+            ThreeVector::new(
+                dr_dx * v.x() + dr_dy * v.y() + dr_dz * v.z(),
+                dth_dx * v.x() + dth_dy * v.y() + dth_dz * v.z(),
+                dph_dy * v.y() + dph_dz * v.z(),
+                TangentSpace::SphericalX,
+            )
         },
 
         (Chart::SphericalZ, Chart::CartesianWorld) => {
@@ -196,14 +217,34 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
         },
 
         (Chart::SphericalX, Chart::CartesianWorld) => {
-            todo!()
+            let r = p.r();
+            let theta = p.theta();
+            let phi = p.phi();
+            let v_r = v.r();
+            let v_theta = v.theta();
+            let v_phi = v.phi();
+
+            let sin_theta = theta.sin();
+            let cos_theta = theta.cos();
+            let sin_phi = phi.sin();
+            let cos_phi = phi.cos();
+
+            ThreeVector::new_cartesian(
+                cos_theta * v_r - r * sin_theta * v_theta,
+                sin_theta * cos_phi * v_r + r * cos_theta * cos_phi * v_theta - r * sin_theta * sin_phi * v_phi,
+                sin_theta * sin_phi * v_r + r * cos_theta * sin_phi * v_theta + r * sin_theta * cos_phi * v_phi,
+            )
         },
 
         (Chart::SphericalX, Chart::SphericalZ) => {
-            todo!()
+            let p_world = self.transition_point(Chart::SphericalX, Chart::CartesianWorld, p);
+            let v_world = self.transition_vector(Chart::SphericalX, Chart::CartesianWorld, p, v);
+            self.transition_vector(Chart::CartesianWorld, Chart::SphericalZ, p_world, v_world)
         },
         (Chart::SphericalZ, Chart::SphericalX) => {
-            todo!()
+            let p_world = self.transition_point(Chart::SphericalZ, Chart::CartesianWorld, p);
+            let v_world = self.transition_vector(Chart::SphericalZ, Chart::CartesianWorld, p, v);
+            self.transition_vector(Chart::CartesianWorld, Chart::SphericalX, p_world, v_world)
         },
         _ => panic!()
         }
