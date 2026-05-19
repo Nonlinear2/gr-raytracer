@@ -25,8 +25,8 @@ pub trait HasAtlas3 {
     #[allow(dead_code)]
     fn has_chart(&self, chart: Chart) -> bool; // should always have CartesianWorld
     fn preferred_chart_for_point(&self, point: Point3) -> Chart;
-    fn transition_point(&self, from: Chart, to: Chart, p: Point3) -> Point3;
-    fn transition_vector(&self, from: Chart, to: Chart, p: Point3, v: ThreeVector) -> ThreeVector;
+    fn transition_point(&self, p: Point3, to: Chart) -> Point3;
+    fn transition_vector(&self, p: Point3, v: ThreeVector, to: Chart) -> ThreeVector;
 }
 
 #[allow(dead_code)]
@@ -47,15 +47,15 @@ impl HasAtlas3 for EuclideanAtlas3 {
         Chart::Cartesian
     }
 
-    fn transition_point(&self, from: Chart, to: Chart, pos: Point3) -> Point3 {
-        match (from, to) {
-            (Chart::Cartesian, Chart::CartesianWorld) => pos - self.center,
-            (Chart::CartesianWorld, Chart::Cartesian) => pos + self.center,
+    fn transition_point(&self, p: Point3, to: Chart) -> Point3 {
+        match (p.chart, to) {
+            (Chart::Cartesian, Chart::CartesianWorld) => p - self.center,
+            (Chart::CartesianWorld, Chart::Cartesian) => p + self.center,
             _ => panic!()
         }
     }
 
-    fn transition_vector(&self, _from: Chart, _to: Chart, _p: Point3, v: ThreeVector) -> ThreeVector {
+    fn transition_vector(&self, _p: Point3, v: ThreeVector, _to: Chart) -> ThreeVector {
         v
     }
 }
@@ -80,8 +80,8 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
         }
     }
 
-    fn transition_point(&self, from: Chart, to: Chart, p: Point3) -> Point3 {
-        match (from, to) {
+    fn transition_point(&self, p: Point3, to: Chart) -> Point3 {
+        match (p.chart, to) {
         (Chart::CartesianWorld, Chart::SphericalZ) => {
             let p_rel = p - self.center;
 
@@ -119,21 +119,20 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
         },
 
         (Chart::SphericalX, Chart::SphericalZ) => {
-            let p_world = self.transition_point(Chart::SphericalX, Chart::CartesianWorld, p);
-            self.transition_point(Chart::CartesianWorld, Chart::SphericalZ, p_world)
+            let p_world = self.transition_point(p, Chart::CartesianWorld);
+            self.transition_point(p_world, Chart::SphericalZ)
         },
         (Chart::SphericalZ, Chart::SphericalX) => {
-            let p_world = self.transition_point(Chart::SphericalZ, Chart::CartesianWorld, p);
-            self.transition_point(Chart::CartesianWorld, Chart::SphericalX, p_world)
+            let p_world = self.transition_point(p, Chart::CartesianWorld);
+            self.transition_point(p_world, Chart::SphericalX)
         },
         _ => panic!()
         }
     }
 
-    fn transition_vector(&self, from: Chart, to: Chart, p: Point3, v: ThreeVector) -> ThreeVector {
-        assert!(p.chart == from); // p must already be in the initial chart (see readme for explanations)
-
-        match (from, to) {
+    fn transition_vector(&self, p: Point3, v: ThreeVector, to: Chart) -> ThreeVector {
+        // TODO: assert v.vector_space corresponds to p.space 
+        match (p.chart, to) {
         (Chart::CartesianWorld, Chart::SphericalZ) => {
             // TODO: add guards against trying to convert to singular points on SphericalZ 
             //     // if the point is close to the z axis, spherical coordinates become singular, and v_phi becomes unphysical.
@@ -237,14 +236,14 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
         },
 
         (Chart::SphericalX, Chart::SphericalZ) => {
-            let p_world = self.transition_point(Chart::SphericalX, Chart::CartesianWorld, p);
-            let v_world = self.transition_vector(Chart::SphericalX, Chart::CartesianWorld, p, v);
-            self.transition_vector(Chart::CartesianWorld, Chart::SphericalZ, p_world, v_world)
+            let p_world = self.transition_point(p, Chart::CartesianWorld);
+            let v_world = self.transition_vector(p, v, Chart::CartesianWorld);
+            self.transition_vector(p_world, v_world, Chart::SphericalZ)
         },
         (Chart::SphericalZ, Chart::SphericalX) => {
-            let p_world = self.transition_point(Chart::SphericalZ, Chart::CartesianWorld, p);
-            let v_world = self.transition_vector(Chart::SphericalZ, Chart::CartesianWorld, p, v);
-            self.transition_vector(Chart::CartesianWorld, Chart::SphericalX, p_world, v_world)
+            let p_world = self.transition_point(p, Chart::CartesianWorld);
+            let v_world = self.transition_vector(p, v, Chart::CartesianWorld);
+            self.transition_vector(p_world, v_world, Chart::SphericalX)
         },
         _ => panic!()
         }
@@ -294,15 +293,13 @@ impl PseudoRiemanian4Manifold for Euclidean4Manifold {
 
         WorldPhoton::new(
             self.sub_atlas.transition_point(
-                Chart::Cartesian,
-                Chart::CartesianWorld,
-                photon.pos.space()
+                photon.pos.space(),
+                Chart::CartesianWorld
             ),
             self.sub_atlas.transition_vector(
-                Chart::Cartesian,
-                Chart::CartesianWorld,
                 Point3::ZERO_CART, // unused
-                photon.vel.space()
+                photon.vel.space(),
+                Chart::CartesianWorld
             )
         )
     }
@@ -362,16 +359,14 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
         let chart = self.sub_atlas.preferred_chart_for_point(world_photon.pos);
 
         let pos = self.sub_atlas.transition_point(
-            Chart::CartesianWorld,
-            chart,
-            world_photon.pos
+            world_photon.pos,
+            chart
         );
 
         let vel = self.sub_atlas.transition_vector(
-            Chart::CartesianWorld,
-            chart,
             world_photon.pos,
-            world_photon.vel
+            world_photon.vel,
+            chart
         );
 
         let (v_r, v_th, v_ph) = (vel.r(), vel.theta(), vel.phi());
@@ -399,15 +394,13 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
         WorldPhoton::new(
             self.sub_atlas.transition_point(
-                photon.pos.chart,
-                Chart::CartesianWorld,
-                photon.pos.space()
+                photon.pos.space(),
+                Chart::CartesianWorld
             ),
             self.sub_atlas.transition_vector(
-                photon.pos.chart,
-                Chart::CartesianWorld,
                 photon.pos.space(),
-                photon.vel.space()
+                photon.vel.space(),
+                Chart::CartesianWorld
             ),
         )
     }
