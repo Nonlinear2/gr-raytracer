@@ -2,6 +2,7 @@ use crate::graphics::{ray::{StopReason, WorldPhoton}, world::World};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::integration::integrate::integrate;
+use crate::geometry::manifold::Chart::CartesianWorld;
 
 use rand::{rngs::StdRng, RngExt};
 
@@ -26,7 +27,7 @@ impl Camera {
     pub fn new(img_width: u32, img_height: u32) -> Self {
         let a_ratio = (img_width as f32) / (img_height as f32);
 
-        let center: Point3 = Point3::new_cartesian(0.,0.,0.);
+        let center: Point3 = Point3::new(0.,0.,0., CartesianWorld);
         const FOCAL_LENGTH: f32 = 1.0;
 
         let viewport_height = 2.0;
@@ -39,7 +40,7 @@ impl Camera {
         let pixel_delta_v = viewport_v_vect * (1.0 / img_height as f32);
 
         let viewport_upper_left = center
-            - Point3::new_cartesian(0., 0., FOCAL_LENGTH)
+            - Point3::new(0., 0., FOCAL_LENGTH, CartesianWorld)
             - viewport_u_vect.as_point3() * 0.5
             - viewport_v_vect.as_point3() * 0.5;
         let first_pixel_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v).as_point3();

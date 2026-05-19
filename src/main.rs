@@ -14,6 +14,7 @@ use crate::graphics::{camera::Camera, color::Color, surface::{Metal, Sphere}};
 use crate::geometry::point::Point3;
 use crate::graphics::world::World;
 use crate::geometry::manifold::Schwarzschild4Manifold;
+use crate::geometry::manifold::Chart::CartesianWorld;
 
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Instant;
@@ -79,7 +80,7 @@ impl ApplicationHandler for App {
 fn main() {
 
     let world = World {
-        manifold: Box::new(Schwarzschild4Manifold::new(Point3::new_cartesian(0., 0., -1.), 0.25)), // Box::new(EuclideanMetric {}),
+        manifold: Box::new(Schwarzschild4Manifold::new(Point3::new(0., 0., -1., CartesianWorld), 0.25)), // Box::new(EuclideanMetric {}),
         objects: vec![
             // Box::new(Sphere {
             //     center: Point3::new_cartesian(0., 0., -1.),
@@ -91,7 +92,7 @@ fn main() {
             //     material: Box::new( {}),
             // }),
             Box::new(Sphere {
-                center: Point3::new_cartesian(0.9, 0., -0.4),
+                center: Point3::new(0.9, 0., -0.4, CartesianWorld),
                 radius: 0.4,
                 material: Box::new(Metal {
                     albedo: Color::new(128., 128., 128.),

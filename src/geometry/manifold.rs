@@ -108,14 +108,14 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
             let y = p.r() * p.theta().sin() * p.phi().sin();
             let z = p.r() * p.theta().cos();
 
-            Point3::new_cartesian(x, y, z) + self.center
+            Point3::new(x, y, z, Chart::CartesianWorld) + self.center
         },
         (Chart::SphericalX, Chart::CartesianWorld) => {
             let x = p.r() * p.theta().cos();
             let y = p.r() * p.theta().sin() * p.phi().cos();
             let z = p.r() * p.theta().sin() * p.phi().sin();
 
-            Point3::new_cartesian(x, y, z) + self.center
+            Point3::new(x, y, z, Chart::CartesianWorld) + self.center
         },
 
         (Chart::SphericalX, Chart::SphericalZ) => {

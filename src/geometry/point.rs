@@ -26,13 +26,6 @@ impl Point3 {
         }
     }
 
-    pub fn new_cartesian(x: f32, y: f32, z: f32) -> Self {
-        Self {
-            inner: Vec3::new(x, y, z),
-            chart: Chart::Cartesian,
-        }
-    }
-
     pub fn new_spherical_z(r: f32, theta: f32, phi: f32) -> Self {
         assert!(r >= 0.0);
         assert!((0.0..=std::f32::consts::PI).contains(&theta));
@@ -153,8 +146,8 @@ impl std::ops::Neg for Point3 {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        assert!(self.chart == Chart::Cartesian);
-        Self::new_cartesian(-self.inner.x, -self.inner.y, -self.inner.z)
+        assert!(matches!(self.chart, Chart::Cartesian | Chart::CartesianWorld));
+        Self::new(-self.inner.x, -self.inner.y, -self.inner.z, self.chart)
     }
 }
 
@@ -162,7 +155,7 @@ impl std::ops::Add for Point3 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        assert!(self.chart == Chart::Cartesian);
+        assert!(matches!(self.chart, Chart::Cartesian | Chart::CartesianWorld));
         assert!(self.chart == rhs.chart);
         Self::new(
             self.inner.x + rhs.inner.x,
@@ -177,7 +170,7 @@ impl std::ops::Sub for Point3 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        assert!(self.chart == Chart::Cartesian);
+        assert!(matches!(self.chart, Chart::Cartesian | Chart::CartesianWorld));
         assert!(self.chart == rhs.chart);
         Self::new(
             self.inner.x - rhs.inner.x,
@@ -192,7 +185,7 @@ impl std::ops::Mul<f32> for Point3 {
     type Output = Self;
 
     fn mul(self, rhs: f32) -> Self::Output {
-        assert!(self.chart == Chart::Cartesian);
+        assert!(matches!(self.chart, Chart::Cartesian | Chart::CartesianWorld));
         Self::new(
             self.inner.x * rhs,
             self.inner.y * rhs,
@@ -206,7 +199,7 @@ impl std::ops::Mul<Point3> for f32 {
     type Output = Point3;
 
     fn mul(self, rhs: Point3) -> Self::Output {
-        assert!(rhs.chart == Chart::Cartesian);
+        assert!(matches!(rhs.chart, Chart::Cartesian | Chart::CartesianWorld));
         rhs * self
     }
 }
@@ -227,13 +220,6 @@ impl Point4 {
         Self {
             inner: Vec4::new(x0, x1, x2, x3),
             chart: chart,
-        }
-    }
-
-    pub fn new_cartesian(t: f32, x: f32, y: f32, z: f32) -> Self {
-        Self {
-            inner: Vec4::new(t, x, y, z),
-            chart: Chart::Cartesian,
         }
     }
 
@@ -357,7 +343,7 @@ impl std::ops::Add for Point4 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        assert!(self.chart == Chart::Cartesian);
+        assert!(matches!(self.chart, Chart::Cartesian | Chart::CartesianWorld));
         assert!(self.chart == rhs.chart);
         Self {
             inner: self.inner + rhs.inner,
@@ -370,7 +356,7 @@ impl std::ops::Mul<f32> for Point4 {
     type Output = Self;
 
     fn mul(self, rhs: f32) -> Self::Output {
-        assert!(self.chart == Chart::Cartesian);
+        assert!(matches!(self.chart, Chart::Cartesian | Chart::CartesianWorld));
         Self {
             inner: self.inner * rhs,
             chart: self.chart,
@@ -382,7 +368,7 @@ impl std::ops::Mul<Point4> for f32 {
     type Output = Point4;
 
     fn mul(self, rhs: Point4) -> Self::Output {
-        assert!(rhs.chart == Chart::Cartesian);
+        assert!(matches!(rhs.chart, Chart::Cartesian | Chart::CartesianWorld));
         rhs * self
     }
 }
