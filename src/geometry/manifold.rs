@@ -31,11 +31,11 @@ pub trait HasAtlas3 {
 
 #[allow(dead_code)]
 pub struct EuclideanAtlas3 {
-    pub center: Point3,
+    pub center: Point3, // expressed in Chart::CartesianWorld
 }
 
 pub struct SchwarzschildAtlas3 {
-    pub center: Point3,
+    pub center: Point3, // expressed in Chart::CartesianWorld
 }
 
 impl HasAtlas3 for EuclideanAtlas3 {
@@ -67,7 +67,17 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
 
     fn preferred_chart_for_point(&self, point: Point3) -> Chart {
         assert!(point.chart == Chart::CartesianWorld);
-        todo!()
+
+        let rel = point - self.center;
+
+        let dist_to_z_axis_sq = rel.x() * rel.x() + rel.y() * rel.y();
+        let dist_to_x_axis_sq = rel.y() * rel.y() + rel.z() * rel.z();
+
+        if dist_to_z_axis_sq < dist_to_x_axis_sq {
+            Chart::SphericalX
+        } else {
+            Chart::SphericalZ
+        }
     }
 
     fn transition_point(&self, from: Chart, to: Chart, p: Point3) -> Point3 {
@@ -83,12 +93,13 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
         }
 
         (Chart::CartesianWorld, Chart::SphericalX) => {
-            // let p_rel = p - self.center;
-            // let r = p_rel.distance_to_zero();
-            // let theta = (p_rel.x() / r).acos();
+            let p_rel = p - self.center;
 
-            // Point3::new_spherical_x(r, theta, phi)
-            todo!()
+            let r = p_rel.distance_to_zero();
+            let theta = (p_rel.x() / r).acos();
+            let phi = p_rel.z().atan2(p_rel.y()).rem_euclid(2.0 * std::f32::consts::PI);
+
+            Point3::new_spherical_x(r, theta, phi)
         },
 
         (Chart::SphericalZ, Chart::CartesianWorld) => {
@@ -108,10 +119,12 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
         },
 
         (Chart::SphericalX, Chart::SphericalZ) => {
-            todo!()
+            let p_world = self.transition_point(Chart::SphericalX, Chart::CartesianWorld, p);
+            self.transition_point(Chart::CartesianWorld, Chart::SphericalZ, p_world)
         },
         (Chart::SphericalZ, Chart::SphericalX) => {
-            todo!()
+            let p_world = self.transition_point(Chart::SphericalZ, Chart::CartesianWorld, p);
+            self.transition_point(Chart::CartesianWorld, Chart::SphericalX, p_world)
         },
         _ => panic!()
         }
