@@ -55,35 +55,12 @@ impl Camera {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn debug_ray_trajectory(&self, world: &World) {
-        let i = self.img_width as usize / 4;
-        let j = 0;
-        let ray_direction = (self.get_pixel_position(i, j, false) - self.center).as_threevector();
-        let mut photon: crate::graphics::ray::Photon = world.manifold.create_photon(self.center, ray_direction);
-
-        println!("x,y,z");
-
-        for _step in 0..500 {
-            let world_photon = world.manifold.photon_to_world(photon);
-            let p = world_photon.pos;
-            println!("{:.6}, {:.6}, {:.6}", p.x(), p.y(), p.z());
-
-            if world.manifold.is_singular(photon.pos) {
-                eprintln!("hit singularity");
-                break;
-            }
-
-            photon = world.manifold.step_along_null_geodesic(photon);
-        }
-    }
-
-    pub fn ray_color(&self, ray: WorldPhoton, depth: u32, world: &World) -> Color {
+    pub fn ray_color(&self, ray: WorldPhoton, depth: u32, world: &World, debug: bool) -> Color {
         if depth <= 0 {
             return Color::BLACK;
         }
 
-        let (hit, stop_reason) = integrate(ray, world);
+        let (hit, stop_reason) = integrate(ray, world, debug);
 
         match stop_reason {
             StopReason::HorizonHit => return Color::BLACK,
@@ -105,7 +82,7 @@ impl Camera {
                 if let Some((attenuation, new_direction)) = material.scatter(&hit) {
                     let ray = WorldPhoton::new(hit.world_photon.pos, new_direction);
 
-                    let bounced = self.ray_color(ray, depth - 1, world);
+                    let bounced = self.ray_color(ray, depth - 1, world, debug);
 
                     return material.emission()
                         + Color {
@@ -132,7 +109,7 @@ impl Camera {
 
     pub fn render(&self, frame: &mut [u8], world: &World) {
         for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            if idx % 100 == 0 {
+            if idx % 1 == 0 {
                 println!("pixels computed: {}", idx);
             }
 
@@ -145,7 +122,7 @@ impl Camera {
 
                 let ray = WorldPhoton::new(self.center, ray_direction);
 
-                color += self.ray_color(ray, MAX_LIGHT_BOUNCES, &world);
+                color += self.ray_color(ray, MAX_LIGHT_BOUNCES, &world, idx == 4526);
             }
 
             color /= self.samples_per_pixel as f32;

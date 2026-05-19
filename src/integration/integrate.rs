@@ -2,13 +2,17 @@ use crate::graphics::{ray::{WorldPhotonState, StopReason, WorldPhoton}, world::W
 
 const MAX_STEPS: u32 = 1000;
 
-pub fn integrate(initial_ray: WorldPhoton, world: &World) -> (WorldPhotonState<'_>, StopReason) {
+pub fn integrate(initial_ray: WorldPhoton, world: &World, debug: bool) -> (WorldPhotonState<'_>, StopReason) {
     let mut ray = world.manifold.create_photon(initial_ray.pos, initial_ray.vel);
     let mut world_ray = world.manifold.photon_to_world(ray);
 
     for _ in 0..MAX_STEPS {
         ray = world.manifold.step_along_null_geodesic(ray);
         world_ray = world.manifold.photon_to_world(ray);
+
+        if debug {
+            println!("{:.6}, {:.6}, {:.6}", world_ray.pos.x(), world_ray.pos.y(), world_ray.pos.z());
+        }
 
         if world.manifold.is_singular(ray.pos) {
             return (

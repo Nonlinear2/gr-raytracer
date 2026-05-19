@@ -10,7 +10,7 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::graphics::camera::Camera;
+use crate::graphics::{camera::Camera, color::Color, surface::{Metal, Sphere}};
 use crate::graphics::point::Point3;
 use crate::graphics::world::World;
 use crate::relativity::metric::Schwarzschild;
@@ -88,15 +88,15 @@ fn main() {
             //     // }),
             //     material: Box::new( {}),
             // }),
-            // Box::new(Sphere {
-            //     center: Point3::new_cartesian(0.9, 0., -0.6),
-            //     radius: 0.4,
-            //     material: Box::new(Metal {
-            //         albedo: Color::new(128., 128., 128.),
-            //         emission: Color::new(0., 0., 0.),
-            //         fuzz: 0.15,
-            //     }),
-            // })
+            Box::new(Sphere {
+                center: Point3::new_cartesian(0.9, 0., -0.4),
+                radius: 0.4,
+                material: Box::new(Metal {
+                    albedo: Color::new(128., 128., 128.),
+                    emission: Color::new(0., 0., 0.),
+                    fuzz: 0.15,
+                }),
+            })
         ],
     };
 
