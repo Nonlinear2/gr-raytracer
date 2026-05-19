@@ -7,6 +7,7 @@ use crate::integration::solvers::positive_root;
 use glam::{Vec4, Mat4};
 
 const SPH_EPS: f32 = 1e-3;
+const EPS: f32 = 1e-5;
 
 /// which global chart we use to describe points on the submanifolds of R^4 obtained by fixing the time coordinate.
 /// Important points: 
@@ -63,7 +64,8 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
         chart == Chart::SphericalX || chart == Chart::SphericalZ || chart == Chart::CartesianWorld
     }
 
-    fn preferred_chart_for_point(&self, _point: Point3) -> Chart {
+    fn preferred_chart_for_point(&self, point: Point3) -> Chart {
+        assert!(point.chart == Chart::CartesianWorld);
         todo!()
     }
 
@@ -296,53 +298,27 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
 
     /// x is a point in world
     /// vel is a vector in the tangent space of world
-    fn world_to_photon(&self, x: Point3, vel: ThreeVector) -> Photon {
-        assert!(x.chart == Chart::Cartesian);
-        assert!(vel.vector_space == TangentSpace::Cartesian);
-        assert!((x - self.center).distance_to_zero() > SPH_EPS);
+    fn world_to_photon(&self, world_photon: WorldPhoton) -> Photon {
+        assert!(world_photon.pos.chart == Chart::CartesianWorld);
+        assert!(world_photon.vel.vector_space == TangentSpace::Cartesian);
+        assert!((world_photon.pos - self.sub_atlas.center).distance_to_zero() > EPS);
 
-        let rel = x - self.center;
-        let x = rel.x();
-        let y = rel.y();
-        let z = rel.z();
-        let rho = (x * x + y * y).sqrt(); // distance to the z axis
+        let chart = self.sub_atlas.preferred_chart_for_point(world_photon.pos);
 
-        let pos = if rho <= SPH_EPS {
-            // keep pos tangent vectors aligned with velocity
-            rel.to_spherical_on_z_axis(vel.y().atan2(vel.x()).rem_euclid(std::f32::consts::TAU))
-        } else {
-            rel.to_spherical()
-        };
+        let pos = self.sub_atlas.transition_point(
+            Chart::CartesianWorld,
+            chart,
+            world_photon.pos
+        );
 
-        let r = pos.r();
+        let vel = self.sub_atlas.transition_vector(
+            Chart::CartesianWorld,
+            chart,
+            world_photon.pos,
+            world_photon.vel
+        );
 
-        // if the photon is close to the z axis, spherical coordinates become singular, and v_phi becomes unphysical.
-        // we set it to 0.0 arbitrairly.
-        let (v_r, v_th, v_ph) = if rho <= SPH_EPS {
-            let pole_sign = if z >= 0.0 { 1.0 } else { -1.0 };
-            let tangential = (vel.x() * vel.x() + vel.y() * vel.y()).sqrt();
-            (
-                pole_sign * vel.z(),
-                tangential / r,
-                0.0,
-            )
-        } else {
-            let dr_dx = x / r;
-            let dr_dy = y / r;
-            let dr_dz = z / r;
-            let dth_dx = x * z / (r * r * rho);
-            let dth_dy = y * z / (r * r * rho);
-            let dth_dz = -rho / (r * r);
-            let dph_dx = -y / (rho * rho);
-            let dph_dy = x / (rho * rho);
-            (
-                dr_dx * vel.x() + dr_dy * vel.y() + dr_dz * vel.z(),
-                dth_dx * vel.x() + dth_dy * vel.y() + dth_dz * vel.z(),
-                dph_dx * vel.x() + dph_dy * vel.y(),
-            )
-        };
-
-        let vel_sph = ThreeVector::new(v_r, v_th, v_ph, TangentSpace::Spherical);
+        let (v_r, v_th, v_ph) = (vel.r(), vel.theta(), vel.phi());
 
         let photon_x= Point4::from_space_time(0.0, pos);
 
@@ -361,18 +337,27 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
 
         let k_0 = positive_root(g.col(0)[0], b, c);
 
-        Photon::new(photon_x, FourVector::from_space_time(k_0, vel_sph))
+        Photon::new(photon_x, FourVector::from_space_time(k_0, vel))
     }        
 
     fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
         WorldPhoton::new(
-            self.photon_to_world_pos(photon),
-            self.photon_to_world_vel(photon),
+            self.sub_atlas.transition_point(
+                photon.pos.chart,
+                Chart::CartesianWorld,
+                photon.pos.space()
+            ),
+            self.sub_atlas.transition_vector(
+                photon.pos.chart,
+                Chart::CartesianWorld,
+                photon.pos.space(),
+                photon.vel.space()
+            ),
         )
     }
 
     fn g(&self, pos: Point4) -> Mat4 {
-        assert!(pos.chart == Chart::Spherical);
+        assert!(matches!(pos.chart, Chart::SphericalX | Chart::SphericalZ));
 
         let r = pos.r();
         let theta = pos.theta();
@@ -393,7 +378,7 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     }
 
     fn g_inv(&self, pos: Point4) -> Mat4 {
-        assert!(pos.chart == Chart::Spherical);
+        assert!(matches!(pos.chart, Chart::SphericalX | Chart::SphericalZ));
         assert!(pos.r() > self.r_s);
         assert!(pos.theta() >= SPH_EPS);
         assert!(pos.theta() <= std::f32::consts::PI - SPH_EPS);
@@ -413,7 +398,7 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     }
 
     fn del_g(&self, pos: Point4, i: u32) -> Mat4 {
-        assert!(pos.chart == Chart::Spherical);
+        assert!(matches!(pos.chart, Chart::SphericalX | Chart::SphericalZ));
 
         let r = pos.r();
         let theta = pos.theta();
@@ -437,7 +422,7 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     }
 
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32 {
-        assert!(pos.chart == Chart::Spherical);
+        assert!(matches!(pos.chart, Chart::SphericalX | Chart::SphericalZ));
 
         let g_inv = self.g_inv(pos);
         let mut gamma = 0.;

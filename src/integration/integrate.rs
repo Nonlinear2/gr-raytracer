@@ -3,7 +3,7 @@ use crate::graphics::{ray::{WorldPhotonState, StopReason, WorldPhoton}, world::W
 const MAX_STEPS: u32 = 1000;
 
 pub fn integrate(initial_ray: WorldPhoton, world: &World, debug: bool) -> (WorldPhotonState<'_>, StopReason) {
-    let mut ray = world.manifold.create_photon(initial_ray.pos, initial_ray.vel);
+    let mut ray = world.manifold.world_to_photon(initial_ray);
     let mut world_ray = world.manifold.photon_to_world(ray);
 
     for _ in 0..MAX_STEPS {

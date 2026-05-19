@@ -1,3 +1,4 @@
+use crate::geometry::manifold::Chart;
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{TangentSpace, ThreeVector, FourVector};
 use crate::graphics::surface::Material;
@@ -26,7 +27,7 @@ pub struct WorldPhoton {
 // unphysical photon in world coordinates
 impl WorldPhoton {
     pub fn new(pos: Point3, vel: ThreeVector) -> Self {
-        assert!(pos.chart == Chart::Cartesian);
+        assert!(pos.chart == Chart::CartesianWorld);
         assert!(vel.vector_space == TangentSpace::Cartesian);
 
         Self {
