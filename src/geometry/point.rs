@@ -33,96 +33,65 @@ impl Point3 {
         }
     }
 
-    pub fn new_spherical(r: f32, theta: f32, phi: f32) -> Self {
+    pub fn new_spherical_z(r: f32, theta: f32, phi: f32) -> Self {
         assert!(r >= 0.0);
         assert!((0.0..=std::f32::consts::PI).contains(&theta));
         Self {
             inner: Vec3::new(r, theta, phi),
-            chart: Chart::Spherical,
+            chart: Chart::SphericalZ,
+        }
+    }
+
+    pub fn new_spherical_x(r: f32, theta: f32, phi: f32) -> Self {
+        assert!(r >= 0.0);
+        assert!((0.0..=std::f32::consts::PI).contains(&theta));
+        Self {
+            inner: Vec3::new(r, theta, phi),
+            chart: Chart::SphericalX,
         }
     }
 
     pub fn distance_to_zero(&self) -> f32 {
         match self.chart {
-            Chart::Cartesian => self.inner.length(),
-            Chart::Spherical => self.r(),
-        }
-    }
-
-    pub fn to_cartesian(self) -> Self {
-        match self.chart {
-            Chart::Cartesian => self,
-            Chart::Spherical => {
-
-                let x = self.r() * self.theta().sin() * self.phi().cos();
-                let y = self.r() * self.theta().sin() * self.phi().sin();
-                let z = self.r() * self.theta().cos();
-
-                Self::new_cartesian(x, y, z)
-            }
-        }
-    }
-
-    pub fn to_spherical(self) -> Self {
-        assert!(self.distance_to_zero() != 0.0);
-        match self.chart {
-            Chart::Spherical => self,
-            Chart::Cartesian => {
-                let r = self.distance_to_zero();
-                let theta = (self.z() / r).acos();
-                let phi = self.y().atan2(self.x()).rem_euclid(2.0 * std::f32::consts::PI);
-
-                Self::new_spherical(r, theta, phi)
-            }
-        }
-    }
-
-    pub fn to_spherical_on_z_axis(self, phi: f32) -> Self {
-        assert!(self.distance_to_zero() != 0.0);
-        match self.chart {
-            Chart::Spherical => self,
-            Chart::Cartesian => {
-                let r = self.distance_to_zero();
-                let theta = (self.z() / r).acos();
-                Self::new_spherical(r, theta, phi)
-            }
+            Chart::Cartesian | Chart::CartesianWorld => self.inner.length(),
+            Chart::SphericalZ | Chart::SphericalX => self.r(),
         }
     }
 
     pub fn x(&self) -> f32{
-        assert!(self.chart == Chart::Cartesian);
+        assert!(matches!(self.chart, Chart::Cartesian | Chart::CartesianWorld));
         assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn y(&self) -> f32{
-        assert!(self.chart == Chart::Cartesian);
+        assert!(matches!(self.chart, Chart::Cartesian | Chart::CartesianWorld));
         assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn z(&self) -> f32{
-        assert!(self.chart == Chart::Cartesian);
+        assert!(matches!(self.chart, Chart::Cartesian | Chart::CartesianWorld));
         assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn r(&self) -> f32{
-        assert!(self.chart == Chart::Spherical);
+        assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
         assert!(self.inner[0] >= 0.);
         assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn theta(&self) -> f32{
-        assert!(self.chart == Chart::Spherical);
+        assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
         assert!((0.0..=std::f32::consts::PI).contains(&self.inner[1]));
         assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn phi(&self) -> f32{
-        assert!(self.chart == Chart::Spherical);
+        assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
         assert!((0.0..=std::f32::consts::TAU).contains(&self.inner[2]));
         assert!(self.inner[2].is_finite());
         self.inner[2]
@@ -141,11 +110,14 @@ impl Point3 {
 
     pub fn as_threevector(self) -> ThreeVector {
         match self.chart {
-            Chart::Cartesian => ThreeVector::new(
+            Chart::Cartesian | Chart::CartesianWorld => ThreeVector::new(
                 self.inner[0], self.inner[1], self.inner[2], TangentSpace::Cartesian
             ),
-            Chart::Spherical => ThreeVector::new(
-                self.inner[0], self.inner[1], self.inner[2], TangentSpace::Spherical
+            Chart::SphericalZ => ThreeVector::new(
+                self.inner[0], self.inner[1], self.inner[2], TangentSpace::SphericalZ
+            ),
+            Chart::SphericalX => ThreeVector::new(
+                self.inner[0], self.inner[1], self.inner[2], TangentSpace::SphericalX
             )
         }
     }
@@ -248,7 +220,8 @@ pub struct Point4 {
 
 impl Point4 {
     pub const ZERO_CART: Self = Self {inner: Vec4::new(0., 0., 0., 0.), chart: Chart::Cartesian};
-    pub const ZERO_SPH: Self = Self {inner: Vec4::new(0., 0., 0., 0.), chart: Chart::Spherical};
+    pub const ZERO_SPHZ: Self = Self {inner: Vec4::new(0., 0., 0., 0.), chart: Chart::SphericalZ};
+    pub const ZERO_SPHX: Self = Self {inner: Vec4::new(0., 0., 0., 0.), chart: Chart::SphericalX};
 
     pub fn new(x0: f32, x1: f32, x2: f32, x3: f32, chart: Chart) -> Self {
         Self {
@@ -264,12 +237,21 @@ impl Point4 {
         }
     }
 
-    pub fn new_spherical(t: f32, r: f32, theta: f32, phi: f32) -> Self {
+    pub fn new_spherical_z(t: f32, r: f32, theta: f32, phi: f32) -> Self {
         assert!(r >= 0.0);
         assert!((0.0..=std::f32::consts::PI).contains(&theta));
         Self {
             inner: Vec4::new(t, r, theta, phi),
-            chart: Chart::Spherical,
+            chart: Chart::SphericalZ,
+        }
+    }
+
+    pub fn new_spherical_x(t: f32, r: f32, theta: f32, phi: f32) -> Self {
+        assert!(r >= 0.0);
+        assert!((0.0..=std::f32::consts::PI).contains(&theta));
+        Self {
+            inner: Vec4::new(t, r, theta, phi),
+            chart: Chart::SphericalX,
         }
     }
 
@@ -286,39 +268,39 @@ impl Point4 {
     }
 
     pub fn x(&self) -> f32 {
-        assert!(self.chart == Chart::Cartesian);
+        assert!(matches!(self.chart, Chart::Cartesian | Chart::CartesianWorld));
         assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn y(&self) -> f32 {
-        assert!(self.chart == Chart::Cartesian);
+        assert!(matches!(self.chart, Chart::Cartesian | Chart::CartesianWorld));
         assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn z(&self) -> f32 {
-        assert!(self.chart == Chart::Cartesian);
+        assert!(matches!(self.chart, Chart::Cartesian | Chart::CartesianWorld));
         assert!(self.inner[3].is_finite());
         self.inner[3]
     }
     
     pub fn r(&self) -> f32 {
-        assert!(self.chart == Chart::Spherical);
+        assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
         assert!(self.inner[1] >= 0.);
         assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn theta(&self) -> f32 {
-        assert!(self.chart == Chart::Spherical);
+        assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
         assert!((0.0..=std::f32::consts::PI).contains(&self.inner[2]));
         assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn phi(&self) -> f32 {
-        assert!(self.chart == Chart::Spherical);
+        assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
         assert!((0.0..=std::f32::consts::TAU).contains(&self.inner[3]));
         assert!(self.inner[3].is_finite());
         self.inner[3]
@@ -330,11 +312,14 @@ impl Point4 {
 
     pub fn as_fourvector(self) -> FourVector {
         match self.chart {
-            Chart::Cartesian => FourVector::new(
+            Chart::Cartesian | Chart::CartesianWorld => FourVector::new(
                 self.inner[0], self.inner[1], self.inner[2], self.inner[3], TangentSpace::Cartesian
             ),
-            Chart::Spherical => FourVector::new(
-                self.inner[0], self.inner[1], self.inner[2], self.inner[3], TangentSpace::Spherical
+            Chart::SphericalZ => FourVector::new(
+                self.inner[0], self.inner[1], self.inner[2], self.inner[3], TangentSpace::SphericalZ
+            ),
+            Chart::SphericalX => FourVector::new(
+                self.inner[0], self.inner[1], self.inner[2], self.inner[3], TangentSpace::SphericalX
             )
         }
     }

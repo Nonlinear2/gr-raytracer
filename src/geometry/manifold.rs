@@ -70,17 +70,38 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
     fn transition_point(&self, from: Chart, to: Chart, p: Point3) -> Point3 {
         match (from, to) {
         (Chart::CartesianWorld, Chart::SphericalZ) => {
-            (p - self.center).to_spherical()
-        },
+            let p_rel = p - self.center;
+
+            let r = p_rel.distance_to_zero();
+            let theta = (p_rel.z() / r).acos();
+            let phi = p_rel.y().atan2(p_rel.x()).rem_euclid(2.0 * std::f32::consts::PI);
+
+            Point3::new_spherical_z(r, theta, phi)
+        }
+
         (Chart::CartesianWorld, Chart::SphericalX) => {
+            // let p_rel = p - self.center;
+            // let r = p_rel.distance_to_zero();
+            // let theta = (p_rel.x() / r).acos();
+
+            // Point3::new_spherical_x(r, theta, phi)
             todo!()
         },
 
         (Chart::SphericalZ, Chart::CartesianWorld) => {
-            p.to_cartesian() + self.center
+
+            let x = p.r() * p.theta().sin() * p.phi().cos();
+            let y = p.r() * p.theta().sin() * p.phi().sin();
+            let z = p.r() * p.theta().cos();
+
+            Point3::new_cartesian(x, y, z) + self.center
         },
         (Chart::SphericalX, Chart::CartesianWorld) => {
-            todo!()
+            let x = p.r() * p.theta().cos();
+            let y = p.r() * p.theta().sin() * p.phi().cos();
+            let z = p.r() * p.theta().sin() * p.phi().sin();
+
+            Point3::new_cartesian(x, y, z) + self.center
         },
 
         (Chart::SphericalX, Chart::SphericalZ) => {

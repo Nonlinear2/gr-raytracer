@@ -1,6 +1,7 @@
 ﻿use rand::{rngs::StdRng, RngExt};
 use glam::{Vec3, Vec4};
 
+use crate::geometry::manifold::Chart;
 use crate::geometry::point::{Point3, Point4};
 
 /// basis of the tangent space at a point (unspecified) of a given chart on R^3_t (that is, a coordinate system).
@@ -8,7 +9,6 @@ use crate::geometry::point::{Point3, Point4};
 /// (see proposition 3.2 J.Lee smooth manifolds).
 #[derive(Clone, Copy, PartialEq)]
 pub enum TangentSpace {
-    NoTangentSpace,
     Cartesian,
     SphericalZ,
     SphericalX,
@@ -25,7 +25,8 @@ pub struct ThreeVector {
 
 impl ThreeVector {
     pub const ZERO_CART: Self = Self {inner: Vec3::new(0., 0., 0.), vector_space: TangentSpace::Cartesian};
-    pub const ZERO_SPH: Self = Self {inner: Vec3::new(0., 0., 0.), vector_space: TangentSpace::Spherical};
+    pub const ZERO_SPHZ: Self = Self {inner: Vec3::new(0., 0., 0.), vector_space: TangentSpace::SphericalZ};
+    pub const ZERO_SPHX: Self = Self {inner: Vec3::new(0., 0., 0.), vector_space: TangentSpace::SphericalX};
 
     pub fn new(x0: f32, x1: f32, x2: f32, space: TangentSpace) -> Self {
         Self {
@@ -43,10 +44,18 @@ impl ThreeVector {
 
     // here the arguments are the components along the basis e_r, e_theta, e_phi of the tangent space.
     // So r, theta, phi can be anything (negative, outside of -pi, pi, ...)
-    pub fn new_spherical(r: f32, theta: f32, phi: f32) -> Self {
+
+    pub fn new_spherical_z(r: f32, theta: f32, phi: f32) -> Self {
         Self {
             inner: Vec3::new(r, theta, phi),
-            vector_space: TangentSpace::Spherical,
+            vector_space: TangentSpace::SphericalZ,
+        }
+    }
+
+    pub fn new_spherical_x(r: f32, theta: f32, phi: f32) -> Self {
+        Self {
+            inner: Vec3::new(r, theta, phi),
+            vector_space: TangentSpace::SphericalX,
         }
     }
 
@@ -73,19 +82,19 @@ impl ThreeVector {
     }
 
     pub fn r(&self) -> f32{
-        assert!(self.vector_space == TangentSpace::Spherical);
+        assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
         assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn theta(&self) -> f32{
-        assert!(self.vector_space == TangentSpace::Spherical);
+        assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
         assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn phi(&self) -> f32{
-        assert!(self.vector_space == TangentSpace::Spherical);
+        assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
         assert!(self.inner[2].is_finite());
         self.inner[2]
     }
@@ -105,8 +114,11 @@ impl ThreeVector {
             TangentSpace::Cartesian => Point3::new(
                 self.inner[0], self.inner[1], self.inner[2], Chart::Cartesian
             ),
-            TangentSpace::Spherical => Point3::new(
-                self.inner[0], self.inner[1], self.inner[2], Chart::Spherical
+            TangentSpace::SphericalZ => Point3::new(
+                self.inner[0], self.inner[1], self.inner[2], Chart::SphericalZ
+            ),
+            TangentSpace::SphericalX => Point3::new(
+                self.inner[0], self.inner[1], self.inner[2], Chart::SphericalX
             )
         }
     }
@@ -206,7 +218,8 @@ pub struct FourVector {
 
 impl FourVector {
     pub const ZERO_CART: Self = Self {inner: Vec4::new(0., 0., 0., 0.), vector_space: TangentSpace::Cartesian};
-    pub const ZERO_SPH: Self = Self {inner: Vec4::new(0., 0., 0., 0.), vector_space: TangentSpace::Spherical};
+    pub const ZERO_SPHZ: Self = Self {inner: Vec4::new(0., 0., 0., 0.), vector_space: TangentSpace::SphericalZ};
+    pub const ZERO_SPHX: Self = Self {inner: Vec4::new(0., 0., 0., 0.), vector_space: TangentSpace::SphericalX};
 
     pub fn new(x0: f32, x1: f32, x2: f32, x3: f32, space: TangentSpace) -> Self {
         Self {
@@ -224,10 +237,18 @@ impl FourVector {
 
     // here the arguments are the components along the basis e_t, e_r, e_theta, e_phi of the tangent space.
     // So r, theta, phi can be anything (negative, outside of -pi, pi, ...)
-    pub fn new_spherical(t: f32, r: f32, theta: f32, phi: f32) -> Self {
+
+    pub fn new_spherical_z(t: f32, r: f32, theta: f32, phi: f32) -> Self {
         Self {
             inner: Vec4::new(t, r, theta, phi),
-            vector_space: TangentSpace::Spherical,
+            vector_space: TangentSpace::SphericalZ,
+        }
+    }
+
+    pub fn new_spherical_x(t: f32, r: f32, theta: f32, phi: f32) -> Self {
+        Self {
+            inner: Vec4::new(t, r, theta, phi),
+            vector_space: TangentSpace::SphericalX,
         }
     }
 
@@ -262,19 +283,19 @@ impl FourVector {
     }
     
     pub fn r(&self) -> f32 {
-        assert!(self.vector_space == TangentSpace::Spherical);
+        assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
         assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn theta(&self) -> f32 {
-        assert!(self.vector_space == TangentSpace::Spherical);
+        assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
         assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn phi(&self) -> f32 {
-        assert!(self.vector_space == TangentSpace::Spherical);
+        assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
         assert!(self.inner[3].is_finite());
         self.inner[3]
     }
@@ -288,8 +309,11 @@ impl FourVector {
             TangentSpace::Cartesian => Point4::new(
                 self.inner[0], self.inner[1], self.inner[2], self.inner[3], Chart::Cartesian
             ),
-            TangentSpace::Spherical => Point4::new(
-                self.inner[0], self.inner[1], self.inner[2], self.inner[3], Chart::Spherical
+            TangentSpace::SphericalZ => Point4::new(
+                self.inner[0], self.inner[1], self.inner[2], self.inner[3], Chart::SphericalZ
+            ),
+            TangentSpace::SphericalX => Point4::new(
+                self.inner[0], self.inner[1], self.inner[2], self.inner[3], Chart::SphericalX
             )
         }
     }
