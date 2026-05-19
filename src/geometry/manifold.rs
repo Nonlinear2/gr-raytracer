@@ -22,6 +22,7 @@ pub enum Chart {
 
 // Atlas describing submanifolds of R^4 given by fixing the time coordinate (so this coordinate doesnt get converted).
 pub trait HasAtlas3 {
+    #[allow(dead_code)]
     fn has_chart(&self, chart: Chart) -> bool; // should always have CartesianWorld
     fn preferred_chart_for_point(&self, point: Point3) -> Chart;
     fn transition_point(&self, from: Chart, to: Chart, p: Point3) -> Point3;
@@ -215,6 +216,7 @@ pub trait PseudoRiemanian4Manifold {
     fn step_along_null_geodesic(&self, s: Photon) -> Photon;
 }
 
+#[allow(dead_code)]
 pub struct Euclidean4Manifold {
     pub sub_atlas: EuclideanAtlas3 // atlas for fixed-time submanifolds
 }
@@ -269,7 +271,7 @@ impl PseudoRiemanian4Manifold for Euclidean4Manifold {
 
     fn step_along_null_geodesic(&self, s: Photon) -> Photon {
         let (x_new, k_new) = euler::euler_step(
-            s.pos, s.vel, s.vel.as_point4(), FourVector::ZERO_CART
+            s.pos, s.vel, s.vel.as_point4(), FourVector::zero(TangentSpace::Cartesian)
         );
         Photon::new(x_new, k_new)
     }
@@ -447,18 +449,20 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     }
 
     fn step_along_null_geodesic(&self, photon: Photon) -> Photon {
-        let mut x = photon.pos;
 
-        // avoid coordinate chart singularity for theta = 0 or theta = pi      
-        if x.theta() < SPH_EPS || x.theta() > std::f32::consts::PI - SPH_EPS {
-            let theta_adj = if x.theta() <= SPH_EPS { SPH_EPS } else { std::f32::consts::PI - SPH_EPS };
-            // eprintln!("[christoffel] perturbing theta from {} to {} to avoid pole", theta, theta_adj);
-            x = Point4::new_spherical(x.t(), x.r(), theta_adj, x.phi());
-        }
+        // check if we need to switch charts
+        let photon = if self.sub_atlas.preferred_chart_for_point(photon.pos.space()) != photon.pos.chart {
+            // change photon chart
+            let world_photon = self.photon_to_world(photon);
+            self.world_to_photon(world_photon)
+        } else {
+            photon
+        };
 
+        let x = photon.pos;
         let k = photon.vel;
 
-        let mut del_k = FourVector::ZERO_SPH;
+        let mut del_k = FourVector::zero(photon.vel.vector_space);
         for mu in 0..4 {
             for alpha in 0..4 {
                 for beta in 0..4 {

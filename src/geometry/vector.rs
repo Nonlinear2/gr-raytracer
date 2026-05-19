@@ -24,9 +24,12 @@ pub struct ThreeVector {
 }
 
 impl ThreeVector {
-    pub const ZERO_CART: Self = Self {inner: Vec3::new(0., 0., 0.), vector_space: TangentSpace::Cartesian};
-    pub const ZERO_SPHZ: Self = Self {inner: Vec3::new(0., 0., 0.), vector_space: TangentSpace::SphericalZ};
-    pub const ZERO_SPHX: Self = Self {inner: Vec3::new(0., 0., 0.), vector_space: TangentSpace::SphericalX};
+    pub fn zero(space: TangentSpace) -> Self {
+        Self {
+            inner: Vec3::new(0., 0., 0.),
+            vector_space: space,
+        }
+    }
 
     pub fn new(x0: f32, x1: f32, x2: f32, space: TangentSpace) -> Self {
         Self {
@@ -217,9 +220,13 @@ pub struct FourVector {
 }
 
 impl FourVector {
-    pub const ZERO_CART: Self = Self {inner: Vec4::new(0., 0., 0., 0.), vector_space: TangentSpace::Cartesian};
-    pub const ZERO_SPHZ: Self = Self {inner: Vec4::new(0., 0., 0., 0.), vector_space: TangentSpace::SphericalZ};
-    pub const ZERO_SPHX: Self = Self {inner: Vec4::new(0., 0., 0., 0.), vector_space: TangentSpace::SphericalX};
+
+    pub fn zero(space: TangentSpace) -> Self {
+        Self {
+            inner: Vec4::new(0., 0., 0., 0.),
+            vector_space: space,
+        }
+    }
 
     pub fn new(x0: f32, x1: f32, x2: f32, x3: f32, space: TangentSpace) -> Self {
         Self {
