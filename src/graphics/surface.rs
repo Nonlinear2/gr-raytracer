@@ -1,5 +1,5 @@
 use crate::graphics::ray::{WorldPhotonState, WorldPhoton};
-use crate::graphics::point::{Chart, Point3};
+use crate::graphics::point::Point3;
 use crate::graphics::vector::{TangentSpace, ThreeVector, random_on_sphere};
 use crate::graphics::color::Color;
 

@@ -12,7 +12,13 @@ pub fn euler_step(x: Point4, k: FourVector, del_x: Point4, del_k: FourVector) ->
             k + EULER_STEP_SIZE * del_k,
         ),
         Chart::Spherical => {
-            let mut new_x = x + EULER_STEP_SIZE * del_x;
+            let mut new_x = Point4::new(
+                x[0] + EULER_STEP_SIZE * del_x[0],
+                x[1] + EULER_STEP_SIZE * del_x[1],
+                x[2] + EULER_STEP_SIZE * del_x[2],
+                x[3] + EULER_STEP_SIZE * del_x[3],
+                Chart::Spherical,
+            );
             let mut new_k = k + EULER_STEP_SIZE * del_k;
 
             let mut theta = new_x[2];

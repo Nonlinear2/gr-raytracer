@@ -8,10 +8,11 @@ use glam::{Vec4, Mat4};
 
 const SPH_EPS: f32 = 1e-8;
 
-/// this trait only support manifolds with a single global chart
+/// this trait only support 4-manifolds with a single global chart
 /// whose type we can access through the chart function
-pub trait PseudoRiemanianManifold {
+pub trait PseudoRiemanian4Manifold {
 
+    #[allow(dead_code)]
     fn chart(&self) -> Chart;
 
     /// takes a Point3 in world and converts it to a point in the manifold without the t component
@@ -50,7 +51,7 @@ pub struct Euclidean {
 }
 
 
-impl PseudoRiemanianManifold for Euclidean {
+impl PseudoRiemanian4Manifold for Euclidean {
 
     fn chart(&self) -> Chart {
         Chart::Cartesian
@@ -143,7 +144,7 @@ impl Schwarzschild {
     }
 }
 
-impl PseudoRiemanianManifold for Schwarzschild {
+impl PseudoRiemanian4Manifold for Schwarzschild {
     fn chart(&self) -> Chart {
         Chart::Spherical
     }

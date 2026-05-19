@@ -27,6 +27,7 @@ k^\mu\\
 $$
 
 ### Code conventions
+- bracket operators to access Point3, Point4 components are "unsafe", meaning there are no asserts to check r >= 0, theta in [0, pi]...
 - world means 3d space with no time component and cartesian coordinates centered on the camera.
 - photon objects will belong to the manifold, not to world.
 - we always write vector_space when talking about a vector space to avoid confusion with "space" meaning the ThreeVector representing space in a FourVector
