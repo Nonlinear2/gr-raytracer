@@ -26,7 +26,7 @@ impl Material for Diffuse {
 
     fn scatter(&self, hit: &WorldPhotonState, rng: &mut StdRng) -> Option<(Color, ThreeVector)> {
         let new_direction = 
-            (hit.normal.unwrap() + random_on_sphere(TangentSpace::Cartesian, rng) * 0.5).normalize();
+            (hit.normal.unwrap() + random_on_sphere(TangentSpace::CartesianWorld, rng) * 0.5).normalize();
         Some((self.albedo, new_direction))
     }
 }
@@ -53,7 +53,7 @@ impl Material for Metal {
         let reflected = incoming - 2.0 * incoming.dot(hit.normal.unwrap()) * hit.normal.unwrap();
         println!("[Metal::scatter] reflected: {}", reflected.as_vec3());
         
-        let noise = self.fuzz * random_on_sphere(TangentSpace::Cartesian, rng);
+        let noise = self.fuzz * random_on_sphere(TangentSpace::CartesianWorld, rng);
         println!("[Metal::scatter] noise: {}, fuzz: {}", noise.as_vec3(), self.fuzz);
         
         let pre_norm = reflected + noise;

@@ -98,11 +98,12 @@ impl ThreeVector {
 
     pub fn normalize(&self) -> ThreeVector {
         assert!(self.length() != 0.);
-        ThreeVector { inner: self.inner.normalize(), vector_space: TangentSpace::Cartesian }
+        ThreeVector { inner: self.inner.normalize(), vector_space: self.vector_space }
     }
 
     pub fn dot(&self, other: ThreeVector) -> f32 {
-        assert!(self.vector_space == TangentSpace::Cartesian);
+        assert!(self.vector_space == other.vector_space);
+        assert!(matches!(self.vector_space, TangentSpace::Cartesian | TangentSpace::CartesianWorld));
         self.inner.dot(other.inner)
     }
 
