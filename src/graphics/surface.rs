@@ -48,19 +48,10 @@ impl Material for Metal {
         assert!(self.fuzz <= 1.0);
 
         let incoming = hit.world_photon.vel.normalize();
-        println!("[Metal::scatter] incoming: {}", incoming.as_vec3());
-        
         let reflected = incoming - 2.0 * incoming.dot(hit.normal.unwrap()) * hit.normal.unwrap();
-        println!("[Metal::scatter] reflected: {}", reflected.as_vec3());
-        
         let noise = self.fuzz * random_on_sphere(TangentSpace::CartesianWorld, rng);
-        println!("[Metal::scatter] noise: {}, fuzz: {}", noise.as_vec3(), self.fuzz);
-        
-        let pre_norm = reflected + noise;
-        println!("[Metal::scatter] pre_norm: {}", pre_norm.as_vec3());
-        
-        let new_direction = pre_norm.normalize();
-        println!("[Metal::scatter] new_direction: {}", new_direction.as_vec3());
+    
+        let new_direction = (reflected + noise).normalize();
 
         if new_direction.dot(hit.normal.unwrap()) > 0.0 {
             Some((self.albedo, new_direction))

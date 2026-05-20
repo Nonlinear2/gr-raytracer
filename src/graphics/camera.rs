@@ -110,7 +110,7 @@ impl Camera {
 
     pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
         for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            if idx % 1 == 0 {
+            if idx % 100 == 0 {
                 println!("pixels computed: {}", idx);
             }
 
@@ -123,7 +123,7 @@ impl Camera {
 
                 let ray = WorldPhoton::new(self.center, ray_direction);
 
-                color += self.ray_color(ray, MAX_LIGHT_BOUNCES, &world, idx == 4385, rng);
+                color += self.ray_color(ray, MAX_LIGHT_BOUNCES, &world, false, rng);
             }
 
             color /= self.samples_per_pixel as f32;
