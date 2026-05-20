@@ -1,4 +1,4 @@
-use crate::graphics::{ray::{StopReason, WorldPhoton}, world::World};
+use crate::{geometry::vector::TangentSpace, graphics::{ray::{StopReason, WorldPhoton}, world::World}};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::integration::integrate::integrate;
@@ -33,8 +33,8 @@ impl Camera {
         let viewport_height = 2.0;
         let viewport_width = viewport_height * a_ratio;
     
-        let viewport_u_vect = ThreeVector::new_cartesian(viewport_width, 0., 0.);
-        let viewport_v_vect = ThreeVector::new_cartesian(0., -viewport_height, 0.);
+        let viewport_u_vect = ThreeVector::new(viewport_width, 0., 0., TangentSpace::CartesianWorld);
+        let viewport_v_vect = ThreeVector::new(0., -viewport_height, 0., TangentSpace::CartesianWorld);
 
         let pixel_delta_u = viewport_u_vect * (1.0 / img_width as f32);
         let pixel_delta_v = viewport_v_vect * (1.0 / img_height as f32);

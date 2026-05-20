@@ -116,6 +116,10 @@ impl Point3 {
     }
 
     pub fn as_vec3(self) -> Vec3 { self.inner }
+
+    pub fn as_chart(self, chart: Chart) -> Point3 {
+        Point3::new(self[0], self[1], self[2], chart)
+    }
 }
 
 impl std::ops::Index<usize> for Point3 {
@@ -311,6 +315,11 @@ impl Point4 {
     }
 
     pub fn as_vec4(self) -> Vec4 { self.inner }
+
+    pub fn as_chart(self, chart: Chart) -> Point3 {
+        Point3::new(self[0], self[1], self[2], chart)
+    }
+
 }
 
 impl std::ops::Index<usize> for Point4 {

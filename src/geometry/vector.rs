@@ -10,6 +10,7 @@ use crate::geometry::point::{Point3, Point4};
 #[derive(Clone, Copy, PartialEq)]
 pub enum TangentSpace {
     Cartesian,
+    CartesianWorld,
     SphericalZ,
     SphericalX,
 }
@@ -35,13 +36,6 @@ impl ThreeVector {
         Self {
             inner: Vec3::new(x0, x1, x2),
             vector_space: space,
-        }
-    }
-
-    pub fn new_cartesian(x: f32, y: f32, z: f32) -> Self {
-        Self {
-            inner: Vec3::new(x, y, z),
-            vector_space: TangentSpace::Cartesian,
         }
     }
 
@@ -116,6 +110,9 @@ impl ThreeVector {
         match self.vector_space {
             TangentSpace::Cartesian => Point3::new(
                 self.inner[0], self.inner[1], self.inner[2], Chart::Cartesian
+            ),
+            TangentSpace::CartesianWorld => Point3::new(
+                self.inner[0], self.inner[1], self.inner[2], Chart::CartesianWorld
             ),
             TangentSpace::SphericalZ => Point3::new(
                 self.inner[0], self.inner[1], self.inner[2], Chart::SphericalZ
@@ -235,13 +232,6 @@ impl FourVector {
         }
     }
 
-    pub fn new_cartesian(t: f32, x: f32, y: f32, z: f32) -> Self {
-        Self {
-            inner: Vec4::new(t, x, y, z),
-            vector_space: TangentSpace::Cartesian,
-        }
-    }
-
     // here the arguments are the components along the basis e_t, e_r, e_theta, e_phi of the tangent space.
     // So r, theta, phi can be anything (negative, outside of -pi, pi, ...)
 
@@ -315,6 +305,9 @@ impl FourVector {
         match self.vector_space {
             TangentSpace::Cartesian => Point4::new(
                 self.inner[0], self.inner[1], self.inner[2], self.inner[3], Chart::Cartesian
+            ),
+            TangentSpace::CartesianWorld => Point4::new(
+                self.inner[0], self.inner[1], self.inner[2], self.inner[3], Chart::CartesianWorld
             ),
             TangentSpace::SphericalZ => Point4::new(
                 self.inner[0], self.inner[1], self.inner[2], self.inner[3], Chart::SphericalZ

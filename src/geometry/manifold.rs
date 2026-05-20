@@ -49,8 +49,8 @@ impl HasAtlas3 for EuclideanAtlas3 {
 
     fn transition_point(&self, p: Point3, to: Chart) -> Point3 {
         match (p.chart, to) {
-            (Chart::Cartesian, Chart::CartesianWorld) => p - self.center,
-            (Chart::CartesianWorld, Chart::Cartesian) => p + self.center,
+            (Chart::Cartesian, Chart::CartesianWorld) => p.as_chart(Chart::CartesianWorld) + self.center,
+            (Chart::CartesianWorld, Chart::Cartesian) => (p - self.center).as_chart(Chart::Cartesian),
             _ => panic!()
         }
     }
@@ -208,10 +208,11 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
             let sin_phi = phi.sin();
             let cos_phi = phi.cos();
 
-            ThreeVector::new_cartesian(
+            ThreeVector::new(
                 sin_theta * cos_phi * v_r + r * cos_theta * cos_phi * v_theta - r * sin_theta * sin_phi * v_phi,
                 sin_theta * sin_phi * v_r + r * cos_theta * sin_phi * v_theta + r * sin_theta * cos_phi * v_phi,
                 cos_theta * v_r - r * sin_theta * v_theta,
+                TangentSpace::CartesianWorld,
             )
         },
 
@@ -228,10 +229,11 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
             let sin_phi = phi.sin();
             let cos_phi = phi.cos();
 
-            ThreeVector::new_cartesian(
+            ThreeVector::new(
                 cos_theta * v_r - r * sin_theta * v_theta,
                 sin_theta * cos_phi * v_r + r * cos_theta * cos_phi * v_theta - r * sin_theta * sin_phi * v_phi,
                 sin_theta * sin_phi * v_r + r * cos_theta * sin_phi * v_theta + r * sin_theta * cos_phi * v_phi,
+                TangentSpace::CartesianWorld,
             )
         },
 
