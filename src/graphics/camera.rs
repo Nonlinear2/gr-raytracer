@@ -1,7 +1,6 @@
 use crate::{geometry::vector::TangentSpace, graphics::{ray::{StopReason, WorldPhoton}, world::World}};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
-use crate::integration::integrate::integrate;
 use crate::geometry::manifold::Chart::CartesianWorld;
 
 use rand::{rngs::StdRng, RngExt};
@@ -62,7 +61,7 @@ impl Camera {
             return Color::BLACK;
         }
 
-        let (hit, stop_reason) = integrate(ray, world, debug);
+        let (hit, stop_reason) = world.evolve_until_stop(ray, debug);
 
         match stop_reason {
             StopReason::HorizonHit => return Color::BLACK,
