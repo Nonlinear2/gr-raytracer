@@ -66,9 +66,9 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
     }
 
     fn preferred_chart_for_point(&self, point: Point3) -> Chart {
-        assert!(point.chart == Chart::CartesianWorld);
+        let point_world = self.transition_point(point, Chart::CartesianWorld);
 
-        let rel = point - self.center;
+        let rel = point_world - self.center;
 
         let dist_to_z_axis_sq = rel.x() * rel.x() + rel.y() * rel.y();
         let dist_to_x_axis_sq = rel.y() * rel.y() + rel.z() * rel.z();
@@ -81,6 +81,9 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
     }
 
     fn transition_point(&self, p: Point3, to: Chart) -> Point3 {
+        if p.chart == to {
+            return p;
+        }
         match (p.chart, to) {
         (Chart::CartesianWorld, Chart::SphericalZ) => {
             let p_rel = p - self.center;
@@ -131,6 +134,9 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
     }
 
     fn transition_vector(&self, p: Point3, v: ThreeVector, to: Chart) -> ThreeVector {
+        if p.chart == to {
+            return v;
+        }
         // TODO: assert v.vector_space corresponds to p.space 
         match (p.chart, to) {
         (Chart::CartesianWorld, Chart::SphericalZ) => {
@@ -355,7 +361,7 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     /// vel is a vector in the tangent space of world
     fn world_to_photon(&self, world_photon: WorldPhoton) -> Photon {
         assert!(world_photon.pos.chart == Chart::CartesianWorld);
-        assert!(world_photon.vel.vector_space == TangentSpace::Cartesian);
+        assert!(world_photon.vel.vector_space == TangentSpace::CartesianWorld);
         assert!((world_photon.pos - self.sub_atlas.center).distance_to_zero() > EPS);
 
         let chart = self.sub_atlas.preferred_chart_for_point(world_photon.pos);

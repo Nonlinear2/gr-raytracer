@@ -61,19 +61,19 @@ impl ThreeVector {
     }
 
     pub fn x(&self) -> f32{
-        assert!(self.vector_space == TangentSpace::Cartesian);
+        assert!(matches!(self.vector_space, TangentSpace::Cartesian | TangentSpace::CartesianWorld));
         assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn y(&self) -> f32{
-        assert!(self.vector_space == TangentSpace::Cartesian);
+        assert!(matches!(self.vector_space, TangentSpace::Cartesian | TangentSpace::CartesianWorld));
         assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn z(&self) -> f32{
-        assert!(self.vector_space == TangentSpace::Cartesian);
+        assert!(matches!(self.vector_space, TangentSpace::Cartesian | TangentSpace::CartesianWorld));
         assert!(self.inner[2].is_finite());
         self.inner[2]
     }
@@ -262,19 +262,19 @@ impl FourVector {
     }
 
     pub fn x(&self) -> f32 {
-        assert!(self.vector_space == TangentSpace::Cartesian);
+        assert!(matches!(self.vector_space, TangentSpace::Cartesian | TangentSpace::CartesianWorld));
         assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn y(&self) -> f32 {
-        assert!(self.vector_space == TangentSpace::Cartesian);
+        assert!(matches!(self.vector_space, TangentSpace::Cartesian | TangentSpace::CartesianWorld));
         assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn z(&self) -> f32 {
-        assert!(self.vector_space == TangentSpace::Cartesian);
+        assert!(matches!(self.vector_space, TangentSpace::Cartesian | TangentSpace::CartesianWorld));
         assert!(self.inner[3].is_finite());
         self.inner[3]
     }

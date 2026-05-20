@@ -103,8 +103,11 @@ impl Point3 {
 
     pub fn as_threevector(self) -> ThreeVector {
         match self.chart {
-            Chart::Cartesian | Chart::CartesianWorld => ThreeVector::new(
+            Chart::Cartesian => ThreeVector::new(
                 self.inner[0], self.inner[1], self.inner[2], TangentSpace::Cartesian
+            ),
+            Chart::CartesianWorld => ThreeVector::new(
+                self.inner[0], self.inner[1], self.inner[2], TangentSpace::CartesianWorld
             ),
             Chart::SphericalZ => ThreeVector::new(
                 self.inner[0], self.inner[1], self.inner[2], TangentSpace::SphericalZ
@@ -302,8 +305,11 @@ impl Point4 {
 
     pub fn as_fourvector(self) -> FourVector {
         match self.chart {
-            Chart::Cartesian | Chart::CartesianWorld => FourVector::new(
+            Chart::Cartesian => FourVector::new(
                 self.inner[0], self.inner[1], self.inner[2], self.inner[3], TangentSpace::Cartesian
+            ),
+            Chart::CartesianWorld => FourVector::new(
+                self.inner[0], self.inner[1], self.inner[2], self.inner[3], TangentSpace::CartesianWorld
             ),
             Chart::SphericalZ => FourVector::new(
                 self.inner[0], self.inner[1], self.inner[2], self.inner[3], TangentSpace::SphericalZ

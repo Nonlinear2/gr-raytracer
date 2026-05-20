@@ -28,7 +28,7 @@ pub struct WorldPhoton {
 impl WorldPhoton {
     pub fn new(pos: Point3, vel: ThreeVector) -> Self {
         assert!(pos.chart == Chart::CartesianWorld);
-        assert!(vel.vector_space == TangentSpace::Cartesian);
+        assert!(vel.vector_space == TangentSpace::CartesianWorld);
 
         Self {
             pos: pos,
