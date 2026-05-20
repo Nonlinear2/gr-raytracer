@@ -23,6 +23,8 @@ const HEIGHT: u32 = 80;
 const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
 const RNG_SEED: u64 = 0;
 
+const SCENE_SIZE: f32 = 3.;
+
 #[derive(Default)]
 struct App {
     window: Option<&'static Window>,
@@ -78,9 +80,11 @@ impl ApplicationHandler for App {
 }
 
 fn main() {
+    let scene_center = Point3::new(0., 0., -1., CartesianWorld);
 
     let world = World {
-        manifold: Box::new(Schwarzschild4Manifold::new(Point3::new(0., 0., -1., CartesianWorld), 0.25)), // Box::new(EuclideanMetric {}),
+        scene_center: scene_center,
+        manifold: Box::new(Schwarzschild4Manifold::new(scene_center, 0.25)), // Box::new(EuclideanMetric {}),
         objects: vec![
             // Box::new(Sphere {
             //     center: Point3::new_cartesian(0., 0., -1.),

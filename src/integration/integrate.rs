@@ -1,4 +1,4 @@
-use crate::graphics::{ray::{WorldPhotonState, StopReason, WorldPhoton}, world::World};
+use crate::{SCENE_SIZE, graphics::{ray::{StopReason, WorldPhoton, WorldPhotonState}, world::World}};
 
 const MAX_STEPS: u32 = 1000;
 
@@ -27,7 +27,7 @@ pub fn integrate(initial_ray: WorldPhoton, world: &World, debug: bool) -> (World
             );
         }
 
-        if world_ray.pos.z() < -2. {
+        if (world_ray.pos - world.scene_center).distance_to_zero() > SCENE_SIZE {
             return (
                 WorldPhotonState {
                     world_photon: world_ray,

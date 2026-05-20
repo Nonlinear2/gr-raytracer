@@ -78,16 +78,9 @@ impl Surface for Sphere {
         let dist = x.distance_to_zero();
         
         if dist <= self.radius {
-            eprintln!("[Sphere::hit] ray.pos: {:?}, center: {:?}, x: {:?}, dist: {}", ray.pos.as_vec3(), self.center.as_vec3(), x.as_vec3(), dist);
-
             let scale_factor = 1.000001 * self.radius / dist;
-            eprintln!("[Sphere::hit] scale_factor: {}", scale_factor);
-            
             let new_pos = self.center + x * scale_factor;
-            eprintln!("[Sphere::hit] new_pos: {:?}", new_pos.as_vec3());
-            
             let normal = x.as_threevector().normalize();
-            eprintln!("[Sphere::hit] normal: {:?}", normal.as_vec3());
             
             return Some(WorldPhotonState {
                 world_photon: WorldPhoton { pos: new_pos, vel: ray.vel },
