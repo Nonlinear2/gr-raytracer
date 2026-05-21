@@ -32,13 +32,13 @@ pub trait HasAtlas3 {
     fn transition_vector(&self, p: Point3, v: ThreeVector, to: Chart) -> ThreeVector;
 }
 
-pub trait PseudoRiemanian4Manifold {
+pub trait PseudoRiemanian4Manifold: HasAtlas3 {
 
     fn is_singular(&self, x: Point4) -> bool;
 
-    fn to_photon4(&self, world_photon: Photon3) -> Photon4;
+    fn world_photon3_to_photon4(&self, world_photon: Photon3) -> Photon4;
 
-    fn to_photon3(&self, photon: Photon4) -> Photon3;
+    fn to_world_photon3(&self, photon: Photon4) -> Photon3;
 
     fn g(&self, x: Point4) -> Mat4;
 

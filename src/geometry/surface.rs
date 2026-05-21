@@ -63,7 +63,7 @@ impl Material for Metal {
 }
 
 pub trait Surface {
-    fn hit(&self, ray: &Photon3) -> bool;
+    fn hit(&self, ray: Point3) -> bool;
     fn get_hit_data(&self, ray: &Photon3) -> WorldPhoton3State<'_>;
 }
 
@@ -75,27 +75,15 @@ pub struct Sphere {
 }
 
 impl Surface for Sphere {
-    fn hit(&self, ray: &Photon3) -> bool {
-        match ray.pos.chart {
-            Chart::CartesianWorld => {
-                (ray.pos - self.center).distance_to_zero() <= self.radius    
-            },
-            Chart::Cartesian => {
-                (ray.pos.as_chart(Chart::CartesianWorld) + .center - self.center).distance_to_zero() <= self.radius      
-            }
-            Chart::SphericalZ => {
-                todo!()
-            }
-            Chart::SphericalX => {
-                todo!()
-            }
-        }
+    fn hit(&self, x: Point3) -> bool {
+        assert!(x.chart == Chart::CartesianWorld);
+        (x - self.center).distance_to_zero() <= self.radius    
     }
 
     fn get_hit_data(&self, world_ray: &Photon3) -> WorldPhoton3State<'_> {
         assert!(world_ray.pos.chart == Chart::CartesianWorld);
         assert!(world_ray.vel.vector_space == TangentSpace::CartesianWorld);
-        assert!(self.hit(world_ray));
+        assert!(self.hit(world_ray.pos));
 
         let x = world_ray.pos - self.center;
         let dist = x.distance_to_zero();

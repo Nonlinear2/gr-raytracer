@@ -6,11 +6,11 @@ use crate::integration::euler;
 use glam::Mat4;
 
 #[allow(dead_code)]
-pub struct EuclideanAtlas3 {
-    pub center: Point3, // expressed in Chart::CartesianWorld
+pub struct Euclidean4Manifold {
+    pub subatlas_center: Point3 // center of the atlas for fixed-time submanifolds expressed in Chart::CartesianWorld 
 }
 
-impl HasAtlas3 for EuclideanAtlas3 {
+impl HasAtlas3 for Euclidean4Manifold {
     fn has_chart(&self, chart: Chart) -> bool {
         chart == Chart::Cartesian || chart == Chart::CartesianWorld
     }
@@ -21,8 +21,8 @@ impl HasAtlas3 for EuclideanAtlas3 {
 
     fn transition_point(&self, p: Point3, to: Chart) -> Point3 {
         match (p.chart, to) {
-            (Chart::Cartesian, Chart::CartesianWorld) => p.as_chart(Chart::CartesianWorld) + self.center,
-            (Chart::CartesianWorld, Chart::Cartesian) => (p - self.center).as_chart(Chart::Cartesian),
+            (Chart::Cartesian, Chart::CartesianWorld) => p.as_chart(Chart::CartesianWorld) + self.subatlas_center,
+            (Chart::CartesianWorld, Chart::Cartesian) => (p - self.subatlas_center).as_chart(Chart::Cartesian),
             _ => panic!()
         }
     }
@@ -32,34 +32,29 @@ impl HasAtlas3 for EuclideanAtlas3 {
     }
 }
 
-#[allow(dead_code)]
-pub struct Euclidean4Manifold {
-    pub sub_atlas: EuclideanAtlas3 // atlas for fixed-time submanifolds
-}
-
 impl PseudoRiemanian4Manifold for Euclidean4Manifold {
 
     fn is_singular(&self, _x: Point4) -> bool {
         false
     }
 
-    fn to_photon4(&self, world_photon: Photon3) -> Photon4 {
+    fn world_photon3_to_photon4(&self, world_photon: Photon3) -> Photon4 {
         Photon4::new(
             Point4::from_space_time(0., world_photon.pos),
             FourVector::from_space_time(0., world_photon.vel)
         )
     }
 
-    fn to_photon3(&self, photon: Photon4) -> Photon3 {
+    fn to_world_photon3(&self, photon: Photon4) -> Photon3 {
         assert!(photon.pos.chart == Chart::Cartesian);
         assert!(photon.vel.vector_space == TangentSpace::Cartesian);
 
         Photon3::new(
-            self.sub_atlas.transition_point(
+            self.transition_point(
                 photon.pos.space(),
                 Chart::CartesianWorld
             ),
-            self.sub_atlas.transition_vector(
+            self.transition_vector(
                 Point3::ZERO_CART, // unused
                 photon.vel.space(),
                 Chart::CartesianWorld

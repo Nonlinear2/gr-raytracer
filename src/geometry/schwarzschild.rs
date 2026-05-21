@@ -9,11 +9,23 @@ use glam::{Mat4, Vec4};
 const SPH_EPS: f32 = 1e-3;
 const EPS: f32 = 1e-5;
 
-pub struct SchwarzschildAtlas3 {
-    pub center: Point3, // expressed in Chart::CartesianWorld
+pub struct Schwarzschild4Manifold {
+    pub subatlas_center: Point3, // center of the atlas for fixed-time submanifolds expressed in Chart::CartesianWorld 
+    pub r_s: f32,
 }
 
-impl HasAtlas3 for SchwarzschildAtlas3 {
+impl Schwarzschild4Manifold {
+    // center is a Point in world space
+    pub fn new(center: Point3, r_s: f32) -> Self {
+        assert!(center.chart == Chart::CartesianWorld);
+        Self {
+            subatlas_center: center,
+            r_s: r_s,
+        }
+    }
+}
+
+impl HasAtlas3 for Schwarzschild4Manifold {
     fn has_chart(&self, chart: Chart) -> bool {
         chart == Chart::SphericalX || chart == Chart::SphericalZ || chart == Chart::CartesianWorld
     }
@@ -21,7 +33,7 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
     fn preferred_chart_for_point(&self, point: Point3) -> Chart {
         let point_world = self.transition_point(point, Chart::CartesianWorld);
 
-        let rel = point_world - self.center;
+        let rel = point_world - self.subatlas_center;
 
         let dist_to_z_axis_sq = rel.x() * rel.x() + rel.y() * rel.y();
         let dist_to_x_axis_sq = rel.y() * rel.y() + rel.z() * rel.z();
@@ -39,7 +51,7 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
         }
         match (p.chart, to) {
         (Chart::CartesianWorld, Chart::SphericalZ) => {
-            let p_rel = p - self.center;
+            let p_rel = p - self.subatlas_center;
 
             let r = p_rel.distance_to_zero();
             let theta = (p_rel.z() / r).acos();
@@ -49,7 +61,7 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
         }
 
         (Chart::CartesianWorld, Chart::SphericalX) => {
-            let p_rel = p - self.center;
+            let p_rel = p - self.subatlas_center;
 
             let r = p_rel.distance_to_zero();
             let theta = (p_rel.x() / r).acos();
@@ -64,14 +76,14 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
             let y = p.r() * p.theta().sin() * p.phi().sin();
             let z = p.r() * p.theta().cos();
 
-            Point3::new(x, y, z, Chart::CartesianWorld) + self.center
+            Point3::new(x, y, z, Chart::CartesianWorld) + self.subatlas_center
         },
         (Chart::SphericalX, Chart::CartesianWorld) => {
             let x = p.r() * p.theta().cos();
             let y = p.r() * p.theta().sin() * p.phi().cos();
             let z = p.r() * p.theta().sin() * p.phi().sin();
 
-            Point3::new(x, y, z, Chart::CartesianWorld) + self.center
+            Point3::new(x, y, z, Chart::CartesianWorld) + self.subatlas_center
         },
 
         (Chart::SphericalX, Chart::SphericalZ) => {
@@ -105,7 +117,7 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
             //         0.0,
             //     )
             // } else {
-            let rel = p - self.center;
+            let rel = p - self.subatlas_center;
             let x = rel.x();
             let y = rel.y();
             let z = rel.z();
@@ -130,7 +142,7 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
         },
 
         (Chart::CartesianWorld, Chart::SphericalX) => {
-            let rel = p - self.center;
+            let rel = p - self.subatlas_center;
             let x = rel.x();
             let y = rel.y();
             let z = rel.z();
@@ -211,22 +223,6 @@ impl HasAtlas3 for SchwarzschildAtlas3 {
     }
 }
 
-pub struct Schwarzschild4Manifold {
-    pub sub_atlas: SchwarzschildAtlas3, // atlas for fixed-time submanifolds
-    pub r_s: f32,
-}
-
-impl Schwarzschild4Manifold {
-    // center is a Point in world space
-    pub fn new(center: Point3, r_s: f32) -> Self {
-        assert!(center.chart == Chart::CartesianWorld);
-        Self {
-            sub_atlas: SchwarzschildAtlas3 { center: center },
-            r_s: r_s,
-        }
-    }
-}
-
 impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     fn is_singular(&self, x: Point4) -> bool {
         x.r() <= self.r_s
@@ -234,19 +230,19 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
 
     /// x is a point in world
     /// vel is a vector in the tangent space of world
-    fn to_photon4(&self, world_photon: Photon3) -> Photon4 {
+    fn world_photon3_to_photon4(&self, world_photon: Photon3) -> Photon4 {
         assert!(world_photon.pos.chart == Chart::CartesianWorld);
         assert!(world_photon.vel.vector_space == TangentSpace::CartesianWorld);
-        assert!((world_photon.pos - self.sub_atlas.center).distance_to_zero() > EPS);
+        assert!((world_photon.pos - self.subatlas_center).distance_to_zero() > EPS);
 
-        let chart = self.sub_atlas.preferred_chart_for_point(world_photon.pos);
+        let chart = self.preferred_chart_for_point(world_photon.pos);
 
-        let pos = self.sub_atlas.transition_point(
+        let pos = self.transition_point(
             world_photon.pos,
             chart
         );
 
-        let vel = self.sub_atlas.transition_vector(
+        let vel = self.transition_vector(
             world_photon.pos,
             world_photon.vel,
             chart
@@ -274,8 +270,18 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
         Photon4::new(photon_x, FourVector::from_space_time(k_0, vel))
     }        
 
-    fn to_photon3(&self, photon: Photon4) -> Photon3 {
-        Photon3::new(photon.pos.space(), photon.vel.space())
+    fn to_world_photon3(&self, photon: Photon4) -> Photon3 {
+        Photon3::new(
+            self.transition_point(
+                photon.pos.space(),
+                Chart::CartesianWorld
+            ),
+            self.transition_vector(
+                photon.pos.space(),
+                photon.vel.space(),
+                Chart::CartesianWorld
+            ),
+        )
     }
 
     fn g(&self, pos: Point4) -> Mat4 {
@@ -371,10 +377,10 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     fn step_along_null_geodesic(&self, photon: Photon4) -> Photon4 {
 
         // check if we need to switch charts
-        let photon = if self.sub_atlas.preferred_chart_for_point(photon.pos.space()) != photon.pos.chart {
+        let photon = if self.preferred_chart_for_point(photon.pos.space()) != photon.pos.chart {
             // change photon chart
-            let world_photon = self.to_photon3(photon);
-            self.to_photon4(world_photon)
+            let world_photon = self.to_world_photon3(photon);
+            self.world_photon3_to_photon4(world_photon)
         } else {
             photon
         };
