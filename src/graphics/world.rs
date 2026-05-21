@@ -1,5 +1,4 @@
 use crate::geometry::photon::{Photon3, WorldPhoton3State, StopReason};
-use crate::geometry::point::{Point3, Point4};
 use crate::geometry::surface::Surface;
 use crate::geometry::manifold::{Chart, PseudoRiemanian4Manifold};
 use crate::SCENE_SIZE;
@@ -27,15 +26,38 @@ impl World {
                 println!("{:.6}, {:.6}, {:.6}", world_ray.pos.x(), world_ray.pos.y(), world_ray.pos.z());
             }
 
-            if let Some(stop_reason) = self.should_stop(ray.pos) {
+            if self.manifold.is_singular(ray.pos) {
                 return (
                     WorldPhoton3State {
                         photon3: self.manifold.to_world_photon3(ray),
                         normal: None,
                         material: None,
                     },
-                    stop_reason
-                )
+                    StopReason::HorizonHit
+                );
+            }
+
+            if ray.pos.space().distance_to_zero() > SCENE_SIZE {
+                return (
+                    WorldPhoton3State {
+                        photon3: self.manifold.to_world_photon3(ray),
+                        normal: None,
+                        material: None,
+                    },
+                    StopReason::BackgroundReached,
+                );
+            }
+
+            let world_pos = self.manifold.transition_point(ray.pos.space(), Chart::CartesianWorld);
+            for obj in &self.objects {
+                if obj.hit(world_pos) {
+                    let world_vel = self.manifold.transition_vector(
+                        ray.pos.space(),
+                        ray.vel.space(),
+                        Chart::CartesianWorld,
+                    );
+                    return (obj.get_hit_data(&Photon3::new(world_pos, world_vel)), StopReason::ObjectHit);
+                }
             }
 
             // check if we need to switch charts
@@ -54,24 +76,5 @@ impl World {
             },
             StopReason::MaxStepsReached
         );
-    }
-
-    pub fn should_stop(&self, x: Point4) -> Option<StopReason> {
-        if self.manifold.is_singular(x) {
-            return Some(StopReason::HorizonHit);
-        }
-
-        if x.space().distance_to_zero() > SCENE_SIZE {
-            return Some(StopReason::BackgroundReached);
-        }
-
-        let world_pos = self.manifold.transition_point(x.space(), Chart::CartesianWorld);
-        for obj in &self.objects {
-            if obj.hit(world_pos) {
-                return Some(StopReason::ObjectHit);
-            }
-        }
-
-        None
     }
 }
