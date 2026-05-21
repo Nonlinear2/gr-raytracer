@@ -84,7 +84,6 @@ fn main() {
     let scene_center = Point3::new(0., 0., -1., CartesianWorld);
 
     let world = World {
-        scene_center: scene_center,
         manifold: Box::new(Schwarzschild4Manifold::new(scene_center, 0.25)), // Box::new(EuclideanMetric {}),
         objects: vec![
             // Box::new(Sphere {

@@ -1,4 +1,3 @@
-use crate::geometry::point::Point3;
 use crate::geometry::photon::{Photon3, WorldPhoton3State, StopReason};
 use crate::geometry::surface::Surface;
 use crate::geometry::manifold::{Chart, PseudoRiemanian4Manifold};
@@ -9,7 +8,6 @@ const MAX_STEPS: u32 = 1000;
 pub type Objects = Vec<Box<dyn Surface>>;
 
 pub struct World {
-    pub scene_center: Point3,
     pub manifold: Box<dyn PseudoRiemanian4Manifold>,
     pub objects: Objects,
 }
