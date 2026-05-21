@@ -59,6 +59,13 @@ impl World {
                     return (obj.get_hit_data(&Photon3::new(world_pos, world_vel)), StopReason::ObjectHit);
                 }
             }
+
+            // check if we need to switch charts
+            if self.manifold.preferred_chart_for_point(ray.pos.space()) != ray.pos.chart {
+                // change photon chart
+                let world_photon = self.manifold.to_world_photon3(ray);
+                ray = self.manifold.world_photon3_to_photon4(world_photon);
+            }
         }
 
         return (

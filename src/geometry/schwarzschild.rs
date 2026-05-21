@@ -375,16 +375,6 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     }
 
     fn step_along_null_geodesic(&self, photon: Photon4) -> Photon4 {
-
-        // check if we need to switch charts
-        let photon = if self.preferred_chart_for_point(photon.pos.space()) != photon.pos.chart {
-            // change photon chart
-            let world_photon = self.to_world_photon3(photon);
-            self.world_photon3_to_photon4(world_photon)
-        } else {
-            photon
-        };
-
         let x = photon.pos;
         let k = photon.vel;
 
