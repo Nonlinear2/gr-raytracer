@@ -1,6 +1,10 @@
 # black-hole-simulation
 A simple black hole simulation in rust
 
+For now the pipeline is built in a way that only supports time independant geometry. 
+
+
+
 geodesic equation:
 $$\frac{d^2 x^\mu}{d\lambda^2} + \Gamma^\mu_{\alpha\beta}\,\frac{dx^\alpha}{d\lambda}\,\frac{dx^\beta}{d\lambda} = 0$$
 

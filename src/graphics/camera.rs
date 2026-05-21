@@ -1,4 +1,4 @@
-use crate::{geometry::vector::TangentSpace, graphics::{ray::{StopReason, WorldPhoton}, world::World}};
+use crate::{geometry::photon::{Photon3, StopReason}, geometry::vector::TangentSpace, graphics::world::World};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
@@ -56,7 +56,7 @@ impl Camera {
         }
     }
 
-    pub fn ray_color(&self, ray: WorldPhoton, depth: u32, world: &World, debug: bool, rng: &mut StdRng) -> Color {
+    pub fn ray_color(&self, ray: Photon3, depth: u32, world: &World, debug: bool, rng: &mut StdRng) -> Color {
         if depth <= 0 {
             return Color::BLACK;
         }
@@ -66,8 +66,8 @@ impl Camera {
         match stop_reason {
             StopReason::HorizonHit => return Color::BLACK,
             StopReason::BackgroundReached => {
-                let tx = (hit.world_photon.pos.x() * 2.).floor() as i32;
-                let ty = (hit.world_photon.pos.y() * 2.).floor() as i32;
+                let tx = (hit.photon3.pos.x() * 2.).floor() as i32;
+                let ty = (hit.photon3.pos.y() * 2.).floor() as i32;
 
                 if (tx + ty) % 2 == 0 {
                     return Color::new(35.0, 35.0, 35.0);
@@ -81,7 +81,7 @@ impl Camera {
             StopReason::ObjectHit => {
                 let material = hit.material.unwrap();
                 if let Some((attenuation, new_direction)) = material.scatter(&hit, rng) {
-                    let ray = WorldPhoton::new(hit.world_photon.pos, new_direction);
+                    let ray = Photon3::new(hit.photon3.pos, new_direction);
 
                     let bounced = self.ray_color(ray, depth - 1, world, debug, rng);
 
@@ -120,7 +120,7 @@ impl Camera {
             for _ in 0..self.samples_per_pixel {
                 let ray_direction = (self.get_pixel_position(i, j, true, rng) - self.center).as_threevector();
 
-                let ray = WorldPhoton::new(self.center, ray_direction);
+                let ray = Photon3::new(self.center, ray_direction);
 
                 color += self.ray_color(ray, MAX_LIGHT_BOUNCES, &world, false, rng);
             }

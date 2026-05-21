@@ -1,13 +1,7 @@
-use crate::graphics::ray::{Photon, WorldPhoton};
 use crate::geometry::point::{Point3, Point4};
-use crate::geometry::vector::{TangentSpace, ThreeVector, FourVector};
-use crate::integration::euler;
-
-use crate::integration::solvers::positive_root;
-use glam::{Vec4, Mat4};
-
-const SPH_EPS: f32 = 1e-3;
-const EPS: f32 = 1e-5;
+use crate::geometry::vector::{TangentSpace, ThreeVector};
+use crate::geometry::photon::{Photon4, Photon3};
+use glam::Mat4;
 
 /// which global chart we use to describe points on the submanifolds of R^4 obtained by fixing the time coordinate.
 /// Important points: 
@@ -18,6 +12,15 @@ pub enum Chart {
     Cartesian, // cartesian with center point
     SphericalZ, // spherical coordinates with center and (r: 1, theta: 0, phi: ...) pointing towards positive Z 
     SphericalX, // spherical coordinates with center and (r: 1, theta: 0, phi: ...) pointing towards positive X 
+}
+
+pub fn tangent_space(chart: Chart) -> TangentSpace {
+    match chart {
+        Chart::Cartesian => TangentSpace::Cartesian,
+        Chart::CartesianWorld => TangentSpace::CartesianWorld,
+        Chart::SphericalZ => TangentSpace::SphericalZ,
+        Chart::SphericalX => TangentSpace::SphericalX,
+    }
 }
 
 // Atlas describing submanifolds of R^4 given by fixing the time coordinate (so this coordinate doesnt get converted).
@@ -33,9 +36,9 @@ pub trait PseudoRiemanian4Manifold {
 
     fn is_singular(&self, x: Point4) -> bool;
 
-    fn world_to_photon(&self, world_photon: WorldPhoton) -> Photon;
+    fn to_photon4(&self, world_photon: Photon3) -> Photon4;
 
-    fn photon_to_world(&self, photon: Photon) -> WorldPhoton;
+    fn to_photon3(&self, photon: Photon4) -> Photon3;
 
     fn g(&self, x: Point4) -> Mat4;
 
@@ -45,5 +48,6 @@ pub trait PseudoRiemanian4Manifold {
 
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32;
 
-    fn step_along_null_geodesic(&self, s: Photon) -> Photon;
+    fn step_along_null_geodesic(&self, s: Photon4) -> Photon4;
 }
+

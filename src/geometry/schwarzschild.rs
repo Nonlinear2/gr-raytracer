@@ -1,3 +1,14 @@
+use crate::geometry::manifold::{Chart, HasAtlas3, PseudoRiemanian4Manifold};
+use crate::geometry::photon::{Photon4, Photon3};
+use crate::geometry::point::{Point3, Point4};
+use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
+use crate::integration::euler;
+use crate::integration::solvers::positive_root;
+use glam::{Mat4, Vec4};
+
+const SPH_EPS: f32 = 1e-3;
+const EPS: f32 = 1e-5;
+
 pub struct SchwarzschildAtlas3 {
     pub center: Point3, // expressed in Chart::CartesianWorld
 }
@@ -223,7 +234,7 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
 
     /// x is a point in world
     /// vel is a vector in the tangent space of world
-    fn world_to_photon(&self, world_photon: WorldPhoton) -> Photon {
+    fn to_photon4(&self, world_photon: Photon3) -> Photon4 {
         assert!(world_photon.pos.chart == Chart::CartesianWorld);
         assert!(world_photon.vel.vector_space == TangentSpace::CartesianWorld);
         assert!((world_photon.pos - self.sub_atlas.center).distance_to_zero() > EPS);
@@ -260,21 +271,11 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
 
         let k_0 = positive_root(g.col(0)[0], b, c);
 
-        Photon::new(photon_x, FourVector::from_space_time(k_0, vel))
+        Photon4::new(photon_x, FourVector::from_space_time(k_0, vel))
     }        
 
-    fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
-        WorldPhoton::new(
-            self.sub_atlas.transition_point(
-                photon.pos.space(),
-                Chart::CartesianWorld
-            ),
-            self.sub_atlas.transition_vector(
-                photon.pos.space(),
-                photon.vel.space(),
-                Chart::CartesianWorld
-            ),
-        )
+    fn to_photon3(&self, photon: Photon4) -> Photon3 {
+        Photon3::new(photon.pos.space(), photon.vel.space())
     }
 
     fn g(&self, pos: Point4) -> Mat4 {
@@ -367,13 +368,13 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
         gamma
     }
 
-    fn step_along_null_geodesic(&self, photon: Photon) -> Photon {
+    fn step_along_null_geodesic(&self, photon: Photon4) -> Photon4 {
 
         // check if we need to switch charts
         let photon = if self.sub_atlas.preferred_chart_for_point(photon.pos.space()) != photon.pos.chart {
             // change photon chart
-            let world_photon = self.photon_to_world(photon);
-            self.world_to_photon(world_photon)
+            let world_photon = self.to_photon3(photon);
+            self.to_photon4(world_photon)
         } else {
             photon
         };
@@ -393,7 +394,7 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
 
         let (new_x, new_k) = euler::euler_step(x, k, k.as_point4(), del_k);
 
-        Photon {
+        Photon4 {
             pos: new_x,
             vel: new_k,
         }

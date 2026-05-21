@@ -1,3 +1,10 @@
+use crate::geometry::manifold::{Chart, HasAtlas3, PseudoRiemanian4Manifold};
+use crate::geometry::photon::{Photon4, Photon3};
+use crate::geometry::point::{Point3, Point4};
+use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
+use crate::integration::euler;
+use glam::Mat4;
+
 #[allow(dead_code)]
 pub struct EuclideanAtlas3 {
     pub center: Point3, // expressed in Chart::CartesianWorld
@@ -36,18 +43,18 @@ impl PseudoRiemanian4Manifold for Euclidean4Manifold {
         false
     }
 
-    fn world_to_photon(&self, world_photon: WorldPhoton) -> Photon {
-        Photon::new(
+    fn to_photon4(&self, world_photon: Photon3) -> Photon4 {
+        Photon4::new(
             Point4::from_space_time(0., world_photon.pos),
             FourVector::from_space_time(0., world_photon.vel)
         )
     }
 
-    fn photon_to_world(&self, photon: Photon) -> WorldPhoton {
+    fn to_photon3(&self, photon: Photon4) -> Photon3 {
         assert!(photon.pos.chart == Chart::Cartesian);
         assert!(photon.vel.vector_space == TangentSpace::Cartesian);
 
-        WorldPhoton::new(
+        Photon3::new(
             self.sub_atlas.transition_point(
                 photon.pos.space(),
                 Chart::CartesianWorld
@@ -76,10 +83,10 @@ impl PseudoRiemanian4Manifold for Euclidean4Manifold {
         0.
     }
 
-    fn step_along_null_geodesic(&self, s: Photon) -> Photon {
+    fn step_along_null_geodesic(&self, s: Photon4) -> Photon4 {
         let (x_new, k_new) = euler::euler_step(
             s.pos, s.vel, s.vel.as_point4(), FourVector::zero(TangentSpace::Cartesian)
         );
-        Photon::new(x_new, k_new)
+        Photon4::new(x_new, k_new)
     }
 }

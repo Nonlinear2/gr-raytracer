@@ -1,7 +1,7 @@
-use crate::geometry::manifold::Chart;
+use crate::geometry::manifold::tangent_space;
 use crate::geometry::point::{Point3, Point4};
-use crate::geometry::vector::{TangentSpace, ThreeVector, FourVector};
-use crate::graphics::surface::Material;
+use crate::geometry::vector::{ThreeVector, FourVector};
+use crate::geometry::surface::Material;
 
 pub enum StopReason {
     MaxStepsReached,
@@ -10,8 +10,8 @@ pub enum StopReason {
     HorizonHit,
 }
 
-pub struct WorldPhotonState<'a> {
-    pub world_photon: WorldPhoton,
+pub struct WorldPhoton3State<'a> {
+    pub photon3: Photon3,
     #[allow(dead_code)]
     pub normal: Option<ThreeVector>,
     pub material: Option<&'a dyn Material>
@@ -19,16 +19,15 @@ pub struct WorldPhotonState<'a> {
 
 
 #[derive(Clone, Copy)]
-pub struct WorldPhoton {
+pub struct Photon3 {
     pub pos: Point3,
     pub vel: ThreeVector,
 }
 
-// unphysical photon in world coordinates
-impl WorldPhoton {
+// photon in a fixed-time r^4 submanifold: R^3_t.
+impl Photon3 {
     pub fn new(pos: Point3, vel: ThreeVector) -> Self {
-        assert!(pos.chart == Chart::CartesianWorld);
-        assert!(vel.vector_space == TangentSpace::CartesianWorld);
+        assert!(tangent_space(pos.chart) ==  vel.vector_space);
 
         Self {
             pos: pos,
@@ -39,13 +38,15 @@ impl WorldPhoton {
 
 // photon in spacetime with manifold coordinate system
 #[derive(Clone, Copy)]
-pub struct Photon {
+pub struct Photon4 {
     pub pos: Point4,
     pub vel: FourVector,
 }
 
-impl Photon {
+impl Photon4 {
     pub fn new(pos: Point4, vel: FourVector) -> Self {
+        assert!(tangent_space(pos.chart) ==  vel.vector_space);
+
         Self {
             pos: pos,
             vel: vel,
