@@ -104,7 +104,7 @@ impl GpuGeodesicIntegrator {
         Ok(Self { device, queue, pipeline })
     }
 
-    pub fn evolve(
+    pub fn integrate(
         &self,
         rays: Vec<Photon4>,
     ) -> Result<Vec<(Photon4, StopReason)>, String> {

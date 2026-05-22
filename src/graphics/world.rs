@@ -1,7 +1,7 @@
 use crate::geometry::photon::{Photon3, Photon4, WorldPhoton3State, StopReason};
 use crate::geometry::surface::Surface;
 use crate::geometry::manifold::{Chart, PseudoRiemanian4Manifold};
-use crate::graphics::gpu::GpuGeodesicIntegrator;
+use crate::graphics::geodesic_integrator::GpuGeodesicIntegrator;
 use crate::SCENE_SIZE;
 
 const MAX_STEPS: u32 = 1000;
@@ -89,7 +89,7 @@ impl World {
             .map(|ray| self.manifold.world_photon3_to_photon4(ray))
             .collect();
 
-        let results = integrator.evolve(input_rays).unwrap();
+        let results = integrator.integrate(input_rays).unwrap();
 
         results
             .into_iter()

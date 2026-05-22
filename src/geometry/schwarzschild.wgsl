@@ -227,7 +227,7 @@ fn world_photon3_to_photon4(world_photon: PackedPhoton3) -> PackedPhoton4 {
     let vel = transition_vector(world_photon.pos, world_photon.vel, chart);
     let photon_x = new_point4(0.0, pos.inner.x, pos.inner.y, pos.inner.z, chart);
 
-    let g = sch_g(photon_x);
+    let g = g(photon_x);
     let b = 2.0 * (g[0][1] * vel.inner.y + g[0][2] * vel.inner.z + g[0][3] * vel.inner.w);
     let c =
           g[1][1] * vel.inner.y * vel.inner.y
@@ -241,7 +241,7 @@ fn world_photon3_to_photon4(world_photon: PackedPhoton3) -> PackedPhoton4 {
     return PackedPhoton4(photon_x, PackedFourVector(vec4<f32>(k_0, vel.inner.x, vel.inner.y, vel.inner.z), chart));
 }
 
-fn sch_g(pos: PackedPoint4) -> mat4x4<f32> {
+fn g(pos: PackedPoint4) -> mat4x4<f32> {
     let r = pos.inner.y;
     let theta = pos.inner.z;
     let f = 1.0 - R_S / r;
@@ -254,7 +254,7 @@ fn sch_g(pos: PackedPoint4) -> mat4x4<f32> {
     );
 }
 
-fn sch_g_inv(pos: PackedPoint4) -> mat4x4<f32> {
+fn g_inv(pos: PackedPoint4) -> mat4x4<f32> {
     let r = pos.inner.y;
     let theta = pos.inner.z;
     let f = 1.0 - R_S / r;
@@ -267,7 +267,7 @@ fn sch_g_inv(pos: PackedPoint4) -> mat4x4<f32> {
     );
 }
 
-fn sch_del_g(pos: PackedPoint4, i: u32) -> mat4x4<f32> {
+fn del_g(pos: PackedPoint4, i: u32) -> mat4x4<f32> {
     let r = pos.inner.y;
     let theta = pos.inner.z;
 
@@ -293,14 +293,14 @@ fn sch_del_g(pos: PackedPoint4, i: u32) -> mat4x4<f32> {
     return zero_matrix();
 }
 
-fn sch_christoffel(pos: PackedPoint4, mu: u32, nu: u32, lambda: u32) -> f32 {
-    let g_inv = sch_g_inv(pos);
-    let d_mu_g = sch_del_g(pos, mu);
-    let d_nu_g = sch_del_g(pos, nu);
+fn christoffel(pos: PackedPoint4, mu: u32, nu: u32, lambda: u32) -> f32 {
+    let g_inv = g_inv(pos);
+    let d_mu_g = del_g(pos, mu);
+    let d_nu_g = del_g(pos, nu);
 
     var gamma = 0.0;
     for (var alpha: u32 = 0u; alpha < 4u; alpha = alpha + 1u) {
-        let d_alpha_g = sch_del_g(pos, alpha);
+        let d_alpha_g = del_g(pos, alpha);
         gamma = gamma + 0.5 * g_inv[lambda][alpha] * (
             d_mu_g[alpha][nu] + d_nu_g[alpha][mu] - d_alpha_g[mu][nu]
         );
@@ -309,13 +309,13 @@ fn sch_christoffel(pos: PackedPoint4, mu: u32, nu: u32, lambda: u32) -> f32 {
     return gamma;
 }
 
-fn sch_step_along_null_geodesic(photon: PackedPhoton4) -> PackedPhoton4 {
+fn step_along_null_geodesic(photon: PackedPhoton4) -> PackedPhoton4 {
     var del_k = four_vector_zero(photon.vel.vector_space);
 
     for (var mu: u32 = 0u; mu < 4u; mu = mu + 1u) {
         for (var alpha: u32 = 0u; alpha < 4u; alpha = alpha + 1u) {
             for (var beta: u32 = 0u; beta < 4u; beta = beta + 1u) {
-                let gamma = sch_christoffel(photon.pos, alpha, beta, mu);
+                let gamma = christoffel(photon.pos, alpha, beta, mu);
                 del_k.inner[mu] = del_k.inner[mu] - gamma * photon.vel.inner[alpha] * photon.vel.inner[beta];
             }
         }
@@ -324,31 +324,31 @@ fn sch_step_along_null_geodesic(photon: PackedPhoton4) -> PackedPhoton4 {
     return euler_step(photon.pos, photon.vel, four_vector_as_point4(photon.vel), del_k);
 }
 
-fn evolve_schwarzschild_ray(photon: PackedPhoton4) -> PackedRayResult {
-    var current = photon;
+fn evolve_schwarzschild_ray(input_ray: PackedPhoton4) -> PackedRayResult {
+    var ray = input_ray;
 
     for (var step: u32 = 0u; step < MAX_STEPS; step = step + 1u) {
-        current = sch_step_along_null_geodesic(current);
+        ray = step_along_null_geodesic(ray);
 
-        let world_pos = photon_to_world_pos(current);
+        let world_pos = photon_to_world_pos(ray);
 
-        if (current.pos.inner.y <= R_S) {
-            return PackedRayResult(current, HORIZON_HIT, vec3<u32>(0u));
+        if (ray.pos.inner.y <= R_S) {
+            return PackedRayResult(ray, HORIZON_HIT, vec3<u32>(0u));
         }
 
         if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) {
-            return PackedRayResult(current, BACKGROUND_REACHED, vec3<u32>(0u));
+            return PackedRayResult(ray, BACKGROUND_REACHED, vec3<u32>(0u));
         }
 
         let preferred_chart = preferred_chart_for_point(PackedPoint3(world_pos, CARTESIAN_WORLD));
-        if (preferred_chart != current.pos.chart) {
-            let world_vel = photon_to_world_vel(current);
+        if (preferred_chart != ray.pos.chart) {
+            let world_vel = photon_to_world_vel(ray);
             let world_photon = PackedPhoton3(PackedPoint3(world_pos, CARTESIAN_WORLD), PackedThreeVector(world_vel, CARTESIAN_WORLD));
-            current = world_photon3_to_photon4(world_photon);
+            ray = world_photon3_to_photon4(world_photon);
         }
     }
 
-    return PackedRayResult(current, MAX_STEPS_REACHED, vec3<u32>(0u));
+    return PackedRayResult(ray, MAX_STEPS_REACHED, vec3<u32>(0u));
 }
 
 struct InputPhotons {

@@ -90,17 +90,6 @@ impl Point3 {
         self.inner[2]
     }
 
-    // pub fn normalize(&self) -> ThreeVector {
-    //     assert!(self.coordinate_system == Chart::Cartesian);
-    //     assert!(self.distance_to_zero() != 0.);
-    //     ThreeVector { inner: self.inner.normalize(), coordinate_system: Chart::Cartesian }
-    // }
-
-    // pub fn dot(&self, other: ThreeVector) -> f32 {
-    //     assert!(self.coordinate_system == Chart::Cartesian);
-    //     self.inner.dot(other.inner)
-    // }
-
     pub fn as_threevector(self) -> ThreeVector {
         match self.chart {
             Chart::Cartesian => ThreeVector::new(
