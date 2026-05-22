@@ -10,7 +10,7 @@ fn sch_g(pos: Point4) -> mat4x4<f32> {
         vec4<f32>(f, 0.0, 0.0, 0.0),
         vec4<f32>(0.0, -1.0 / f, 0.0, 0.0),
         vec4<f32>(0.0, 0.0, -r * r, 0.0),
-        vec4<f32>(0.0, 0.0, 0.0, -r * r * theta.sin() * theta.sin())
+        vec4<f32>(0.0, 0.0, 0.0, -r * r * sin(theta) * sin(theta))
     );
 }
 
@@ -23,7 +23,7 @@ fn sch_g_inv(pos: Point4) -> mat4x4<f32> {
         vec4<f32>(1.0 / f, 0.0, 0.0, 0.0),
         vec4<f32>(0.0, r_s / r - 1.0, 0.0, 0.0),
         vec4<f32>(0.0, 0.0, -1.0 / (r * r), 0.0),
-        vec4<f32>(0.0, 0.0, 0.0, -1.0 / (r * r * theta.sin() * theta.sin()))
+        vec4<f32>(0.0, 0.0, 0.0, -1.0 / (r * r * sin(theta) * sin(theta)))
     );
 }
 
@@ -41,7 +41,7 @@ fn sch_del_g(pos: Point4, chart: u32) -> mat4x4<f32> {
             vec4<f32>(r_s / (r * r), 0.0, 0.0, 0.0),
             vec4<f32>(0.0, r_s / (r * r * f * f), 0.0, 0.0),
             vec4<f32>(0.0, 0.0, -2.0 * r, 0.0),
-            vec4<f32>(0.0, 0.0, 0.0, -2.0 * r * theta.sin() * theta.sin())
+            vec4<f32>(0.0, 0.0, 0.0, -2.0 * r * sin(theta) * sin(theta))
         );
     }
 
@@ -50,7 +50,7 @@ fn sch_del_g(pos: Point4, chart: u32) -> mat4x4<f32> {
             vec4<f32>(0.0, 0.0, 0.0, 0.0),
             vec4<f32>(0.0, 0.0, 0.0, 0.0),
             vec4<f32>(0.0, 0.0, 0.0, 0.0),
-            vec4<f32>(0.0, 0.0, 0.0, -2.0 * r * r * theta.cos() * theta.sin())
+            vec4<f32>(0.0, 0.0, 0.0, -2.0 * r * r * cos(theta) * sin(theta))
         );
     }
 
@@ -125,23 +125,23 @@ fn transition_point_world_to_spherical_x(world_pos: vec3<f32>) -> Point4 {
 
 fn transition_point_world_to_chart(world_pos: vec3<f32>, chart: u32) -> Point4 {
     if (chart == SPHERICAL_X) {
-        return transition_point_world_to_spherical_x(world_pos, center);
+        return transition_point_world_to_spherical_x(world_pos);
     }
 
-    return transition_point_world_to_spherical_z(world_pos, center);
+    return transition_point_world_to_spherical_z(world_pos);
 }
 
 fn transition_point_chart_to_world(point: Point4) -> vec3<f32> {
     if (point.chart == SPHERICAL_Z) {
-        let x = point.data.y * point.data.z.sin() * point.data.w.cos();
-        let y = point.data.y * point.data.z.sin() * point.data.w.sin();
-        let z = point.data.y * point.data.z.cos();
+        let x = point.data.y * sin(point.data.z) * cos(point.data.w);
+        let y = point.data.y * sin(point.data.z) * sin(point.data.w);
+        let z = point.data.y * cos(point.data.z);
         return vec3<f32>(x, y, z) + center;
     }
 
-    let x = point.data.y * point.data.z.cos();
-    let y = point.data.y * point.data.z.sin() * point.data.w.cos();
-    let z = point.data.y * point.data.z.sin() * point.data.w.sin();
+    let x = point.data.y * cos(point.data.z);
+    let y = point.data.y * sin(point.data.z) * cos(point.data.w);
+    let z = point.data.y * sin(point.data.z) * sin(point.data.w);
     return vec3<f32>(x, y, z) + center;
 }
 
@@ -218,10 +218,10 @@ fn photon_to_world_vel(photon: Photon4) -> vec3<f32> {
     let v_theta = photon.vel.data.z;
     let v_phi = photon.vel.data.w;
 
-    let sin_theta = theta.sin();
-    let cos_theta = theta.cos();
-    let sin_phi = phi.sin();
-    let cos_phi = phi.cos();
+    let sin_theta = sin(theta);
+    let cos_theta = cos(theta);
+    let sin_phi = sin(phi);
+    let cos_phi = cos(phi);
 
     if (point.chart == SPHERICAL_Z) {
         return vec3<f32>(
@@ -238,12 +238,12 @@ fn photon_to_world_vel(photon: Photon4) -> vec3<f32> {
     );
 }
 
-fn world_photon3_to_photon4(world_pos: vec3<f32>, world_vel: vec3<f32>, chart: u32, r_s: f32) -> Photon4 {
-    let pos = transition_point_world_to_chart(world_pos, center, chart);
-    let vel = transition_vector_world_to_chart(world_pos, world_vel, center, chart);
+fn world_photon3_to_photon4(world_pos: vec3<f32>, world_vel: vec3<f32>, chart: u32) -> Photon4 {
+    let pos = transition_point_world_to_chart(world_pos, chart);
+    let vel = transition_vector_world_to_chart(world_pos, world_vel, chart);
     let photon_x = Point4(vec4<f32>(0.0, pos.data.y, pos.data.z, pos.data.w), chart);
 
-    let g = g(photon_x, r_s);
+    let g = sch_g(photon_x);
     let b = 2.0 * (g[0][1] * vel.data.y + g[0][2] * vel.data.z + g[0][3] * vel.data.w);
     let c =
           g[1][1] * vel.data.y * vel.data.y
@@ -261,9 +261,9 @@ fn evolve_schwarzschild_ray(photon: Photon4) -> RayResult {
     var current = photon;
 
     for (var step: u32 = 0u; step < MAX_STEPS; step = step + 1u) {
-        current = sch_step_along_null_geodesic(current, r_s);
+        current = sch_step_along_null_geodesic(current);
 
-        let world_pos = photon_to_world_pos(current, center);
+        let world_pos = photon_to_world_pos(current);
 
         if (current.pos.data.y <= r_s) {
             return RayResult(current, STOP_HORIZON_HIT, vec3<u32>(0u));
@@ -273,10 +273,10 @@ fn evolve_schwarzschild_ray(photon: Photon4) -> RayResult {
             return RayResult(current, STOP_BACKGROUND_REACHED, vec3<u32>(0u));
         }
 
-        let preferred_chart = preferred_chart_for_point(world_pos, center);
+        let preferred_chart = preferred_chart_for_point(world_pos);
         if (preferred_chart != current.pos.chart) {
-            let world_vel = photon_to_world_vel(current, center);
-            current = world_photon3_to_photon4(world_pos, world_vel, center, preferred_chart);
+            let world_vel = photon_to_world_vel(current);
+            current = world_photon3_to_photon4(world_pos, world_vel, preferred_chart);
         }
     }
 
@@ -288,9 +288,6 @@ var<storage, read> input_photons: array<Photon4>;
 
 @group(0) @binding(1)
 var<storage, read_write> output_results: array<RayResult>;
-
-@group(0) @binding(2)
-var<uniform> ray_count: u64;
 
 @compute @workgroup_size(64)
 fn evolve_schwarzschild_rays(@builtin(global_invocation_id) global_id: vec3<u32>) {
