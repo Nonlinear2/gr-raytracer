@@ -82,13 +82,13 @@ impl World {
     pub fn evolve_until_stop_gpu(&self, initial_rays: Vec<Photon3>, _debug: bool) -> Vec<(WorldPhoton3State<'_>, StopReason)> {
         assert!(self.objects.is_empty(), "gpu currently does not support object hits");
 
-        let stepper = GpuGeodesicIntegrator::new(&*self.manifold).expect("failed to initialize GPU compute pipeline");
+        let integrator = GpuGeodesicIntegrator::new(&*self.manifold).unwrap();
         let input_rays: Vec<Photon4> = initial_rays
             .into_iter()
             .map(|ray| self.manifold.world_photon3_to_photon4(ray))
             .collect();
 
-        let results = stepper.evolve_batch(&input_rays).expect("GPU evolution failed");
+        let results = integrator.evolve(input_rays).unwrap();
 
         results
             .into_iter()

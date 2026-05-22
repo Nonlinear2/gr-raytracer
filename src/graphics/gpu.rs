@@ -10,6 +10,27 @@ use crate::geometry::vector::{FourVector, TangentSpace};
 
 const WORKGROUP_SIZE: u32 = 64;
 
+const CHARTS: [Chart; 4] = [
+    Chart::CartesianWorld,
+    Chart::Cartesian,
+    Chart::SphericalZ,
+    Chart::SphericalX,
+];
+
+const TANGENT_SPACES: [TangentSpace; 4] = [
+    TangentSpace::Cartesian,
+    TangentSpace::CartesianWorld,
+    TangentSpace::SphericalZ,
+    TangentSpace::SphericalX,
+];
+
+const STOP_REASONS: [StopReason; 4] = [
+    StopReason::MaxStepsReached,
+    StopReason::BackgroundReached,
+    StopReason::ObjectHit,
+    StopReason::HorizonHit,
+];
+
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct PackedPhoton4 {
@@ -27,36 +48,6 @@ struct PackedRayResult {
     photon: PackedPhoton4,
     stop_reason: u32,
     padding: [u32; 3],
-}
-
-fn chart_from_u32(value: u32) -> Chart {
-    match value {
-        0 => Chart::CartesianWorld,
-        1 => Chart::Cartesian,
-        2 => Chart::SphericalZ,
-        3 => Chart::SphericalX,
-        _ => panic!(),
-    }
-}
-
-fn tangent_space_from_u32(value: u32) -> TangentSpace {
-    match value {
-        0 => TangentSpace::Cartesian,
-        1 => TangentSpace::CartesianWorld,
-        2 => TangentSpace::SphericalZ,
-        3 => TangentSpace::SphericalX,
-        _ => panic!(),
-    }
-}
-
-fn stop_reason_from_u32(value: u32) -> StopReason {
-    match value {
-        0 => StopReason::MaxStepsReached,
-        1 => StopReason::BackgroundReached,
-        2 => StopReason::ObjectHit,
-        3 => StopReason::HorizonHit,
-        _ => panic!("invalid stop reason id {value}"),
-    }
 }
 
 impl From<Photon4> for PackedPhoton4 {
@@ -80,14 +71,14 @@ impl From<PackedPhoton4> for Photon4 {
                 photon.pos[1],
                 photon.pos[2],
                 photon.pos[3],
-                chart_from_u32(photon.pos_chart),
+                CHARTS[photon.pos_chart as usize],
             ),
             FourVector::new(
                 photon.vel[0],
                 photon.vel[1],
                 photon.vel[2],
                 photon.vel[3],
-                tangent_space_from_u32(photon.vel_space),
+                TANGENT_SPACES[photon.vel_space as usize],
             ),
         )
     }
@@ -106,16 +97,15 @@ impl GpuGeodesicIntegrator {
     }
 
     async fn new_async(manifold_shader_source: String) -> Result<Self, String> {
-        let instance = wgpu::Instance::default();
 
-        let adapter = instance
+        let adapter = wgpu::Instance::default()
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: None,
                 force_fallback_adapter: false,
             })
             .await
-            .map_err(|_| String::from("no suitable GPU adapter found"))?;
+            .map_err(|_| String::from("no gpu adapter found"))?;
 
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
@@ -127,11 +117,12 @@ impl GpuGeodesicIntegrator {
                 experimental_features: wgpu::ExperimentalFeatures::default(),
             })
             .await
-            .map_err(|err| format!("failed to create GPU device: {err}"))?;
+            .map_err(|err| format!("failed to create gpu device: {err}"))?;
 
-        // Concatenate common WGSL and manifold-specific WGSL so files can be modular.
+        // Concatenate common.wgsl and manifold shader
         let common_source = include_str!("../geometry/common.wgsl");
         let manifold_source = &manifold_shader_source;
+    
         let shader_source = [common_source, manifold_source].join("\n");
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("schwarzschild-evolve-shader"),
@@ -161,16 +152,6 @@ impl GpuGeodesicIntegrator {
                     },
                     count: None,
                 },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
             ],
         });
 
@@ -192,43 +173,36 @@ impl GpuGeodesicIntegrator {
         Ok(Self { device, queue, pipeline })
     }
 
-    pub fn evolve_batch(
+    pub fn evolve(
         &self,
-        rays: &[Photon4],
+        rays: Vec<Photon4>,
     ) -> Result<Vec<(Photon4, StopReason)>, String> {
         if rays.is_empty() {
             return Ok(Vec::new());
         }
 
         let packed_rays: Vec<PackedPhoton4> = rays.iter().copied().map(PackedPhoton4::from).collect();
-        let buffer_size = std::mem::size_of::<PackedRayResult>() as u64 * packed_rays.len() as u64;
+
+        let buffer_size = std::mem::size_of::<PackedRayResult>() as u64 * rays.len() as u64;
 
         let input_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("schwarzschild-evolve-input"),
+            label: Some("input"),
             contents: bytemuck::cast_slice(&packed_rays),
             usage: wgpu::BufferUsages::STORAGE,
         });
 
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("schwarzschild-evolve-output"),
+            label: Some("output"),
             size: buffer_size,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
 
         let readback_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("schwarzschild-evolve-readback"),
+            label: Some("readback"),
             size: buffer_size,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
-        });
-
-        let rays_count: f32 = rays.len() as f32;
-
-        let params_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("schwarzschild-evolve-params"),
-            contents: bytemuck::bytes_of(&rays_count),
-            usage: wgpu::BufferUsages::UNIFORM,
         });
 
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -243,20 +217,16 @@ impl GpuGeodesicIntegrator {
                     binding: 1,
                     resource: output_buffer.as_entire_binding(),
                 },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: params_buffer.as_entire_binding(),
-                },
             ],
         });
 
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("schwarzschild-evolve-encoder"),
+            label: Some("encoder"),
         });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("schwarzschild-evolve-pass"),
+                label: Some("pass"),
                 timestamp_writes: None,
             });
             pass.set_pipeline(&self.pipeline);
@@ -264,7 +234,14 @@ impl GpuGeodesicIntegrator {
             pass.dispatch_workgroups((packed_rays.len() as u32).div_ceil(WORKGROUP_SIZE), 1, 1);
         }
 
-        encoder.copy_buffer_to_buffer(&output_buffer, 0, &readback_buffer, 0, buffer_size);
+        encoder.copy_buffer_to_buffer(
+            &output_buffer,
+            0,
+            &readback_buffer,
+            0,
+            buffer_size
+        );
+
         self.queue.submit(Some(encoder.finish()));
 
         let slice = readback_buffer.slice(..);
@@ -287,7 +264,7 @@ impl GpuGeodesicIntegrator {
         let mapped = slice.get_mapped_range();
         let packed_output: &[PackedRayResult] = bytemuck::cast_slice(&mapped);
         let output = packed_output.iter().copied().map(
-            |result| (result.photon.into(), stop_reason_from_u32(result.stop_reason))
+            |result| (result.photon.into(), STOP_REASONS[result.stop_reason as usize])
         ).collect();
         drop(mapped);
         readback_buffer.unmap();

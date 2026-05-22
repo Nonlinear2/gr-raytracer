@@ -32,11 +32,6 @@ struct RayResult {
     padding: vec3<u32>,
 }
 
-struct StepParams {
-    data0: vec4<f32>, // x = r_s, y = scene_size, z = ray_count
-    data1: vec4<f32>, // xyz = center
-}
-
 fn point4_from_components(t: f32, r: f32, theta: f32, phi: f32, chart: u32) -> Point4 {
     return Point4(vec4<f32>(t, r, theta, phi), chart);
 }

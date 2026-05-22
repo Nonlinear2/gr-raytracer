@@ -3,6 +3,7 @@ use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{ThreeVector, FourVector};
 use crate::geometry::surface::Material;
 
+#[derive(Clone, Copy)]
 pub enum StopReason {
     MaxStepsReached,
     BackgroundReached,

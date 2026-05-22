@@ -257,7 +257,7 @@ fn world_photon3_to_photon4(world_pos: vec3<f32>, world_vel: vec3<f32>, chart: u
     return Photon4(photon_x, FourVector(vec4<f32>(k_0, vel.data.y, vel.data.z, vel.data.w), chart));
 }
 
-fn evolve_schwarzschild_ray(photon: Photon4, r_s: f32, scene_size: f32) -> RayResult {
+fn evolve_schwarzschild_ray(photon: Photon4) -> RayResult {
     var current = photon;
 
     for (var step: u32 = 0u; step < MAX_STEPS; step = step + 1u) {
@@ -269,7 +269,7 @@ fn evolve_schwarzschild_ray(photon: Photon4, r_s: f32, scene_size: f32) -> RayRe
             return RayResult(current, STOP_HORIZON_HIT, vec3<u32>(0u));
         }
 
-        if (length(world_pos - center) > scene_size) {
+        if (length(world_pos - center) > SCENE_SIZE) {
             return RayResult(current, STOP_BACKGROUND_REACHED, vec3<u32>(0u));
         }
 
@@ -290,18 +290,16 @@ var<storage, read> input_photons: array<Photon4>;
 var<storage, read_write> output_results: array<RayResult>;
 
 @group(0) @binding(2)
-var<uniform> step_params: StepParams;
+var<uniform> ray_count: u64;
 
 @compute @workgroup_size(64)
 fn evolve_schwarzschild_rays(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let ray_index = global_id.x;
-    let ray_count = u32(step_params.data0.z);
+    let ray_count = arrayLength(&input_photons);
 
     if (ray_index >= ray_count) {
         return;
     }
 
-    let scene_size = step_params.data0.y;
-
-    output_results[ray_index] = evolve_schwarzschild_ray(input_photons[ray_index], scene_size);
+    output_results[ray_index] = evolve_schwarzschild_ray(input_photons[ray_index]);
 }
