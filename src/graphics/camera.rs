@@ -1,4 +1,4 @@
-use crate::{geometry::photon::{Photon3, StopReason}, geometry::vector::TangentSpace, graphics::world::World};
+use crate::{geometry::photon::{Photon3, StopReason, WorldPhoton3State}, geometry::vector::TangentSpace, graphics::world::World};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
@@ -56,12 +56,10 @@ impl Camera {
         }
     }
 
-    pub fn ray_color(&self, ray: Photon3, depth: u32, world: &World, debug: bool, rng: &mut StdRng) -> Color {
+    fn color_from_stop(&self, hit: &WorldPhoton3State<'_>, stop_reason: StopReason, depth: u32, world: &World, debug: bool, rng: &mut StdRng) -> Color {
         if depth <= 0 {
             return Color::BLACK;
         }
-
-        let (hit, stop_reason) = world.evolve_until_stop(ray, debug);
 
         match stop_reason {
             StopReason::HorizonHit => return Color::BLACK,
@@ -80,7 +78,7 @@ impl Camera {
             },
             StopReason::ObjectHit => {
                 let material = hit.material.unwrap();
-                if let Some((attenuation, new_direction)) = material.scatter(&hit, rng) {
+                if let Some((attenuation, new_direction)) = material.scatter(hit, rng) {
                     let ray = Photon3::new(hit.photon3.pos, new_direction);
 
                     let bounced = self.ray_color(ray, depth - 1, world, debug, rng);
@@ -97,6 +95,21 @@ impl Camera {
         }
     }
 
+    pub fn ray_color(&self, ray: Photon3, depth: u32, world: &World, debug: bool, rng: &mut StdRng) -> Color {
+        let (hit, stop_reason) = world.evolve_until_stop(ray, debug);
+        self.color_from_stop(&hit, stop_reason, depth, world, debug, rng)
+    }
+
+
+    pub fn ray_color_gpu(&self, rays: Vec<Photon3>, depth: u32, world: &World, debug: bool, rng: &mut StdRng) -> Vec<Color> {
+
+        let data = world.evolve_until_stop_gpu(rays, debug);
+
+        data.into_iter()
+            .map(|(hit, stop_reason)| self.color_from_stop(&hit, stop_reason, depth, world, debug, rng))
+            .collect()
+    }
+
     pub fn get_pixel_position(&self, i: usize, j: usize, offset: bool, rng: &mut StdRng) -> Point3 {
         let mut pos = self.first_pixel_loc + (self.pixel_delta_u * (i as f32) + self.pixel_delta_v * (j as f32)).as_point3();
         if offset {
@@ -107,6 +120,7 @@ impl Camera {
         pos
     }
 
+    #[allow(dead_code)]
     pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
         for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
             if idx % 100 == 0 {
@@ -123,6 +137,38 @@ impl Camera {
                 let ray = Photon3::new(self.center, ray_direction);
 
                 color += self.ray_color(ray, MAX_LIGHT_BOUNCES, &world, false, rng);
+            }
+
+            color /= self.samples_per_pixel as f32;
+
+            pixel[0] = color.r as u8; // R
+            pixel[1] = color.g as u8; // G
+            pixel[2] = color.b as u8; // B
+            pixel[3] = 0xff; // A
+        }
+    }
+
+    pub fn render_on_gpu(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
+        let mut rays = Vec::with_capacity((self.img_width * self.img_height * self.samples_per_pixel) as usize);
+
+        for j in 0..self.img_height as usize {
+            for i in 0..self.img_width as usize {
+                for _ in 0..self.samples_per_pixel {
+                    let ray_direction = (self.get_pixel_position(i, j, true, rng) - self.center).as_threevector();
+                    rays.push(Photon3::new(self.center, ray_direction));
+                }
+            }
+        }
+
+        let colors = self.ray_color_gpu(rays, MAX_LIGHT_BOUNCES, world, false, rng);
+
+        for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
+            let mut color = Color::BLACK;
+            let sample_start = idx * self.samples_per_pixel as usize;
+            let sample_end = sample_start + self.samples_per_pixel as usize;
+
+            for sample_color in &colors[sample_start..sample_end] {
+                color += *sample_color;
             }
 
             color /= self.samples_per_pixel as f32;

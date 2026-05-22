@@ -4,7 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bytemuck = { version = "1.24.0", features = ["derive"] }
+env_logger = "0.11.10"
 glam = "0.32.1"
 pixels = "0.17.1"
+pollster = "0.4.0"
 rand = "0.10.1"
+wgpu = "29.0.3"
 winit = "0.30.13"
