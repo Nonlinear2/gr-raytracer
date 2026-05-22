@@ -1,13 +1,13 @@
-use crate::geometry::{manifold::Chart, point::Point4, vector::FourVector};
+use crate::geometry::{manifold::Chart, photon::Photon4, point::Point4, vector::FourVector};
 
 const EULER_STEP_SIZE: f32 = 0.01;
 
-pub fn euler_step(x: Point4, k: FourVector, del_x: Point4, del_k: FourVector) -> (Point4, FourVector) {
+pub fn euler_step(x: Point4, k: FourVector, del_x: Point4, del_k: FourVector) -> Photon4 {
     assert!(x.chart == del_x.chart);
     assert!(k.vector_space == del_k.vector_space); // tangent basis
 
     match x.chart {
-        Chart::Cartesian => (
+        Chart::Cartesian => Photon4::new(
             x + EULER_STEP_SIZE * del_x,
             k + EULER_STEP_SIZE * del_k,
         ),
@@ -47,7 +47,7 @@ pub fn euler_step(x: Point4, k: FourVector, del_x: Point4, del_k: FourVector) ->
 
             new_k[2] = k_theta;
 
-            (new_x, new_k)
+            Photon4::new(new_x, new_k)
         }
         Chart::CartesianWorld => {
             panic!();

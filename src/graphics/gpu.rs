@@ -16,11 +16,23 @@ pub struct GpuGeodesicIntegrator {
 
 impl GpuGeodesicIntegrator {
     pub fn new(manifold: &dyn PseudoRiemanian4Manifold) -> Option<Self> {
-        let shader_source = manifold.get_shader();
+        let shader_source = Self::get_shader(manifold);
         pollster::block_on(Self::new_async(shader_source)).ok()
     }
 
-    async fn new_async(manifold_shader_source: String) -> Result<Self, String> {
+    pub fn get_shader(manifold: &dyn PseudoRiemanian4Manifold) -> String {
+
+        // Concatenate shader
+
+        let common_source = include_str!("../geometry/common.wgsl");
+        let packed_source = include_str!("../geometry/packed_types.wgsl");
+        let euler_source = include_str!("../integration/euler.wgsl");
+        let manifold_source = manifold.get_shader();
+
+        [common_source, packed_source, euler_source, &manifold_source].join("\n")
+    }
+
+    async fn new_async(shader_source: String) -> Result<Self, String> {
 
         let adapter = wgpu::Instance::default()
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -43,11 +55,6 @@ impl GpuGeodesicIntegrator {
             .await
             .map_err(|err| format!("failed to create gpu device: {err}"))?;
 
-        // Concatenate common.wgsl and manifold shader
-        let common_source = include_str!("../geometry/common.wgsl");
-        let manifold_source = &manifold_shader_source;
-    
-        let shader_source = [common_source, manifold_source].join("\n");
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("schwarzschild-evolve-shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source.into())),

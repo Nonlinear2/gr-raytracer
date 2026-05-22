@@ -1,9 +1,9 @@
 
 // CONSTS
 
-fn sch_g(pos: Point4) -> mat4x4<f32> {
-    let r = pos.data.y;
-    let theta = pos.data.z;
+fn sch_g(pos: PackedPoint4) -> mat4x4<f32> {
+    let r = pos.inner.y;
+    let theta = pos.inner.z;
     let f = 1.0 - R_S / r;
 
     return mat4x4<f32>(
@@ -14,9 +14,9 @@ fn sch_g(pos: Point4) -> mat4x4<f32> {
     );
 }
 
-fn sch_g_inv(pos: Point4) -> mat4x4<f32> {
-    let r = pos.data.y;
-    let theta = pos.data.z;
+fn sch_g_inv(pos: PackedPoint4) -> mat4x4<f32> {
+    let r = pos.inner.y;
+    let theta = pos.inner.z;
     let f = 1.0 - R_S / r;
 
     return mat4x4<f32>(
@@ -27,15 +27,11 @@ fn sch_g_inv(pos: Point4) -> mat4x4<f32> {
     );
 }
 
-fn sch_del_g(pos: Point4, chart: u32) -> mat4x4<f32> {
-    let r = pos.data.y;
-    let theta = pos.data.z;
+fn sch_del_g(pos: PackedPoint4, i: u32) -> mat4x4<f32> {
+    let r = pos.inner.y;
+    let theta = pos.inner.z;
 
-    if (chart == 0u || chart == 3u) {
-        return zero_matrix();
-    }
-
-    if (chart == 1u) {
+    if (i == 1u) {
         let f = 1.0 - R_S / r;
         return mat4x4<f32>(
             vec4<f32>(R_S / (r * r), 0.0, 0.0, 0.0),
@@ -45,7 +41,7 @@ fn sch_del_g(pos: Point4, chart: u32) -> mat4x4<f32> {
         );
     }
 
-    if (chart == 2u) {
+    if (i == 2u) {
         return mat4x4<f32>(
             vec4<f32>(0.0, 0.0, 0.0, 0.0),
             vec4<f32>(0.0, 0.0, 0.0, 0.0),
@@ -57,7 +53,7 @@ fn sch_del_g(pos: Point4, chart: u32) -> mat4x4<f32> {
     return zero_matrix();
 }
 
-fn sch_christoffel(pos: Point4, mu: u32, nu: u32, lambda: u32) -> f32 {
+fn sch_christoffel(pos: PackedPoint4, mu: u32, nu: u32, lambda: u32) -> f32 {
     let g_inv = sch_g_inv(pos);
     let d_mu_g = sch_del_g(pos, mu);
     let d_nu_g = sch_del_g(pos, nu);
@@ -73,23 +69,18 @@ fn sch_christoffel(pos: Point4, mu: u32, nu: u32, lambda: u32) -> f32 {
     return gamma;
 }
 
-fn sch_null_geodesic_delta_k(x: Point4, k: FourVector) -> FourVector {
-    var del_k = four_vector_zero(k.space);
+fn sch_step_along_null_geodesic(photon: PackedPhoton4) -> PackedPhoton4 {
+    var del_k = four_vector_zero(photon.vel.vector_space);
 
     for (var mu: u32 = 0u; mu < 4u; mu = mu + 1u) {
         for (var alpha: u32 = 0u; alpha < 4u; alpha = alpha + 1u) {
             for (var beta: u32 = 0u; beta < 4u; beta = beta + 1u) {
-                let gamma = sch_christoffel(x, alpha, beta, mu);
-                del_k.data[mu] = del_k.data[mu] - gamma * k.data[alpha] * k.data[beta];
+                let gamma = sch_christoffel(photon.pos, alpha, beta, mu);
+                del_k.inner[mu] = del_k.inner[mu] - gamma * photon.vel.inner[alpha] * photon.vel.inner[beta];
             }
         }
     }
 
-    return del_k;
-}
-
-fn sch_step_along_null_geodesic(photon: Photon4) -> Photon4 {
-    let del_k = sch_null_geodesic_delta_k(photon.pos, photon.vel);
     return euler_step(photon.pos, photon.vel, four_vector_as_point4(photon.vel), del_k);
 }
 
@@ -105,25 +96,25 @@ fn preferred_chart_for_point(world_pos: vec3<f32>) -> u32 {
     return SPHERICAL_Z;
 }
 
-fn transition_point_world_to_spherical_z(world_pos: vec3<f32>) -> Point4 {
+fn transition_point_world_to_spherical_z(world_pos: vec3<f32>) -> PackedPoint4 {
     let rel = world_pos - SUBATLAS_CENTER;
     let r = length(rel);
     let theta = acos(clamp(rel.z / r, -1.0, 1.0));
-    let phi = wrap_tau(atan2(rel.y, rel.x));
+    let phi = atan2(rel.y, rel.x);
 
-    return point4_from_components(0.0, r, theta, phi, SPHERICAL_Z);
+    return new_point4(0.0, r, theta, phi, SPHERICAL_Z);
 }
 
-fn transition_point_world_to_spherical_x(world_pos: vec3<f32>) -> Point4 {
+fn transition_point_world_to_spherical_x(world_pos: vec3<f32>) -> PackedPoint4 {
     let rel = world_pos - SUBATLAS_CENTER;
     let r = length(rel);
     let theta = acos(clamp(rel.x / r, -1.0, 1.0));
-    let phi = wrap_tau(atan2(rel.z, rel.y));
+    let phi = atan2(rel.z, rel.y);
 
-    return point4_from_components(0.0, r, theta, phi, SPHERICAL_X);
+    return new_point4(0.0, r, theta, phi, SPHERICAL_X);
 }
 
-fn transition_point_world_to_chart(world_pos: vec3<f32>, chart: u32) -> Point4 {
+fn transition_point_world_to_chart(world_pos: vec3<f32>, chart: u32) -> PackedPoint4 {
     if (chart == SPHERICAL_X) {
         return transition_point_world_to_spherical_x(world_pos);
     }
@@ -131,21 +122,21 @@ fn transition_point_world_to_chart(world_pos: vec3<f32>, chart: u32) -> Point4 {
     return transition_point_world_to_spherical_z(world_pos);
 }
 
-fn transition_point_chart_to_world(point: Point4) -> vec3<f32> {
+fn transition_point_chart_to_world(point: PackedPoint4) -> vec3<f32> {
     if (point.chart == SPHERICAL_Z) {
-        let x = point.data.y * sin(point.data.z) * cos(point.data.w);
-        let y = point.data.y * sin(point.data.z) * sin(point.data.w);
-        let z = point.data.y * cos(point.data.z);
+        let x = point.inner.y * sin(point.inner.z) * cos(point.inner.w);
+        let y = point.inner.y * sin(point.inner.z) * sin(point.inner.w);
+        let z = point.inner.y * cos(point.inner.z);
         return vec3<f32>(x, y, z) + SUBATLAS_CENTER;
     }
 
-    let x = point.data.y * cos(point.data.z);
-    let y = point.data.y * sin(point.data.z) * cos(point.data.w);
-    let z = point.data.y * sin(point.data.z) * sin(point.data.w);
+    let x = point.inner.y * cos(point.inner.z);
+    let y = point.inner.y * sin(point.inner.z) * cos(point.inner.w);
+    let z = point.inner.y * sin(point.inner.z) * sin(point.inner.w);
     return vec3<f32>(x, y, z) + SUBATLAS_CENTER;
 }
 
-fn transition_vector_world_to_spherical_z(world_pos: vec3<f32>, world_vel: vec3<f32>) -> FourVector {
+fn transition_vector_world_to_spherical_z(world_pos: vec3<f32>, world_vel: vec3<f32>) -> PackedFourVector {
     let rel = world_pos - SUBATLAS_CENTER;
     let x = rel.x;
     let y = rel.y;
@@ -162,7 +153,7 @@ fn transition_vector_world_to_spherical_z(world_pos: vec3<f32>, world_vel: vec3<
     let dph_dx = -y / (rho * rho);
     let dph_dy = x / (rho * rho);
 
-    return four_vector_from_components(
+    return new_four_vector(
         0.0,
         dr_dx * world_vel.x + dr_dy * world_vel.y + dr_dz * world_vel.z,
         dth_dx * world_vel.x + dth_dy * world_vel.y + dth_dz * world_vel.z,
@@ -171,7 +162,7 @@ fn transition_vector_world_to_spherical_z(world_pos: vec3<f32>, world_vel: vec3<
     );
 }
 
-fn transition_vector_world_to_spherical_x(world_pos: vec3<f32>, world_vel: vec3<f32>) -> FourVector {
+fn transition_vector_world_to_spherical_x(world_pos: vec3<f32>, world_vel: vec3<f32>) -> PackedFourVector {
     let rel = world_pos - SUBATLAS_CENTER;
     let x = rel.x;
     let y = rel.y;
@@ -188,7 +179,7 @@ fn transition_vector_world_to_spherical_x(world_pos: vec3<f32>, world_vel: vec3<
     let dph_dy = -z / (rho * rho);
     let dph_dz = y / (rho * rho);
 
-    return four_vector_from_components(
+    return new_four_vector(
         0.0,
         dr_dx * world_vel.x + dr_dy * world_vel.y + dr_dz * world_vel.z,
         dth_dx * world_vel.x + dth_dy * world_vel.y + dth_dz * world_vel.z,
@@ -197,7 +188,7 @@ fn transition_vector_world_to_spherical_x(world_pos: vec3<f32>, world_vel: vec3<
     );
 }
 
-fn transition_vector_world_to_chart(world_pos: vec3<f32>, world_vel: vec3<f32>, chart: u32) -> FourVector {
+fn transition_vector_world_to_chart(world_pos: vec3<f32>, world_vel: vec3<f32>, chart: u32) -> PackedFourVector {
     if (chart == SPHERICAL_X) {
         return transition_vector_world_to_spherical_x(world_pos, world_vel);
     }
@@ -205,18 +196,18 @@ fn transition_vector_world_to_chart(world_pos: vec3<f32>, world_vel: vec3<f32>, 
     return transition_vector_world_to_spherical_z(world_pos, world_vel);
 }
 
-fn photon_to_world_pos(photon: Photon4) -> vec3<f32> {
+fn photon_to_world_pos(photon: PackedPhoton4) -> vec3<f32> {
     return transition_point_chart_to_world(photon.pos);
 }
 
-fn photon_to_world_vel(photon: Photon4) -> vec3<f32> {
+fn photon_to_world_vel(photon: PackedPhoton4) -> vec3<f32> {
     let point = photon.pos;
-    let r = point.data.y;
-    let theta = point.data.z;
-    let phi = point.data.w;
-    let v_r = photon.vel.data.y;
-    let v_theta = photon.vel.data.z;
-    let v_phi = photon.vel.data.w;
+    let r = point.inner.y;
+    let theta = point.inner.z;
+    let phi = point.inner.w;
+    let v_r = photon.vel.inner.y;
+    let v_theta = photon.vel.inner.z;
+    let v_phi = photon.vel.inner.w;
 
     let sin_theta = sin(theta);
     let cos_theta = cos(theta);
@@ -238,26 +229,26 @@ fn photon_to_world_vel(photon: Photon4) -> vec3<f32> {
     );
 }
 
-fn world_photon3_to_photon4(world_pos: vec3<f32>, world_vel: vec3<f32>, chart: u32) -> Photon4 {
+fn world_photon3_to_photon4(world_pos: vec3<f32>, world_vel: vec3<f32>, chart: u32) -> PackedPhoton4 {
     let pos = transition_point_world_to_chart(world_pos, chart);
     let vel = transition_vector_world_to_chart(world_pos, world_vel, chart);
-    let photon_x = Point4(vec4<f32>(0.0, pos.data.y, pos.data.z, pos.data.w), chart);
+    let photon_x = PackedPoint4(vec4<f32>(0.0, pos.inner.y, pos.inner.z, pos.inner.w), chart);
 
     let g = sch_g(photon_x);
-    let b = 2.0 * (g[0][1] * vel.data.y + g[0][2] * vel.data.z + g[0][3] * vel.data.w);
+    let b = 2.0 * (g[0][1] * vel.inner.y + g[0][2] * vel.inner.z + g[0][3] * vel.inner.w);
     let c =
-          g[1][1] * vel.data.y * vel.data.y
-        + 2.0 * g[1][2] * vel.data.y * vel.data.z
-        + 2.0 * g[1][3] * vel.data.y * vel.data.w
-        + g[2][2] * vel.data.z * vel.data.z
-        + 2.0 * g[2][3] * vel.data.z * vel.data.w
-        + g[3][3] * vel.data.w * vel.data.w;
+          g[1][1] * vel.inner.y * vel.inner.y
+        + 2.0 * g[1][2] * vel.inner.y * vel.inner.z
+        + 2.0 * g[1][3] * vel.inner.y * vel.inner.w
+        + g[2][2] * vel.inner.z * vel.inner.z
+        + 2.0 * g[2][3] * vel.inner.z * vel.inner.w
+        + g[3][3] * vel.inner.w * vel.inner.w;
 
     let k_0 = quadratic_positive_root(g[0][0], b, c);
-    return Photon4(photon_x, FourVector(vec4<f32>(k_0, vel.data.y, vel.data.z, vel.data.w), chart));
+    return PackedPhoton4(photon_x, PackedFourVector(vec4<f32>(k_0, vel.inner.y, vel.inner.z, vel.inner.w), chart));
 }
 
-fn evolve_schwarzschild_ray(photon: Photon4) -> PackedRayResult {
+fn evolve_schwarzschild_ray(photon: PackedPhoton4) -> PackedRayResult {
     var current = photon;
 
     for (var step: u32 = 0u; step < MAX_STEPS; step = step + 1u) {
@@ -265,12 +256,12 @@ fn evolve_schwarzschild_ray(photon: Photon4) -> PackedRayResult {
 
         let world_pos = photon_to_world_pos(current);
 
-        if (current.pos.data.y <= R_S) {
-            return PackedRayResult(current, STOP_HORIZON_HIT, vec3<u32>(0u));
+        if (current.pos.inner.y <= R_S) {
+            return PackedRayResult(current, HORIZON_HIT, vec3<u32>(0u));
         }
 
         if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) {
-            return PackedRayResult(current, STOP_BACKGROUND_REACHED, vec3<u32>(0u));
+            return PackedRayResult(current, BACKGROUND_REACHED, vec3<u32>(0u));
         }
 
         let preferred_chart = preferred_chart_for_point(world_pos);
@@ -280,11 +271,11 @@ fn evolve_schwarzschild_ray(photon: Photon4) -> PackedRayResult {
         }
     }
 
-    return PackedRayResult(current, STOP_MAX_STEPS_REACHED, vec3<u32>(0u));
+    return PackedRayResult(current, MAX_STEPS_REACHED, vec3<u32>(0u));
 }
 
 struct InputPhotons {
-    data: array<Photon4>,
+    data: array<PackedPhoton4>,
 }
 
 struct OutputResults {

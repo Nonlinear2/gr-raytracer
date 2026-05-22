@@ -389,12 +389,7 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
             }
         }
 
-        let (new_x, new_k) = euler::euler_step(x, k, k.as_point4(), del_k);
-
-        Photon4 {
-            pos: new_x,
-            vel: new_k,
-        }
+        euler::euler_step(x, k, k.as_point4(), del_k)
     }
 
     fn get_shader(&self) -> String {

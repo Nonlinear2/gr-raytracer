@@ -79,10 +79,9 @@ impl PseudoRiemanian4Manifold for Euclidean4Manifold {
     }
 
     fn step_along_null_geodesic(&self, s: Photon4) -> Photon4 {
-        let (x_new, k_new) = euler::euler_step(
+        euler::euler_step(
             s.pos, s.vel, s.vel.as_point4(), FourVector::zero(TangentSpace::Cartesian)
-        );
-        Photon4::new(x_new, k_new)
+        )
     }
 
     fn get_shader(&self) -> String {

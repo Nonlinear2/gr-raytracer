@@ -9,7 +9,7 @@ use crate::geometry::manifold::Chart;
 // Point3 is a point on the manifold R^3
 #[derive(Clone, Copy, PartialEq)]
 pub struct Point3 {
-    pub inner: Vec3, // misleading name, here we are really differentiating between points
+    pub inner: Vec3, // this is not a vector, here we are really differentiating between points
     // which live on the manifold R^3, and vectors which live in a tangent vector space to a point.
     pub chart: Chart
 }
