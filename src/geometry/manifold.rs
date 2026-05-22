@@ -1,12 +1,14 @@
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{TangentSpace, ThreeVector};
 use crate::geometry::photon::{Photon4, Photon3};
+use num_enum::{TryFromPrimitive};
 use glam::Mat4;
 
 /// which global chart we use to describe points on the submanifolds of R^4 obtained by fixing the time coordinate.
 /// Important points: 
 /// These charts will designate the maps from coordinates to "manifold" and not the opposite. They are technically inverse charts
-#[derive(Clone, Copy, PartialEq)]
+#[repr(u32)]
+#[derive(Clone, Copy, PartialEq, TryFromPrimitive)]
 pub enum Chart {
     CartesianWorld,
     Cartesian, // cartesian with center point

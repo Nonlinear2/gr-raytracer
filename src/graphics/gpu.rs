@@ -1,88 +1,12 @@
 use std::borrow::Cow;
 use std::sync::mpsc;
 
-use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
-use crate::geometry::manifold::{Chart, PseudoRiemanian4Manifold};
-use crate::geometry::photon::{Photon4, StopReason};
-use crate::geometry::vector::{FourVector, TangentSpace};
+use crate::geometry::manifold::PseudoRiemanian4Manifold;
+use crate::geometry::photon::{Photon4, StopReason, PackedPhoton4, PackedRayResult};
 
 const WORKGROUP_SIZE: u32 = 64;
-
-const CHARTS: [Chart; 4] = [
-    Chart::CartesianWorld,
-    Chart::Cartesian,
-    Chart::SphericalZ,
-    Chart::SphericalX,
-];
-
-const TANGENT_SPACES: [TangentSpace; 4] = [
-    TangentSpace::Cartesian,
-    TangentSpace::CartesianWorld,
-    TangentSpace::SphericalZ,
-    TangentSpace::SphericalX,
-];
-
-const STOP_REASONS: [StopReason; 4] = [
-    StopReason::MaxStepsReached,
-    StopReason::BackgroundReached,
-    StopReason::ObjectHit,
-    StopReason::HorizonHit,
-];
-
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-struct PackedPhoton4 {
-    pos: [f32; 4],
-    pos_chart: u32,
-    pos_padding: [u32; 3],
-    vel: [f32; 4],
-    vel_space: u32,
-    vel_padding: [u32; 3],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-struct PackedRayResult {
-    photon: PackedPhoton4,
-    stop_reason: u32,
-    padding: [u32; 7],
-}
-
-impl From<Photon4> for PackedPhoton4 {
-    fn from(photon: Photon4) -> Self {
-        Self {
-            pos: [photon.pos.t(), photon.pos.r(), photon.pos.theta(), photon.pos.phi()],
-            pos_chart: photon.pos.chart as u32,
-            pos_padding: [0; 3],
-            vel: [photon.vel.t(), photon.vel.r(), photon.vel.theta(), photon.vel.phi()],
-            vel_space: photon.vel.vector_space as u32,
-            vel_padding: [0; 3],
-        }
-    }
-}
-
-impl From<PackedPhoton4> for Photon4 {
-    fn from(photon: PackedPhoton4) -> Self {
-        Photon4::new(
-            crate::geometry::point::Point4::new(
-                photon.pos[0],
-                photon.pos[1],
-                photon.pos[2],
-                photon.pos[3],
-                CHARTS[photon.pos_chart as usize],
-            ),
-            FourVector::new(
-                photon.vel[0],
-                photon.vel[1],
-                photon.vel[2],
-                photon.vel[3],
-                TANGENT_SPACES[photon.vel_space as usize],
-            ),
-        )
-    }
-}
 
 pub struct GpuGeodesicIntegrator {
     device: wgpu::Device,
@@ -264,7 +188,7 @@ impl GpuGeodesicIntegrator {
         let mapped = slice.get_mapped_range();
         let packed_output: &[PackedRayResult] = bytemuck::cast_slice(&mapped);
         let output = packed_output.iter().copied().map(
-            |result| (result.photon.into(), STOP_REASONS[result.stop_reason as usize])
+            |result| (result.photon.into(), StopReason::try_from(result.stop_reason).unwrap())
         ).collect();
         drop(mapped);
         readback_buffer.unmap();

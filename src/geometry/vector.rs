@@ -1,4 +1,5 @@
-﻿use rand::{rngs::StdRng, RngExt};
+﻿use num_enum::TryFromPrimitive;
+use rand::{rngs::StdRng, RngExt};
 use glam::{Vec3, Vec4};
 
 use crate::geometry::manifold::Chart;
@@ -7,7 +8,8 @@ use crate::geometry::point::{Point3, Point4};
 /// basis of the tangent space at a point (unspecified) of a given chart on R^3_t (that is, a coordinate system).
 /// the tangent space identified with R^3_t thus the basis is composed of vectors.
 /// (see proposition 3.2 J.Lee smooth manifolds).
-#[derive(Clone, Copy, PartialEq)]
+#[repr(u32)]
+#[derive(Clone, Copy, PartialEq, TryFromPrimitive)]
 pub enum TangentSpace {
     Cartesian,
     CartesianWorld,

@@ -83,6 +83,7 @@ impl World {
         assert!(self.objects.is_empty(), "gpu currently does not support object hits");
 
         let integrator = GpuGeodesicIntegrator::new(&*self.manifold).unwrap();
+
         let input_rays: Vec<Photon4> = initial_rays
             .into_iter()
             .map(|ray| self.manifold.world_photon3_to_photon4(ray))

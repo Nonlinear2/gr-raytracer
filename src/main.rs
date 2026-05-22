@@ -19,7 +19,7 @@ use crate::geometry::manifold::Chart::CartesianWorld;
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Instant;
 
-const HEIGHT: u32 = 80;
+const HEIGHT: u32 = 400;
 const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
 const RNG_SEED: u64 = 0;
 

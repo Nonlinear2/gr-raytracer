@@ -209,6 +209,7 @@ dependencies = [
  "bytemuck",
  "env_logger",
  "glam",
+ "num_enum",
  "pixels",
  "pollster",
  "rand",
