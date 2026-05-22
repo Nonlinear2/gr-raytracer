@@ -29,31 +29,13 @@ struct PackedRayResult {
     padding: [u32; 3],
 }
 
-fn chart_to_u32(chart: Chart) -> u32 {
-    match chart {
-        Chart::CartesianWorld => 0,
-        Chart::Cartesian => 1,
-        Chart::SphericalZ => 2,
-        Chart::SphericalX => 3,
-    }
-}
-
 fn chart_from_u32(value: u32) -> Chart {
     match value {
         0 => Chart::CartesianWorld,
         1 => Chart::Cartesian,
         2 => Chart::SphericalZ,
         3 => Chart::SphericalX,
-        _ => panic!("invalid chart id {value}"),
-    }
-}
-
-fn tangent_space_to_u32(space: TangentSpace) -> u32 {
-    match space {
-        TangentSpace::Cartesian => 0,
-        TangentSpace::CartesianWorld => 1,
-        TangentSpace::SphericalZ => 2,
-        TangentSpace::SphericalX => 3,
+        _ => panic!(),
     }
 }
 
@@ -63,7 +45,7 @@ fn tangent_space_from_u32(value: u32) -> TangentSpace {
         1 => TangentSpace::CartesianWorld,
         2 => TangentSpace::SphericalZ,
         3 => TangentSpace::SphericalX,
-        _ => panic!("invalid tangent space id {value}"),
+        _ => panic!(),
     }
 }
 
@@ -81,10 +63,10 @@ impl From<Photon4> for PackedPhoton4 {
     fn from(photon: Photon4) -> Self {
         Self {
             pos: [photon.pos.t(), photon.pos.r(), photon.pos.theta(), photon.pos.phi()],
-            pos_chart: chart_to_u32(photon.pos.chart),
+            pos_chart: photon.pos.chart as u32,
             pos_padding: [0; 3],
             vel: [photon.vel.t(), photon.vel.r(), photon.vel.theta(), photon.vel.phi()],
-            vel_space: tangent_space_to_u32(photon.vel.vector_space),
+            vel_space: photon.vel.vector_space as u32,
             vel_padding: [0; 3],
         }
     }
