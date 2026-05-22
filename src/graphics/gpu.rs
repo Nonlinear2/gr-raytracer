@@ -56,12 +56,12 @@ impl GpuGeodesicIntegrator {
             .map_err(|err| format!("failed to create gpu device: {err}"))?;
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("schwarzschild-evolve-shader"),
+            label: Some("evolve-shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source.into())),
         });
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("schwarzschild-evolve-bind-group-layout"),
+            label: Some("evolve-bind-group-layout"),
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
@@ -87,16 +87,16 @@ impl GpuGeodesicIntegrator {
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("schwarzschild-evolve-pipeline-layout"),
+            label: Some("evolve-pipeline-layout"),
             bind_group_layouts: &[Some(&bind_group_layout)],
             immediate_size: 0,
         });
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("schwarzschild-evolve-pipeline"),
+            label: Some("evolve-pipeline"),
             layout: Some(&pipeline_layout),
             module: &shader,
-            entry_point: Some("evolve_schwarzschild_rays"),
+            entry_point: Some("evolve_rays"),
             compilation_options: Default::default(),
             cache: None,
         });

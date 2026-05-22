@@ -1,6 +1,246 @@
 
 // CONSTS
 
+fn preferred_chart_for_point(point: PackedPoint3) -> u32 {
+    let point_world = transition_point(point, CARTESIAN_WORLD);
+    let p_rel = point_world.inner - SUBATLAS_CENTER;
+    let dist_to_z_axis_sq = p_rel.x * p_rel.x + p_rel.y * p_rel.y;
+    let dist_to_x_axis_sq = p_rel.y * p_rel.y + p_rel.z * p_rel.z;
+
+    if (dist_to_z_axis_sq < dist_to_x_axis_sq) {
+        return SPHERICAL_X;
+    }
+    return SPHERICAL_Z;
+}
+
+fn transition_point(point: PackedPoint3, to: u32) -> PackedPoint3 {
+    if (point.chart == to) {
+        return point;
+    }
+
+    switch (point.chart) {
+        case CARTESIAN_WORLD: {
+            let world_pos = point.inner;
+            let p_rel = world_pos - SUBATLAS_CENTER;
+            let r = length(p_rel);
+
+            switch (to) {
+                case SPHERICAL_Z: {
+                    let new_theta = acos(p_rel.z / r);
+                    var new_phi = atan2(p_rel.y, p_rel.x);
+                    if (new_phi < 0.0) { new_phi = new_phi + TAU; }
+                    return new_point3(r, new_theta, new_phi, SPHERICAL_Z);
+                }
+                case SPHERICAL_X: {
+                    let new_theta = acos(p_rel.x / r);
+                    var new_phi = atan2(p_rel.z, p_rel.y);
+                    if (new_phi < 0.0) { new_phi = new_phi + TAU; }
+                    return new_point3(r, new_theta, new_phi, SPHERICAL_X);
+                }
+                default: {
+                    unreachable();
+                }
+            }
+        }
+        case SPHERICAL_Z: {
+            switch (to) {
+                case CARTESIAN_WORLD: {
+                    let r = point.inner.x;
+                    let theta = point.inner.y;
+                    let phi = point.inner.z;
+
+                    let x = r * sin(theta) * cos(phi);
+                    let y = r * sin(theta) * sin(phi);
+                    let z = r * cos(theta);
+                    return new_point3(x + SUBATLAS_CENTER.x, y + SUBATLAS_CENTER.y, z + SUBATLAS_CENTER.z, CARTESIAN_WORLD);
+                }
+                case SPHERICAL_X: {
+                    let world_point = transition_point(point, CARTESIAN_WORLD);
+                    return transition_point(world_point, SPHERICAL_X);
+                }
+                default: {
+                    unreachable();
+                }
+            }
+        }
+        case SPHERICAL_X: {
+            switch (to) {
+                case CARTESIAN_WORLD: {
+                    let r = point.inner.x;
+                    let theta = point.inner.y;
+                    let phi = point.inner.z;
+
+                    let x = r * cos(theta);
+                    let y = r * sin(theta) * cos(phi);
+                    let z = r * sin(theta) * sin(phi);
+                    return new_point3(x + SUBATLAS_CENTER.x, y + SUBATLAS_CENTER.y, z + SUBATLAS_CENTER.z, CARTESIAN_WORLD);
+                }
+                case SPHERICAL_Z: {
+                    let world_point = transition_point(point, CARTESIAN_WORLD);
+                    return transition_point(world_point, SPHERICAL_Z);
+                }
+                default: {
+                    unreachable();
+                }
+            }
+        }
+        default: {
+            unreachable();
+        }
+    }
+}
+
+fn transition_vector(point: PackedPoint3, v: PackedThreeVector, to: u32) -> PackedThreeVector {
+    if (point.chart == to) {
+        return v;
+    }
+
+    let r = point.inner.x;
+    let theta = point.inner.y;
+    let phi = point.inner.z;
+
+    switch (point.chart) {
+        case CARTESIAN_WORLD: {
+            let world_pos = point.inner;
+            let p_rel = world_pos - SUBATLAS_CENTER;
+            let x = p_rel.x;
+            let y = p_rel.y;
+            let z = p_rel.z;
+            let rho_z = sqrt(x * x + y * y);
+            let rho_x = sqrt(y * y + z * z);
+            let r = sqrt(x * x + y * y + z * z);
+
+            switch (to) {
+                case SPHERICAL_Z: {
+                    let dr_dx = x / r;
+                    let dr_dy = y / r;
+                    let dr_dz = z / r;
+                    let dth_dx = x * z / (r * r * rho_z);
+                    let dth_dy = y * z / (r * r * rho_z);
+                    let dth_dz = -rho_z / (r * r);
+                    let dph_dx = -y / (rho_z * rho_z);
+                    let dph_dy = x / (rho_z * rho_z);
+
+                    return new_three_vector(
+                        dr_dx * v.inner.x + dr_dy * v.inner.y + dr_dz * v.inner.z,
+                        dth_dx * v.inner.x + dth_dy * v.inner.y + dth_dz * v.inner.z,
+                        dph_dx * v.inner.x + dph_dy * v.inner.y,
+                        SPHERICAL_Z,
+                    );
+                }
+                case SPHERICAL_X: {
+                    let dr_dx = x / r;
+                    let dr_dy = y / r;
+                    let dr_dz = z / r;
+                    let dth_dx = -rho_x / (r * r);
+                    let dth_dy = x * y / (r * r * rho_x);
+                    let dth_dz = x * z / (r * r * rho_x);
+                    let dph_dy = -z / (rho_x * rho_x);
+                    let dph_dz = y / (rho_x * rho_x);
+
+                    return new_three_vector(
+                        dr_dx * v.inner.x + dr_dy * v.inner.y + dr_dz * v.inner.z,
+                        dth_dx * v.inner.x + dth_dy * v.inner.y + dth_dz * v.inner.z,
+                        dph_dy * v.inner.y + dph_dz * v.inner.z,
+                        SPHERICAL_X,
+                    );
+                }
+                default: {
+                    unreachable();
+                }
+            }
+        }
+        case SPHERICAL_Z: {
+            switch (to) {
+                case CARTESIAN_WORLD: {
+                    let v_r = v.inner.x;
+                    let v_theta = v.inner.y;
+                    let v_phi = v.inner.z;
+                    let sin_theta = sin(theta);
+                    let cos_theta = cos(theta);
+                    let sin_phi = sin(phi);
+                    let cos_phi = cos(phi);
+
+                    return new_three_vector(
+                        sin_theta * cos_phi * v_r + r * cos_theta * cos_phi * v_theta - r * sin_theta * sin_phi * v_phi,
+                        sin_theta * sin_phi * v_r + r * cos_theta * sin_phi * v_theta + r * sin_theta * cos_phi * v_phi,
+                        cos_theta * v_r - r * sin_theta * v_theta,
+                        CARTESIAN_WORLD,
+                    );
+                }
+                case SPHERICAL_X: {
+                    let world_point = transition_point(point, CARTESIAN_WORLD);
+                    let world_vector = transition_vector(point, v, CARTESIAN_WORLD);
+                    return transition_vector(world_point, world_vector, SPHERICAL_X);
+                }
+                default: {
+                    unreachable();
+                }
+            }
+        }
+        case SPHERICAL_X: {
+            switch (to) {
+                case CARTESIAN_WORLD: {
+                    let v_r = v.inner.x;
+                    let v_theta = v.inner.y;
+                    let v_phi = v.inner.z;
+                    let sin_theta = sin(theta);
+                    let cos_theta = cos(theta);
+                    let sin_phi = sin(phi);
+                    let cos_phi = cos(phi);
+
+                    return new_three_vector(
+                        cos_theta * v_r - r * sin_theta * v_theta,
+                        sin_theta * cos_phi * v_r + r * cos_theta * cos_phi * v_theta - r * sin_theta * sin_phi * v_phi,
+                        sin_theta * sin_phi * v_r + r * cos_theta * sin_phi * v_theta + r * sin_theta * cos_phi * v_phi,
+                        CARTESIAN_WORLD,
+                    );
+                }
+                case SPHERICAL_Z: {
+                    let world_point = transition_point(point, CARTESIAN_WORLD);
+                    let world_vector = transition_vector(point, v, CARTESIAN_WORLD);
+                    return transition_vector(world_point, world_vector, SPHERICAL_Z);
+                }
+                default: {
+                    unreachable();
+                }
+            }
+        }
+        default: {
+            unreachable();
+        }
+    }
+}
+
+fn photon_to_world_pos(photon: PackedPhoton4) -> vec3<f32> {
+    return transition_point(PackedPoint3(photon.pos.inner.yzw, photon.pos.chart), CARTESIAN_WORLD).inner;
+}
+
+fn photon_to_world_vel(photon: PackedPhoton4) -> vec3<f32> {
+    let pos = PackedPoint3(photon.pos.inner.yzw, photon.pos.chart);
+    return transition_vector(pos, PackedThreeVector(photon.vel.inner.yzw, photon.vel.vector_space), CARTESIAN_WORLD).inner;
+}
+
+fn world_photon3_to_photon4(world_photon: PackedPhoton3) -> PackedPhoton4 {
+    let chart = preferred_chart_for_point(world_photon.pos);
+    let pos = transition_point(world_photon.pos, chart);
+    let vel = transition_vector(world_photon.pos, world_photon.vel, chart);
+    let photon_x = new_point4(0.0, pos.inner.x, pos.inner.y, pos.inner.z, chart);
+
+    let g = sch_g(photon_x);
+    let b = 2.0 * (g[0][1] * vel.inner.y + g[0][2] * vel.inner.z + g[0][3] * vel.inner.w);
+    let c =
+          g[1][1] * vel.inner.y * vel.inner.y
+        + 2.0 * g[1][2] * vel.inner.y * vel.inner.z
+        + 2.0 * g[1][3] * vel.inner.y * vel.inner.w
+        + g[2][2] * vel.inner.z * vel.inner.z
+        + 2.0 * g[2][3] * vel.inner.z * vel.inner.w
+        + g[3][3] * vel.inner.w * vel.inner.w;
+
+    let k_0 = quadratic_positive_root(g[0][0], b, c);
+    return PackedPhoton4(photon_x, PackedFourVector(vec4<f32>(k_0, vel.inner.x, vel.inner.y, vel.inner.z), chart));
+}
+
 fn sch_g(pos: PackedPoint4) -> mat4x4<f32> {
     let r = pos.inner.y;
     let theta = pos.inner.z;
@@ -84,170 +324,6 @@ fn sch_step_along_null_geodesic(photon: PackedPhoton4) -> PackedPhoton4 {
     return euler_step(photon.pos, photon.vel, four_vector_as_point4(photon.vel), del_k);
 }
 
-fn preferred_chart_for_point(world_pos: vec3<f32>) -> u32 {
-    let rel = world_pos - SUBATLAS_CENTER;
-    let dist_to_z_axis_sq = rel.x * rel.x + rel.y * rel.y;
-    let dist_to_x_axis_sq = rel.y * rel.y + rel.z * rel.z;
-
-    if (dist_to_z_axis_sq < dist_to_x_axis_sq) {
-        return SPHERICAL_X;
-    }
-
-    return SPHERICAL_Z;
-}
-
-fn transition_point_world_to_spherical_z(world_pos: vec3<f32>) -> PackedPoint4 {
-    let rel = world_pos - SUBATLAS_CENTER;
-    let r = length(rel);
-    let theta = acos(clamp(rel.z / r, -1.0, 1.0));
-    let phi = atan2(rel.y, rel.x);
-
-    return new_point4(0.0, r, theta, phi, SPHERICAL_Z);
-}
-
-fn transition_point_world_to_spherical_x(world_pos: vec3<f32>) -> PackedPoint4 {
-    let rel = world_pos - SUBATLAS_CENTER;
-    let r = length(rel);
-    let theta = acos(clamp(rel.x / r, -1.0, 1.0));
-    let phi = atan2(rel.z, rel.y);
-
-    return new_point4(0.0, r, theta, phi, SPHERICAL_X);
-}
-
-fn transition_point_world_to_chart(world_pos: vec3<f32>, chart: u32) -> PackedPoint4 {
-    if (chart == SPHERICAL_X) {
-        return transition_point_world_to_spherical_x(world_pos);
-    }
-
-    return transition_point_world_to_spherical_z(world_pos);
-}
-
-fn transition_point_chart_to_world(point: PackedPoint4) -> vec3<f32> {
-    if (point.chart == SPHERICAL_Z) {
-        let x = point.inner.y * sin(point.inner.z) * cos(point.inner.w);
-        let y = point.inner.y * sin(point.inner.z) * sin(point.inner.w);
-        let z = point.inner.y * cos(point.inner.z);
-        return vec3<f32>(x, y, z) + SUBATLAS_CENTER;
-    }
-
-    let x = point.inner.y * cos(point.inner.z);
-    let y = point.inner.y * sin(point.inner.z) * cos(point.inner.w);
-    let z = point.inner.y * sin(point.inner.z) * sin(point.inner.w);
-    return vec3<f32>(x, y, z) + SUBATLAS_CENTER;
-}
-
-fn transition_vector_world_to_spherical_z(world_pos: vec3<f32>, world_vel: vec3<f32>) -> PackedFourVector {
-    let rel = world_pos - SUBATLAS_CENTER;
-    let x = rel.x;
-    let y = rel.y;
-    let z = rel.z;
-    let rho = sqrt(x * x + y * y);
-    let r = sqrt(x * x + y * y + z * z);
-
-    let dr_dx = x / r;
-    let dr_dy = y / r;
-    let dr_dz = z / r;
-    let dth_dx = x * z / (r * r * rho);
-    let dth_dy = y * z / (r * r * rho);
-    let dth_dz = -rho / (r * r);
-    let dph_dx = -y / (rho * rho);
-    let dph_dy = x / (rho * rho);
-
-    return new_four_vector(
-        0.0,
-        dr_dx * world_vel.x + dr_dy * world_vel.y + dr_dz * world_vel.z,
-        dth_dx * world_vel.x + dth_dy * world_vel.y + dth_dz * world_vel.z,
-        dph_dx * world_vel.x + dph_dy * world_vel.y,
-        SPHERICAL_Z,
-    );
-}
-
-fn transition_vector_world_to_spherical_x(world_pos: vec3<f32>, world_vel: vec3<f32>) -> PackedFourVector {
-    let rel = world_pos - SUBATLAS_CENTER;
-    let x = rel.x;
-    let y = rel.y;
-    let z = rel.z;
-    let rho = sqrt(y * y + z * z);
-    let r = sqrt(x * x + y * y + z * z);
-
-    let dr_dx = x / r;
-    let dr_dy = y / r;
-    let dr_dz = z / r;
-    let dth_dx = -rho / (r * r);
-    let dth_dy = x * y / (r * r * rho);
-    let dth_dz = x * z / (r * r * rho);
-    let dph_dy = -z / (rho * rho);
-    let dph_dz = y / (rho * rho);
-
-    return new_four_vector(
-        0.0,
-        dr_dx * world_vel.x + dr_dy * world_vel.y + dr_dz * world_vel.z,
-        dth_dx * world_vel.x + dth_dy * world_vel.y + dth_dz * world_vel.z,
-        dph_dy * world_vel.y + dph_dz * world_vel.z,
-        SPHERICAL_X,
-    );
-}
-
-fn transition_vector_world_to_chart(world_pos: vec3<f32>, world_vel: vec3<f32>, chart: u32) -> PackedFourVector {
-    if (chart == SPHERICAL_X) {
-        return transition_vector_world_to_spherical_x(world_pos, world_vel);
-    }
-
-    return transition_vector_world_to_spherical_z(world_pos, world_vel);
-}
-
-fn photon_to_world_pos(photon: PackedPhoton4) -> vec3<f32> {
-    return transition_point_chart_to_world(photon.pos);
-}
-
-fn photon_to_world_vel(photon: PackedPhoton4) -> vec3<f32> {
-    let point = photon.pos;
-    let r = point.inner.y;
-    let theta = point.inner.z;
-    let phi = point.inner.w;
-    let v_r = photon.vel.inner.y;
-    let v_theta = photon.vel.inner.z;
-    let v_phi = photon.vel.inner.w;
-
-    let sin_theta = sin(theta);
-    let cos_theta = cos(theta);
-    let sin_phi = sin(phi);
-    let cos_phi = cos(phi);
-
-    if (point.chart == SPHERICAL_Z) {
-        return vec3<f32>(
-            sin_theta * cos_phi * v_r + r * cos_theta * cos_phi * v_theta - r * sin_theta * sin_phi * v_phi,
-            sin_theta * sin_phi * v_r + r * cos_theta * sin_phi * v_theta + r * sin_theta * cos_phi * v_phi,
-            cos_theta * v_r - r * sin_theta * v_theta,
-        );
-    }
-
-    return vec3<f32>(
-        cos_theta * v_r - r * sin_theta * v_theta,
-        sin_theta * cos_phi * v_r + r * cos_theta * cos_phi * v_theta - r * sin_theta * sin_phi * v_phi,
-        sin_theta * sin_phi * v_r + r * cos_theta * sin_phi * v_theta + r * sin_theta * cos_phi * v_phi,
-    );
-}
-
-fn world_photon3_to_photon4(world_pos: vec3<f32>, world_vel: vec3<f32>, chart: u32) -> PackedPhoton4 {
-    let pos = transition_point_world_to_chart(world_pos, chart);
-    let vel = transition_vector_world_to_chart(world_pos, world_vel, chart);
-    let photon_x = PackedPoint4(vec4<f32>(0.0, pos.inner.y, pos.inner.z, pos.inner.w), chart);
-
-    let g = sch_g(photon_x);
-    let b = 2.0 * (g[0][1] * vel.inner.y + g[0][2] * vel.inner.z + g[0][3] * vel.inner.w);
-    let c =
-          g[1][1] * vel.inner.y * vel.inner.y
-        + 2.0 * g[1][2] * vel.inner.y * vel.inner.z
-        + 2.0 * g[1][3] * vel.inner.y * vel.inner.w
-        + g[2][2] * vel.inner.z * vel.inner.z
-        + 2.0 * g[2][3] * vel.inner.z * vel.inner.w
-        + g[3][3] * vel.inner.w * vel.inner.w;
-
-    let k_0 = quadratic_positive_root(g[0][0], b, c);
-    return PackedPhoton4(photon_x, PackedFourVector(vec4<f32>(k_0, vel.inner.y, vel.inner.z, vel.inner.w), chart));
-}
-
 fn evolve_schwarzschild_ray(photon: PackedPhoton4) -> PackedRayResult {
     var current = photon;
 
@@ -264,10 +340,11 @@ fn evolve_schwarzschild_ray(photon: PackedPhoton4) -> PackedRayResult {
             return PackedRayResult(current, BACKGROUND_REACHED, vec3<u32>(0u));
         }
 
-        let preferred_chart = preferred_chart_for_point(world_pos);
+        let preferred_chart = preferred_chart_for_point(PackedPoint3(world_pos, CARTESIAN_WORLD));
         if (preferred_chart != current.pos.chart) {
             let world_vel = photon_to_world_vel(current);
-            current = world_photon3_to_photon4(world_pos, world_vel, preferred_chart);
+            let world_photon = PackedPhoton3(PackedPoint3(world_pos, CARTESIAN_WORLD), PackedThreeVector(world_vel, CARTESIAN_WORLD));
+            current = world_photon3_to_photon4(world_photon);
         }
     }
 
@@ -289,7 +366,7 @@ var<storage, read> input_photons: InputPhotons;
 var<storage, read_write> output_results: OutputResults;
 
 @compute @workgroup_size(64)
-fn evolve_schwarzschild_rays(@builtin(global_invocation_id) global_id: vec3<u32>) {
+fn evolve_rays(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let ray_index = global_id.x;
     let ray_count = arrayLength(&input_photons.data);
 

@@ -7,9 +7,6 @@ use crate::integration::euler;
 use crate::integration::solvers::positive_root;
 use glam::{Mat4, Vec4};
 
-const SPH_EPS: f32 = 1e-3;
-const EPS: f32 = 1e-5;
-
 pub struct Schwarzschild4Manifold {
     pub subatlas_center: Point3, // center of the atlas for fixed-time submanifolds expressed in Chart::CartesianWorld 
     pub r_s: f32,
@@ -234,7 +231,6 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     fn world_photon3_to_photon4(&self, world_photon: Photon3) -> Photon4 {
         assert!(world_photon.pos.chart == Chart::CartesianWorld);
         assert!(world_photon.vel.vector_space == TangentSpace::CartesianWorld);
-        assert!((world_photon.pos - self.subatlas_center).distance_to_zero() > EPS);
 
         let chart = self.preferred_chart_for_point(world_photon.pos);
 
@@ -309,8 +305,6 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     fn g_inv(&self, pos: Point4) -> Mat4 {
         assert!(matches!(pos.chart, Chart::SphericalX | Chart::SphericalZ));
         assert!(pos.r() > self.r_s);
-        assert!(pos.theta() >= SPH_EPS);
-        assert!(pos.theta() <= std::f32::consts::PI - SPH_EPS);
 
         let r = pos.r();
         let theta = pos.theta();
