@@ -47,7 +47,7 @@ struct PackedPhoton4 {
 struct PackedRayResult {
     photon: PackedPhoton4,
     stop_reason: u32,
-    padding: [u32; 3],
+    padding: [u32; 7],
 }
 
 impl From<Photon4> for PackedPhoton4 {

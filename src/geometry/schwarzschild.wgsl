@@ -4,7 +4,7 @@
 fn sch_g(pos: Point4) -> mat4x4<f32> {
     let r = pos.data.y;
     let theta = pos.data.z;
-    let f = 1.0 - r_s / r;
+    let f = 1.0 - R_S / r;
 
     return mat4x4<f32>(
         vec4<f32>(f, 0.0, 0.0, 0.0),
@@ -17,11 +17,11 @@ fn sch_g(pos: Point4) -> mat4x4<f32> {
 fn sch_g_inv(pos: Point4) -> mat4x4<f32> {
     let r = pos.data.y;
     let theta = pos.data.z;
-    let f = 1.0 - r_s / r;
+    let f = 1.0 - R_S / r;
 
     return mat4x4<f32>(
         vec4<f32>(1.0 / f, 0.0, 0.0, 0.0),
-        vec4<f32>(0.0, r_s / r - 1.0, 0.0, 0.0),
+        vec4<f32>(0.0, R_S / r - 1.0, 0.0, 0.0),
         vec4<f32>(0.0, 0.0, -1.0 / (r * r), 0.0),
         vec4<f32>(0.0, 0.0, 0.0, -1.0 / (r * r * sin(theta) * sin(theta)))
     );
@@ -36,10 +36,10 @@ fn sch_del_g(pos: Point4, chart: u32) -> mat4x4<f32> {
     }
 
     if (chart == 1u) {
-        let f = 1.0 - r_s / r;
+        let f = 1.0 - R_S / r;
         return mat4x4<f32>(
-            vec4<f32>(r_s / (r * r), 0.0, 0.0, 0.0),
-            vec4<f32>(0.0, r_s / (r * r * f * f), 0.0, 0.0),
+            vec4<f32>(R_S / (r * r), 0.0, 0.0, 0.0),
+            vec4<f32>(0.0, R_S / (r * r * f * f), 0.0, 0.0),
             vec4<f32>(0.0, 0.0, -2.0 * r, 0.0),
             vec4<f32>(0.0, 0.0, 0.0, -2.0 * r * sin(theta) * sin(theta))
         );
@@ -94,7 +94,7 @@ fn sch_step_along_null_geodesic(photon: Photon4) -> Photon4 {
 }
 
 fn preferred_chart_for_point(world_pos: vec3<f32>) -> u32 {
-    let rel = world_pos - center;
+    let rel = world_pos - SUBATLAS_CENTER;
     let dist_to_z_axis_sq = rel.x * rel.x + rel.y * rel.y;
     let dist_to_x_axis_sq = rel.y * rel.y + rel.z * rel.z;
 
@@ -106,7 +106,7 @@ fn preferred_chart_for_point(world_pos: vec3<f32>) -> u32 {
 }
 
 fn transition_point_world_to_spherical_z(world_pos: vec3<f32>) -> Point4 {
-    let rel = world_pos - center;
+    let rel = world_pos - SUBATLAS_CENTER;
     let r = length(rel);
     let theta = acos(clamp(rel.z / r, -1.0, 1.0));
     let phi = wrap_tau(atan2(rel.y, rel.x));
@@ -115,7 +115,7 @@ fn transition_point_world_to_spherical_z(world_pos: vec3<f32>) -> Point4 {
 }
 
 fn transition_point_world_to_spherical_x(world_pos: vec3<f32>) -> Point4 {
-    let rel = world_pos - center;
+    let rel = world_pos - SUBATLAS_CENTER;
     let r = length(rel);
     let theta = acos(clamp(rel.x / r, -1.0, 1.0));
     let phi = wrap_tau(atan2(rel.z, rel.y));
@@ -136,17 +136,17 @@ fn transition_point_chart_to_world(point: Point4) -> vec3<f32> {
         let x = point.data.y * sin(point.data.z) * cos(point.data.w);
         let y = point.data.y * sin(point.data.z) * sin(point.data.w);
         let z = point.data.y * cos(point.data.z);
-        return vec3<f32>(x, y, z) + center;
+        return vec3<f32>(x, y, z) + SUBATLAS_CENTER;
     }
 
     let x = point.data.y * cos(point.data.z);
     let y = point.data.y * sin(point.data.z) * cos(point.data.w);
     let z = point.data.y * sin(point.data.z) * sin(point.data.w);
-    return vec3<f32>(x, y, z) + center;
+    return vec3<f32>(x, y, z) + SUBATLAS_CENTER;
 }
 
 fn transition_vector_world_to_spherical_z(world_pos: vec3<f32>, world_vel: vec3<f32>) -> FourVector {
-    let rel = world_pos - center;
+    let rel = world_pos - SUBATLAS_CENTER;
     let x = rel.x;
     let y = rel.y;
     let z = rel.z;
@@ -172,7 +172,7 @@ fn transition_vector_world_to_spherical_z(world_pos: vec3<f32>, world_vel: vec3<
 }
 
 fn transition_vector_world_to_spherical_x(world_pos: vec3<f32>, world_vel: vec3<f32>) -> FourVector {
-    let rel = world_pos - center;
+    let rel = world_pos - SUBATLAS_CENTER;
     let x = rel.x;
     let y = rel.y;
     let z = rel.z;
@@ -257,7 +257,7 @@ fn world_photon3_to_photon4(world_pos: vec3<f32>, world_vel: vec3<f32>, chart: u
     return Photon4(photon_x, FourVector(vec4<f32>(k_0, vel.data.y, vel.data.z, vel.data.w), chart));
 }
 
-fn evolve_schwarzschild_ray(photon: Photon4) -> RayResult {
+fn evolve_schwarzschild_ray(photon: Photon4) -> PackedRayResult {
     var current = photon;
 
     for (var step: u32 = 0u; step < MAX_STEPS; step = step + 1u) {
@@ -265,12 +265,12 @@ fn evolve_schwarzschild_ray(photon: Photon4) -> RayResult {
 
         let world_pos = photon_to_world_pos(current);
 
-        if (current.pos.data.y <= r_s) {
-            return RayResult(current, STOP_HORIZON_HIT, vec3<u32>(0u));
+        if (current.pos.data.y <= R_S) {
+            return PackedRayResult(current, STOP_HORIZON_HIT, vec3<u32>(0u));
         }
 
-        if (length(world_pos - center) > SCENE_SIZE) {
-            return RayResult(current, STOP_BACKGROUND_REACHED, vec3<u32>(0u));
+        if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) {
+            return PackedRayResult(current, STOP_BACKGROUND_REACHED, vec3<u32>(0u));
         }
 
         let preferred_chart = preferred_chart_for_point(world_pos);
@@ -280,23 +280,31 @@ fn evolve_schwarzschild_ray(photon: Photon4) -> RayResult {
         }
     }
 
-    return RayResult(current, STOP_MAX_STEPS_REACHED, vec3<u32>(0u));
+    return PackedRayResult(current, STOP_MAX_STEPS_REACHED, vec3<u32>(0u));
+}
+
+struct InputPhotons {
+    data: array<Photon4>,
+}
+
+struct OutputResults {
+    data: array<PackedRayResult>,
 }
 
 @group(0) @binding(0)
-var<storage, read> input_photons: array<Photon4>;
+var<storage, read> input_photons: InputPhotons;
 
 @group(0) @binding(1)
-var<storage, read_write> output_results: array<RayResult>;
+var<storage, read_write> output_results: OutputResults;
 
 @compute @workgroup_size(64)
 fn evolve_schwarzschild_rays(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let ray_index = global_id.x;
-    let ray_count = arrayLength(&input_photons);
+    let ray_count = arrayLength(&input_photons.data);
 
     if (ray_index >= ray_count) {
         return;
     }
 
-    output_results[ray_index] = evolve_schwarzschild_ray(input_photons[ray_index]);
+    output_results.data[ray_index] = evolve_schwarzschild_ray(input_photons.data[ray_index]);
 }

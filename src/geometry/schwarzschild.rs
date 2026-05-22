@@ -401,7 +401,13 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
         let base = include_str!("schwarzschild.wgsl");
         let injected = base.replace(
             "// CONSTS",
-            &format!("const RS: f32 = {};\nconst SCENE_SIZE: f32 = {};\n", self.r_s as f32, SCENE_SIZE as f32)
+            &format!("const SUBATLAS_CENTER: vec3<f32> = vec3<f32>({}, {}, {});\n const R_S: f32 = {};\nconst SCENE_SIZE: f32 = {};\n",
+                self.subatlas_center.x(),
+                self.subatlas_center.y(),
+                self.subatlas_center.z(),
+                self.r_s as f32,
+                SCENE_SIZE as f32
+            )
         );
         injected
     }

@@ -26,7 +26,7 @@ struct Photon4 {
     vel: FourVector,
 }
 
-struct RayResult {
+struct PackedRayResult {
     photon: Photon4,
     stop_reason: u32,
     padding: vec3<u32>,
