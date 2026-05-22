@@ -92,14 +92,14 @@ impl World {
 
         results
             .into_iter()
-            .map(|result| {
+            .map(|(photon, stop_reason)| {
                 (
                     WorldPhoton3State {
-                        photon3: self.manifold.to_world_photon3(result.photon),
+                        photon3: self.manifold.to_world_photon3(photon),
                         normal: None,
                         material: None,
                     },
-                    result.stop_reason,
+                    stop_reason,
                 )
             })
             .collect()

@@ -29,17 +29,6 @@ struct PackedRayResult {
     padding: [u32; 3],
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-struct StepParams {
-    data0: f32,
-}
-
-pub struct GpuRayResult {
-    pub photon: Photon4,
-    pub stop_reason: StopReason,
-}
-
 fn chart_to_u32(chart: Chart) -> u32 {
     match chart {
         Chart::CartesianWorld => 0,
@@ -119,15 +108,6 @@ impl From<PackedPhoton4> for Photon4 {
                 tangent_space_from_u32(photon.vel_space),
             ),
         )
-    }
-}
-
-impl From<PackedRayResult> for GpuRayResult {
-    fn from(value: PackedRayResult) -> Self {
-        Self {
-            photon: value.photon.into(),
-            stop_reason: stop_reason_from_u32(value.stop_reason),
-        }
     }
 }
 
@@ -233,7 +213,7 @@ impl GpuGeodesicIntegrator {
     pub fn evolve_batch(
         &self,
         rays: &[Photon4],
-    ) -> Result<Vec<GpuRayResult>, String> {
+    ) -> Result<Vec<(Photon4, StopReason)>, String> {
         if rays.is_empty() {
             return Ok(Vec::new());
         }
@@ -261,13 +241,11 @@ impl GpuGeodesicIntegrator {
             mapped_at_creation: false,
         });
 
-        let params = StepParams {
-            data0: rays.len() as f32,
-        };
+        let rays_count: f32 = rays.len() as f32;
 
         let params_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("schwarzschild-evolve-params"),
-            contents: bytemuck::bytes_of(&params),
+            contents: bytemuck::bytes_of(&rays_count),
             usage: wgpu::BufferUsages::UNIFORM,
         });
 
@@ -326,7 +304,9 @@ impl GpuGeodesicIntegrator {
 
         let mapped = slice.get_mapped_range();
         let packed_output: &[PackedRayResult] = bytemuck::cast_slice(&mapped);
-        let output = packed_output.iter().copied().map(GpuRayResult::from).collect();
+        let output = packed_output.iter().copied().map(
+            |result| (result.photon.into(), stop_reason_from_u32(result.stop_reason))
+        ).collect();
         drop(mapped);
         readback_buffer.unmap();
 

@@ -1,7 +1,7 @@
 
 // CONSTS
 
-fn schwarzschild_metric(pos: Point4) -> mat4x4<f32> {
+fn sch_g(pos: Point4) -> mat4x4<f32> {
     let r = pos.data.y;
     let theta = pos.data.z;
     let f = 1.0 - r_s / r;
@@ -14,7 +14,7 @@ fn schwarzschild_metric(pos: Point4) -> mat4x4<f32> {
     );
 }
 
-fn schwarzschild_metric_inverse(pos: Point4) -> mat4x4<f32> {
+fn sch_g_inv(pos: Point4) -> mat4x4<f32> {
     let r = pos.data.y;
     let theta = pos.data.z;
     let f = 1.0 - r_s / r;
@@ -27,7 +27,7 @@ fn schwarzschild_metric_inverse(pos: Point4) -> mat4x4<f32> {
     );
 }
 
-fn schwarzschild_metric_derivative(pos: Point4, chart: u32) -> mat4x4<f32> {
+fn sch_del_g(pos: Point4, chart: u32) -> mat4x4<f32> {
     let r = pos.data.y;
     let theta = pos.data.z;
 
@@ -57,14 +57,14 @@ fn schwarzschild_metric_derivative(pos: Point4, chart: u32) -> mat4x4<f32> {
     return zero_matrix();
 }
 
-fn schwarzschild_christoffel(pos: Point4, mu: u32, nu: u32, lambda: u32) -> f32 {
-    let g_inv = schwarzschild_metric_inverse(pos);
-    let d_mu_g = schwarzschild_metric_derivative(pos, mu);
-    let d_nu_g = schwarzschild_metric_derivative(pos, nu);
+fn sch_christoffel(pos: Point4, mu: u32, nu: u32, lambda: u32) -> f32 {
+    let g_inv = sch_g_inv(pos);
+    let d_mu_g = sch_del_g(pos, mu);
+    let d_nu_g = sch_del_g(pos, nu);
 
     var gamma = 0.0;
     for (var alpha: u32 = 0u; alpha < 4u; alpha = alpha + 1u) {
-        let d_alpha_g = schwarzschild_metric_derivative(pos, alpha);
+        let d_alpha_g = sch_del_g(pos, alpha);
         gamma = gamma + 0.5 * g_inv[lambda][alpha] * (
             d_mu_g[alpha][nu] + d_nu_g[alpha][mu] - d_alpha_g[mu][nu]
         );
@@ -73,23 +73,23 @@ fn schwarzschild_christoffel(pos: Point4, mu: u32, nu: u32, lambda: u32) -> f32 
     return gamma;
 }
 
-fn schwarzschild_null_geodesic_delta_k(x: Point4, k: FourVector) -> FourVector {
+fn sch_null_geodesic_delta_k(x: Point4, k: FourVector) -> FourVector {
     var del_k = four_vector_zero(k.space);
 
     for (var mu: u32 = 0u; mu < 4u; mu = mu + 1u) {
         for (var alpha: u32 = 0u; alpha < 4u; alpha = alpha + 1u) {
             for (var beta: u32 = 0u; beta < 4u; beta = beta + 1u) {
-                let gamma = schwarzschild_christoffel(x, alpha, beta, mu);
+                let gamma = sch_christoffel(x, alpha, beta, mu);
                 del_k.data[mu] = del_k.data[mu] - gamma * k.data[alpha] * k.data[beta];
             }
         }
     }
 
     return del_k;
-}       
+}
 
-fn schwarzschild_step_along_null_geodesic(photon: Photon4) -> Photon4 {
-    let del_k = schwarzschild_null_geodesic_delta_k(photon.pos, photon.vel);
+fn sch_step_along_null_geodesic(photon: Photon4) -> Photon4 {
+    let del_k = sch_null_geodesic_delta_k(photon.pos, photon.vel);
     return euler_step(photon.pos, photon.vel, four_vector_as_point4(photon.vel), del_k);
 }
 
@@ -243,7 +243,7 @@ fn world_photon3_to_photon4(world_pos: vec3<f32>, world_vel: vec3<f32>, chart: u
     let vel = transition_vector_world_to_chart(world_pos, world_vel, center, chart);
     let photon_x = Point4(vec4<f32>(0.0, pos.data.y, pos.data.z, pos.data.w), chart);
 
-    let g = schwarzschild_metric(photon_x, r_s);
+    let g = g(photon_x, r_s);
     let b = 2.0 * (g[0][1] * vel.data.y + g[0][2] * vel.data.z + g[0][3] * vel.data.w);
     let c =
           g[1][1] * vel.data.y * vel.data.y
@@ -261,7 +261,7 @@ fn evolve_schwarzschild_ray(photon: Photon4, r_s: f32, scene_size: f32) -> RayRe
     var current = photon;
 
     for (var step: u32 = 0u; step < MAX_STEPS; step = step + 1u) {
-        current = schwarzschild_step_along_null_geodesic(current, r_s);
+        current = sch_step_along_null_geodesic(current, r_s);
 
         let world_pos = photon_to_world_pos(current, center);
 
