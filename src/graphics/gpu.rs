@@ -2,10 +2,9 @@ use std::borrow::Cow;
 use std::sync::mpsc;
 
 use bytemuck::{Pod, Zeroable};
-use glam::Vec3;
 use wgpu::util::DeviceExt;
 
-use crate::geometry::manifold::Chart;
+use crate::geometry::manifold::{Chart, PseudoRiemanian4Manifold};
 use crate::geometry::photon::{Photon4, StopReason};
 use crate::geometry::vector::{FourVector, TangentSpace};
 
@@ -33,8 +32,7 @@ struct PackedRayResult {
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct StepParams {
-    data0: [f32; 4],
-    data1: [f32; 4],
+    data0: f32,
 }
 
 pub struct GpuRayResult {
@@ -133,18 +131,19 @@ impl From<PackedRayResult> for GpuRayResult {
     }
 }
 
-pub struct GpuSchwarzschildStepper {
+pub struct GpuGeodesicIntegrator {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pipeline: wgpu::ComputePipeline,
 }
 
-impl GpuSchwarzschildStepper {
-    pub fn new() -> Option<Self> {
-        pollster::block_on(Self::new_async()).ok()
+impl GpuGeodesicIntegrator {
+    pub fn new(manifold: &dyn PseudoRiemanian4Manifold) -> Option<Self> {
+        let shader_source = manifold.get_shader();
+        pollster::block_on(Self::new_async(shader_source)).ok()
     }
 
-    async fn new_async() -> Result<Self, String> {
+    async fn new_async(manifold_shader_source: String) -> Result<Self, String> {
         let instance = wgpu::Instance::default();
 
         let adapter = instance
@@ -169,9 +168,9 @@ impl GpuSchwarzschildStepper {
             .map_err(|err| format!("failed to create GPU device: {err}"))?;
 
         // Concatenate common WGSL and manifold-specific WGSL so files can be modular.
-        let common = include_str!("../geometry/common.wgsl");
-        let manifold = include_str!("../geometry/schwarzschild.wgsl");
-        let shader_source = [common, manifold].join("\n");
+        let common_source = include_str!("../geometry/common.wgsl");
+        let manifold_source = &manifold_shader_source;
+        let shader_source = [common_source, manifold_source].join("\n");
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("schwarzschild-evolve-shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source.into())),
@@ -234,9 +233,6 @@ impl GpuSchwarzschildStepper {
     pub fn evolve_batch(
         &self,
         rays: &[Photon4],
-        r_s: f32,
-        scene_size: f32,
-        center: Vec3,
     ) -> Result<Vec<GpuRayResult>, String> {
         if rays.is_empty() {
             return Ok(Vec::new());
@@ -266,8 +262,7 @@ impl GpuSchwarzschildStepper {
         });
 
         let params = StepParams {
-            data0: [r_s, scene_size, rays.len() as f32, 0.0],
-            data1: [center.x, center.y, center.z, 0.0],
+            data0: rays.len() as f32,
         };
 
         let params_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

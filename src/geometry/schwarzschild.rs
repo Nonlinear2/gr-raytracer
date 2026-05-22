@@ -1,3 +1,4 @@
+use crate::SCENE_SIZE;
 use crate::geometry::manifold::{Chart, HasAtlas3, PseudoRiemanian4Manifold};
 use crate::geometry::photon::{Photon4, Photon3};
 use crate::geometry::point::{Point3, Point4};
@@ -395,4 +396,14 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
             vel: new_k,
         }
     }
+
+    fn get_shader(&self) -> String {
+        let base = include_str!("schwarzschild.wgsl");
+        let injected = base.replace(
+            "// CONSTS",
+            &format!("const RS: f32 = {};\nconst SCENE_SIZE: f32 = {};\n", self.r_s as f32, SCENE_SIZE as f32)
+        );
+        injected
+    }
+
 }

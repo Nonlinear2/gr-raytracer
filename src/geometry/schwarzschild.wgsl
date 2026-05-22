@@ -1,3 +1,6 @@
+
+// CONSTS
+
 fn schwarzschild_metric(pos: Point4) -> mat4x4<f32> {
     let r = pos.data.y;
     let theta = pos.data.z;

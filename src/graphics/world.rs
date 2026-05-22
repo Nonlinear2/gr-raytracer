@@ -1,7 +1,7 @@
 use crate::geometry::photon::{Photon3, Photon4, WorldPhoton3State, StopReason};
 use crate::geometry::surface::Surface;
 use crate::geometry::manifold::{Chart, PseudoRiemanian4Manifold};
-use crate::graphics::gpu::GpuSchwarzschildStepper;
+use crate::graphics::gpu::GpuGeodesicIntegrator;
 use crate::SCENE_SIZE;
 
 const MAX_STEPS: u32 = 1000;
@@ -82,20 +82,13 @@ impl World {
     pub fn evolve_until_stop_gpu(&self, initial_rays: Vec<Photon3>, _debug: bool) -> Vec<(WorldPhoton3State<'_>, StopReason)> {
         assert!(self.objects.is_empty(), "gpu currently does not support object hits");
 
-        let stepper = GpuSchwarzschildStepper::new().expect("failed to initialize GPU compute pipeline");
+        let stepper = GpuGeodesicIntegrator::new(&*self.manifold).expect("failed to initialize GPU compute pipeline");
         let input_rays: Vec<Photon4> = initial_rays
             .into_iter()
             .map(|ray| self.manifold.world_photon3_to_photon4(ray))
             .collect();
 
-        let results = stepper
-            .evolve_batch(
-                &input_rays,
-                schwarzschild.r_s,
-                SCENE_SIZE,
-                schwarzschild.subatlas_center.as_vec3(),
-            )
-            .expect("GPU evolution failed");
+        let results = stepper.evolve_batch(&input_rays).expect("GPU evolution failed");
 
         results
             .into_iter()

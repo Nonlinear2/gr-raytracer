@@ -49,5 +49,7 @@ pub trait PseudoRiemanian4Manifold: HasAtlas3 {
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32;
 
     fn step_along_null_geodesic(&self, s: Photon4) -> Photon4;
+
+    fn get_shader(&self) -> String;
 }
 

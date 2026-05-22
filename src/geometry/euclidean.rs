@@ -84,4 +84,9 @@ impl PseudoRiemanian4Manifold for Euclidean4Manifold {
         );
         Photon4::new(x_new, k_new)
     }
+
+    fn get_shader(&self) -> String {
+        let base = include_str!("euclidean.wgsl");
+        base.to_string()
+    }
 }
