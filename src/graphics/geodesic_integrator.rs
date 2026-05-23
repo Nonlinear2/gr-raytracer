@@ -24,12 +24,13 @@ impl GpuGeodesicIntegrator {
 
         // Concatenate shader
 
-        let common_source = include_str!("../geometry/common.wgsl");
-        let packed_source = include_str!("../geometry/packed_types.wgsl");
-        let euler_source = include_str!("../integration/euler.wgsl");
-        let manifold_source = manifold.get_shader();
+        // let common_source = include_str!("../geometry/common.wgsl");
+        // let packed_source = include_str!("../geometry/packed_types.wgsl");
+        // let euler_source = include_str!("../integration/euler.wgsl");
+        // let manifold_source = manifold.get_shader();
 
-        [common_source, packed_source, euler_source, &manifold_source].join("\n")
+        // [common_source, packed_source, euler_source, &manifold_source].join("\n")
+        include_str!("../geometry/schwarzschild.wgsl").to_string()
     }
 
     async fn new_async(shader_source: String) -> Result<Self, String> {

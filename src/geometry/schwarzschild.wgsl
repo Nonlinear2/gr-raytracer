@@ -1,4 +1,158 @@
+// common.wgsl
+
+const EULER_STEP_SIZE: f32 = 0.01;
+const PI: f32 = 3.141592653589793;
+const TAU: f32 = 6.283185307179586;
+const MAX_STEPS: u32 = 1000u;
+
+// StopReason
+const MAX_STEPS_REACHED: u32 = 0u;
+const BACKGROUND_REACHED: u32 = 1u;
+const OBJECT_HIT: u32 = 2u;
+const HORIZON_HIT: u32 = 3u;
+
+// Chart
+const CARTESIAN_WORLD: u32 = 0u;
+const CARTESIAN: u32 = 1u;
+const SPHERICAL_Z: u32 = 2u;
+const SPHERICAL_X: u32 = 3u;
+
+fn zero_matrix() -> mat4x4<f32> {
+    return mat4x4<f32>(
+        vec4<f32>(0.0),
+        vec4<f32>(0.0),
+        vec4<f32>(0.0),
+        vec4<f32>(0.0)
+    );
+}
+
+fn quadratic_positive_root(a: f32, b: f32, c: f32) -> f32 {
+    let discriminant = max(b * b - 4.0 * a * c, 0.0);
+    let sqrt_discriminant = sqrt(discriminant);
+    let sign_b = select(1.0, -1.0, b < 0.0);
+    let q = -0.5 * (b + sign_b * sqrt_discriminant);
+    let root0 = q / a;
+    let root1 = c / q;
+    return max(root0, root1);
+}
+
+// packed_types.wgsl
+
+struct PackedPoint3 {
+    inner: vec3<f32>,
+    chart: u32,
+}
+
+struct PackedPoint4 {
+    inner: vec4<f32>,
+    chart: u32,
+}
+
+struct PackedThreeVector {
+    inner: vec3<f32>,
+    vector_space: u32,
+}
+
+struct PackedFourVector {
+    inner: vec4<f32>,
+    vector_space: u32,
+}
+
+struct PackedPhoton3 {
+    pos: PackedPoint3,
+    vel: PackedThreeVector,
+}
+
+struct PackedPhoton4 {
+    pos: PackedPoint4,
+    vel: PackedFourVector,
+}
+
+struct PackedRayResult {
+    photon: PackedPhoton4,
+    stop_reason: u32,
+    padding: vec3<u32>,
+}
+
+fn new_point3(r: f32, theta: f32, phi: f32, chart: u32) -> PackedPoint3 {
+    return PackedPoint3(vec3<f32>(r, theta, phi), chart);
+}
+
+fn new_three_vector(r: f32, theta: f32, phi: f32, vector_space: u32) -> PackedThreeVector {
+    return PackedThreeVector(vec3<f32>(r, theta, phi), vector_space);
+}
+
+fn new_point4(t: f32, r: f32, theta: f32, phi: f32, chart: u32) -> PackedPoint4 {
+    return PackedPoint4(vec4<f32>(t, r, theta, phi), chart);
+}
+
+fn new_four_vector(t: f32, r: f32, theta: f32, phi: f32, vector_space: u32) -> PackedFourVector {
+    return PackedFourVector(vec4<f32>(t, r, theta, phi), vector_space);
+}
+
+fn four_vector_zero(vector_space: u32) -> PackedFourVector {
+    return PackedFourVector(vec4<f32>(0.0), vector_space);
+}
+
+fn four_vector_as_point4(v: PackedFourVector) -> PackedPoint4 {
+    return PackedPoint4(v.inner, v.vector_space);
+}
+
+// euler.wgsl
+
+
+fn euler_step(x: PackedPoint4, k: PackedFourVector, del_x: PackedPoint4, del_k: PackedFourVector) -> PackedPhoton4 {
+    var new_x = new_point4(
+        x.inner.x + EULER_STEP_SIZE * del_x.inner.x,
+        x.inner.y + EULER_STEP_SIZE * del_x.inner.y,
+        x.inner.z + EULER_STEP_SIZE * del_x.inner.z,
+        x.inner.w + EULER_STEP_SIZE * del_x.inner.w,
+        x.chart
+    );
+
+    var new_k = new_four_vector(
+        k.inner.x + EULER_STEP_SIZE * del_k.inner.x,
+        k.inner.y + EULER_STEP_SIZE * del_k.inner.y,
+        k.inner.z + EULER_STEP_SIZE * del_k.inner.z,
+        k.inner.w + EULER_STEP_SIZE * del_k.inner.w,
+        k.vector_space
+    );
+
+    if (x.chart == SPHERICAL_X || x.chart == SPHERICAL_Z) {
+        var theta = new_x.inner.z;
+        var phi = new_x.inner.w;
+        var k_theta = new_k.inner.z;
+
+        if (new_x.inner.y < 0.0) {
+            new_x.inner.y = 0.0;
+        }
+
+        if (theta < 0.0) {
+            theta = -theta;
+            k_theta = -k_theta;
+            phi = phi + PI;
+        }
+
+        if (theta > PI) {
+            theta = TAU - theta;
+            k_theta = -k_theta;
+            phi = phi + PI;
+        }
+
+        new_x.inner.z = clamp(theta, 0.0, PI);
+        new_x.inner.w = phi - TAU * floor(phi / TAU); // mod tau
+        new_k.inner.z = k_theta;
+    }
+
+    return PackedPhoton4(new_x, new_k);
+}
+
+// schwarzschild.wgsl
+
 // CONSTS
+const SUBATLAS_CENTER: vec3<f32> = vec3<f32>(0.0, 0.0, -1.0);
+const R_S: f32 = 0.25;
+const SCENE_SIZE: f32 = 3.0;
 
 fn preferred_chart_for_point(point: PackedPoint3) -> u32 {
     let point_world = transition_point(point, CARTESIAN_WORLD);
@@ -18,29 +172,6 @@ fn transition_point(point: PackedPoint3, to: u32) -> PackedPoint3 {
     }
 
     switch (point.chart) {
-        case CARTESIAN_WORLD: {
-            let world_pos = point.inner;
-            let p_rel = world_pos - SUBATLAS_CENTER;
-            let r = length(p_rel);
-
-            switch (to) {
-                case SPHERICAL_Z: {
-                    let new_theta = acos(p_rel.z / r);
-                    var new_phi = atan2(p_rel.y, p_rel.x);
-                    if (new_phi < 0.0) { new_phi = new_phi + TAU; }
-                    return new_point3(r, new_theta, new_phi, SPHERICAL_Z);
-                }
-                case SPHERICAL_X: {
-                    let new_theta = acos(p_rel.x / r);
-                    var new_phi = atan2(p_rel.z, p_rel.y);
-                    if (new_phi < 0.0) { new_phi = new_phi + TAU; }
-                    return new_point3(r, new_theta, new_phi, SPHERICAL_X);
-                }
-                default: {
-                    return point;
-                }
-            }
-        }
         case SPHERICAL_Z: {
             switch (to) {
                 case CARTESIAN_WORLD: {
@@ -119,56 +250,6 @@ fn transition_vector(point: PackedPoint3, v: PackedThreeVector, to: u32) -> Pack
     let phi = point.inner.z;
 
     switch (point.chart) {
-        case CARTESIAN_WORLD: {
-            let world_pos = point.inner;
-            let p_rel = world_pos - SUBATLAS_CENTER;
-            let x = p_rel.x;
-            let y = p_rel.y;
-            let z = p_rel.z;
-            let rho_z = sqrt(x * x + y * y);
-            let rho_x = sqrt(y * y + z * z);
-            let r = sqrt(x * x + y * y + z * z);
-
-            switch (to) {
-                case SPHERICAL_Z: {
-                    let dr_dx = x / r;
-                    let dr_dy = y / r;
-                    let dr_dz = z / r;
-                    let dth_dx = x * z / (r * r * rho_z);
-                    let dth_dy = y * z / (r * r * rho_z);
-                    let dth_dz = -rho_z / (r * r);
-                    let dph_dx = -y / (rho_z * rho_z);
-                    let dph_dy = x / (rho_z * rho_z);
-
-                    return new_three_vector(
-                        dr_dx * v.inner.x + dr_dy * v.inner.y + dr_dz * v.inner.z,
-                        dth_dx * v.inner.x + dth_dy * v.inner.y + dth_dz * v.inner.z,
-                        dph_dx * v.inner.x + dph_dy * v.inner.y,
-                        SPHERICAL_Z,
-                    );
-                }
-                case SPHERICAL_X: {
-                    let dr_dx = x / r;
-                    let dr_dy = y / r;
-                    let dr_dz = z / r;
-                    let dth_dx = -rho_x / (r * r);
-                    let dth_dy = x * y / (r * r * rho_x);
-                    let dth_dz = x * z / (r * r * rho_x);
-                    let dph_dy = -z / (rho_x * rho_x);
-                    let dph_dz = y / (rho_x * rho_x);
-
-                    return new_three_vector(
-                        dr_dx * v.inner.x + dr_dy * v.inner.y + dr_dz * v.inner.z,
-                        dth_dx * v.inner.x + dth_dy * v.inner.y + dth_dz * v.inner.z,
-                        dph_dy * v.inner.y + dph_dz * v.inner.z,
-                        SPHERICAL_X,
-                    );
-                }
-                default: {
-                    return v;
-                }
-            }
-        }
         case SPHERICAL_Z: {
             switch (to) {
                 case CARTESIAN_WORLD: {
@@ -360,18 +441,18 @@ fn step_along_null_geodesic(photon: PackedPhoton4) -> PackedPhoton4 {
     return euler_step(photon.pos, photon.vel, four_vector_as_point4(photon.vel), del_k);
 }
 
-fn evolve_schwarzschild_ray(input_ray: PackedPhoton4) -> PackedRayResult {
+fn evolve_ray(input_ray: PackedPhoton4) -> PackedRayResult {
     var ray = input_ray;
 
     for (var step: u32 = 0u; step < MAX_STEPS; step = step + 1u) {
         ray = step_along_null_geodesic(ray);
         let ray_pos = PackedPoint3(ray.pos.inner.yzw, ray.pos.chart);
 
-        let world_pos = transition_point(ray_pos, CARTESIAN_WORLD).inner;
-
         if (ray.pos.inner.y <= R_S) {
             return PackedRayResult(ray, HORIZON_HIT, vec3<u32>(0u));
         }
+
+        let world_pos = transition_point(ray_pos, CARTESIAN_WORLD).inner;
 
         if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) {
             return PackedRayResult(ray, BACKGROUND_REACHED, vec3<u32>(0u));
@@ -411,5 +492,5 @@ fn evolve_rays(@builtin(global_invocation_id) global_id: vec3<u32>) {
         return;
     }
 
-    output_results.data[ray_index] = evolve_schwarzschild_ray(input_photons.data[ray_index]);
+    output_results.data[ray_index] = evolve_ray(input_photons.data[ray_index]);
 }
