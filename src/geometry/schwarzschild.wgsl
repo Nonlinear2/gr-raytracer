@@ -17,6 +17,17 @@ const CARTESIAN: u32 = 1u;
 const SPHERICAL_Z: u32 = 2u;
 const SPHERICAL_X: u32 = 3u;
 
+// objects
+const OBJECT_NONE: u32 = 0u;
+const OBJECT_SPHERE: u32 = 1u;
+
+// materials
+const MATERIAL_NONE: u32 = 0u;
+const MATERIAL_DIFFUSE: u32 = 1u;
+const MATERIAL_METAL: u32 = 2u;
+
+const MAX_BOUNCES: u32 = 2u;
+
 fn zero_matrix() -> mat4x4<f32> {
     return mat4x4<f32>(
         vec4<f32>(0.0),
@@ -35,6 +46,28 @@ fn quadratic_positive_root(a: f32, b: f32, c: f32) -> f32 {
     let root1 = c / q;
     return max(root0, root1);
 }
+
+fn hash_u32(x: u32) -> u32 {
+    var h = x;
+    h = h ^ 61u ^ (h >> 16u);
+    h = h * 9u;
+    h = h ^ (h >> 4u);
+    h = h * 0x27d4eb2du;
+    h = h ^ (h >> 15u);
+    return h;
+}
+
+fn rand(seed: u32) -> f32 {
+    return f32(hash_u32(seed)) / 4294967295.0;
+}
+
+fn random_unit_vector(seed0: u32, seed1: u32) -> vec3<f32> {
+    let z = 2.0 * rand(seed0) - 1.0;
+    let phi = TAU * rand(seed1);
+    let r_xy = sqrt(max(0.0, 1.0 - z * z));
+    return vec3<f32>(r_xy * cos(phi), r_xy * sin(phi), z);
+}
+
 
 // packed_types.wgsl
 
@@ -68,10 +101,18 @@ struct PackedPhoton4 {
     vel: PackedFourVector,
 }
 
-struct PackedRayResult {
-    photon: PackedPhoton4,
-    stop_reason: u32,
-    padding: vec3<u32>,
+struct PackedObject {
+    kind: u32,
+    material_kind: u32,
+    _pad0: u32,
+    _pad1: u32,
+    data0: vec4<f32>,
+    material_params: vec4<f32>,
+    emission_params: vec4<f32>,
+}
+
+struct PackedColorResult {
+    color: vec4<f32>,
 }
 
 fn new_point3(r: f32, theta: f32, phi: f32, chart: u32) -> PackedPoint3 {
@@ -172,6 +213,29 @@ fn transition_point(point: PackedPoint3, to: u32) -> PackedPoint3 {
     }
 
     switch (point.chart) {
+        case CARTESIAN_WORLD: {
+            let world_pos = point.inner;
+            let p_rel = world_pos - SUBATLAS_CENTER;
+            let r = length(p_rel);
+
+            switch (to) {
+                case SPHERICAL_Z: {
+                    let new_theta = acos(p_rel.z / r);
+                    var new_phi = atan2(p_rel.y, p_rel.x);
+                    if (new_phi < 0.0) { new_phi = new_phi + TAU; }
+                    return new_point3(r, new_theta, new_phi, SPHERICAL_Z);
+                }
+                case SPHERICAL_X: {
+                    let new_theta = acos(p_rel.x / r);
+                    var new_phi = atan2(p_rel.z, p_rel.y);
+                    if (new_phi < 0.0) { new_phi = new_phi + TAU; }
+                    return new_point3(r, new_theta, new_phi, SPHERICAL_X);
+                }
+                default: {
+                    return point;
+                }
+            }
+        }
         case SPHERICAL_Z: {
             switch (to) {
                 case CARTESIAN_WORLD: {
@@ -250,6 +314,56 @@ fn transition_vector(point: PackedPoint3, v: PackedThreeVector, to: u32) -> Pack
     let phi = point.inner.z;
 
     switch (point.chart) {
+        case CARTESIAN_WORLD: {
+            let world_pos = point.inner;
+            let p_rel = world_pos - SUBATLAS_CENTER;
+            let x = p_rel.x;
+            let y = p_rel.y;
+            let z = p_rel.z;
+            let rho_z = sqrt(x * x + y * y);
+            let rho_x = sqrt(y * y + z * z);
+            let r = sqrt(x * x + y * y + z * z);
+
+            switch (to) {
+                case SPHERICAL_Z: {
+                    let dr_dx = x / r;
+                    let dr_dy = y / r;
+                    let dr_dz = z / r;
+                    let dth_dx = x * z / (r * r * rho_z);
+                    let dth_dy = y * z / (r * r * rho_z);
+                    let dth_dz = -rho_z / (r * r);
+                    let dph_dx = -y / (rho_z * rho_z);
+                    let dph_dy = x / (rho_z * rho_z);
+
+                    return new_three_vector(
+                        dr_dx * v.inner.x + dr_dy * v.inner.y + dr_dz * v.inner.z,
+                        dth_dx * v.inner.x + dth_dy * v.inner.y + dth_dz * v.inner.z,
+                        dph_dx * v.inner.x + dph_dy * v.inner.y,
+                        SPHERICAL_Z,
+                    );
+                }
+                case SPHERICAL_X: {
+                    let dr_dx = x / r;
+                    let dr_dy = y / r;
+                    let dr_dz = z / r;
+                    let dth_dx = -rho_x / (r * r);
+                    let dth_dy = x * y / (r * r * rho_x);
+                    let dth_dz = x * z / (r * r * rho_x);
+                    let dph_dy = -z / (rho_x * rho_x);
+                    let dph_dz = y / (rho_x * rho_x);
+
+                    return new_three_vector(
+                        dr_dx * v.inner.x + dr_dy * v.inner.y + dr_dz * v.inner.z,
+                        dth_dx * v.inner.x + dth_dy * v.inner.y + dth_dz * v.inner.z,
+                        dph_dy * v.inner.y + dph_dz * v.inner.z,
+                        SPHERICAL_X,
+                    );
+                }
+                default: {
+                    return v;
+                }
+            }
+        }
         case SPHERICAL_Z: {
             switch (to) {
                 case CARTESIAN_WORLD: {
@@ -441,21 +555,94 @@ fn step_along_null_geodesic(photon: PackedPhoton4) -> PackedPhoton4 {
     return euler_step(photon.pos, photon.vel, four_vector_as_point4(photon.vel), del_k);
 }
 
-fn evolve_ray(input_ray: PackedPhoton4) -> PackedRayResult {
+fn reflect(v: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
+    return v - 2.0 * dot(v, n) * n;
+}
+
+fn sky_color(world_pos: vec3<f32>) -> vec3<f32> {
+    let tx = floor(world_pos.x * 2.0);
+    let ty = floor(world_pos.y * 2.0);
+    if (u32(abs(i32(tx + ty))) % 2u == 0u) {
+        return vec3<f32>(35.0 / 255.0);
+    }
+    return vec3<f32>(235.0 / 255.0);
+}
+
+fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
     var ray = input_ray;
+    var bounce_count: u32 = 0u;
+    var throughput = vec3<f32>(1.0, 1.0, 1.0);
+    var radiance = vec3<f32>(0.0, 0.0, 0.0);
 
     for (var step: u32 = 0u; step < MAX_STEPS; step = step + 1u) {
         ray = step_along_null_geodesic(ray);
         let ray_pos = PackedPoint3(ray.pos.inner.yzw, ray.pos.chart);
 
         if (ray.pos.inner.y <= R_S) {
-            return PackedRayResult(ray, HORIZON_HIT, vec3<u32>(0u));
+            break;
         }
 
         let world_pos = transition_point(ray_pos, CARTESIAN_WORLD).inner;
 
         if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) {
-            return PackedRayResult(ray, BACKGROUND_REACHED, vec3<u32>(0u));
+            radiance = radiance + throughput * sky_color(world_pos);
+            break;
+        }
+
+        var handled_object_bounce = false;
+        for (var object_index: u32 = 0u; object_index < arrayLength(&objects.data); object_index = object_index + 1u) {
+            let object = objects.data[object_index];
+            if (object.kind == OBJECT_SPHERE) {
+
+                let center = object.data0.xyz;
+                let radius = object.data0.w;
+                let rel = world_pos - center;
+                let dist = length(rel);
+
+                if (dist <= radius) {
+                    if (bounce_count >= MAX_BOUNCES) {
+                        return PackedColorResult(vec4<f32>(radiance, 1.0));
+                    }
+
+                    let normal = normalize(rel);
+                    let ray_vel_world = transition_vector(ray_pos, PackedThreeVector(ray.vel.inner.yzw, ray.vel.vector_space), CARTESIAN_WORLD).inner;
+                    let incoming = normalize(ray_vel_world);
+
+                    let seed_base = ray_index * 73856093u + step * 19349663u + object_index * 83492791u + bounce_count * 2654435761u;
+                    let rand_dir = random_unit_vector(seed_base ^ 0xA341316Cu, seed_base ^ 0xC8013EA4u);
+
+                    radiance = radiance + throughput * object.emission_params.xyz;
+                    throughput = throughput * object.material_params.xyz;
+
+                    var bounced_dir = incoming;
+                    if (object.material_kind == MATERIAL_METAL) {
+                        let fuzz = clamp(object.material_params.w, 0.0, 1.0);
+                        bounced_dir = normalize(reflect(incoming, normal) + fuzz * rand_dir);
+                    } else {
+                        bounced_dir = normalize(normal + rand_dir);
+                    }
+
+                    if (dot(bounced_dir, normal) <= 0.0) {
+                        bounced_dir = normal;
+                    }
+
+                    let new_world_pos = center + normal * (radius * 1.000001);
+                    let bounced_world = PackedPhoton3(
+                        PackedPoint3(new_world_pos, CARTESIAN_WORLD),
+                        PackedThreeVector(bounced_dir, CARTESIAN_WORLD),
+                    );
+                    let next_chart = preferred_chart_for_point(PackedPoint3(new_world_pos, CARTESIAN_WORLD));
+                    ray = photon3_to_photon4(bounced_world, next_chart);
+
+                    bounce_count = bounce_count + 1u;
+                    handled_object_bounce = true;
+                    break;
+                }
+            }
+        }
+
+        if (handled_object_bounce) {
+            continue;
         }
 
         let preferred_chart = preferred_chart_for_point(PackedPoint3(world_pos, CARTESIAN_WORLD));
@@ -466,22 +653,29 @@ fn evolve_ray(input_ray: PackedPhoton4) -> PackedRayResult {
         }
     }
 
-    return PackedRayResult(ray, MAX_STEPS_REACHED, vec3<u32>(0u));
+    return PackedColorResult(vec4<f32>(radiance, 1.0));
 }
 
-struct InputPhotons {
+struct Input {
     data: array<PackedPhoton4>,
 }
 
-struct OutputResults {
-    data: array<PackedRayResult>,
+struct Output {
+    data: array<PackedColorResult>,
+}
+
+struct PackedObjects {
+    data: array<PackedObject>,
 }
 
 @group(0) @binding(0)
-var<storage, read> input_photons: InputPhotons;
+var<storage, read> input_photons: Input;
 
 @group(0) @binding(1)
-var<storage, read_write> output_results: OutputResults;
+var<storage, read_write> output_results: Output;
+
+@group(0) @binding(2)
+var<storage, read> objects: PackedObjects;
 
 @compute @workgroup_size(64)
 fn evolve_rays(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -492,5 +686,5 @@ fn evolve_rays(@builtin(global_invocation_id) global_id: vec3<u32>) {
         return;
     }
 
-    output_results.data[ray_index] = evolve_ray(input_photons.data[ray_index]);
+    output_results.data[ray_index] = evolve_ray(input_photons.data[ray_index], ray_index);
 }

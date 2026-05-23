@@ -3,7 +3,6 @@ use num_enum::TryFromPrimitive;
 use crate::geometry::manifold::{Chart, tangent_space};
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
-use crate::geometry::surface::Material;
 
 use bytemuck::{Pod, Zeroable};
 
@@ -15,14 +14,6 @@ pub enum StopReason {
     ObjectHit,
     HorizonHit,
 }
-
-pub struct WorldPhoton3State<'a> {
-    pub photon3: Photon3,
-    #[allow(dead_code)]
-    pub normal: Option<ThreeVector>,
-    pub material: Option<&'a dyn Material>
-}
-
 
 #[derive(Clone, Copy)]
 pub struct Photon3 {
@@ -112,4 +103,10 @@ pub struct PackedRayResult {
     pub photon: PackedPhoton4,
     pub stop_reason: u32,
     pub padding: [u32; 7],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+pub struct PackedColorResult {
+    pub color: [f32; 4],
 }

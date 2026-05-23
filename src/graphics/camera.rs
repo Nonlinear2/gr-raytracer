@@ -1,11 +1,10 @@
-use crate::{geometry::photon::{Photon3, StopReason, WorldPhoton3State}, geometry::vector::TangentSpace, graphics::world::World};
+use crate::{geometry::photon::{Photon3}, geometry::vector::TangentSpace, graphics::world::World};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
 
 use rand::{rngs::StdRng, RngExt};
 
-const MAX_LIGHT_BOUNCES: u32 = 2;
 const SAMPLES_PER_PIXEL: u32 = 1;
 
 pub struct Camera {
@@ -56,39 +55,6 @@ impl Camera {
         }
     }
 
-    fn color_from_stop(&self, hit: &WorldPhoton3State<'_>, stop_reason: StopReason, depth: u32, world: &World, debug: bool, rng: &mut StdRng) -> Color {
-        if depth <= 0 {
-            return Color::BLACK;
-        }
-
-        match stop_reason {
-            StopReason::HorizonHit => return Color::BLACK,
-            StopReason::BackgroundReached => {
-                let tx = (hit.photon3.pos.x() * 2.).floor() as i32;
-                let ty = (hit.photon3.pos.y() * 2.).floor() as i32;
-
-                if (tx + ty) % 2 == 0 {
-                    return Color::new(35.0, 35.0, 35.0);
-                } else {
-                    return Color::new(235.0, 235.0, 235.0);
-                }
-            },
-            StopReason::MaxStepsReached => {
-                Color { r: 255., g: 0., b: 0. }
-            },
-            _ => panic!(),
-        }
-    }
-
-    pub fn ray_color_gpu(&self, rays: Vec<Photon3>, depth: u32, world: &World, debug: bool, rng: &mut StdRng) -> Vec<Color> {
-
-        let data = world.evolve_until_stop(rays, debug);
-
-        data.into_iter()
-            .map(|(hit, stop_reason)| self.color_from_stop(&hit, stop_reason, depth, world, debug, rng))
-            .collect()
-    }
-
     pub fn get_pixel_position(&self, i: usize, j: usize, offset: bool, rng: &mut StdRng) -> Point3 {
         let mut pos = self.first_pixel_loc + (self.pixel_delta_u * (i as f32) + self.pixel_delta_v * (j as f32)).as_point3();
         if offset {
@@ -111,8 +77,8 @@ impl Camera {
             }
         }
 
-        let colors = self.ray_color_gpu(rays, MAX_LIGHT_BOUNCES, world, false, rng);
-
+        let colors = world.evolve_until_stop(rays);
+        
         for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
             let mut color = Color::BLACK;
             let sample_start = idx * self.samples_per_pixel as usize;

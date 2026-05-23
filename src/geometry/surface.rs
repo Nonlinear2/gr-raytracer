@@ -1,17 +1,37 @@
 use crate::geometry::manifold::Chart;
-use crate::geometry::photon::{WorldPhoton3State, Photon3};
 use crate::geometry::point::Point3;
 use crate::geometry::vector::{TangentSpace, ThreeVector, random_on_sphere};
 use crate::graphics::color::Color;
 
+use bytemuck::{Pod, Zeroable};
 use rand::rngs::StdRng;
+
+pub const GPU_OBJECT_SPHERE: u32 = 1;
+pub const GPU_MATERIAL_DIFFUSE: u32 = 1;
+pub const GPU_MATERIAL_METAL: u32 = 2;
 
 pub trait Material {
     fn emission(&self) -> Color {
         Color::BLACK
     }
 
-    fn scatter(&self, hit: &WorldPhoton3State, rng: &mut StdRng) -> Option<(Color, ThreeVector)>;
+    fn gpu_material_kind(&self) -> u32;
+
+    fn gpu_material_params(&self) -> [f32; 4];
+
+    fn gpu_emission_params(&self) -> [f32; 4];
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+pub struct PackedGpuObject {
+    pub kind: u32,
+    pub material_kind: u32,
+    pub _pad0: u32,
+    pub _pad1: u32,
+    pub data0: [f32; 4],
+    pub material_params: [f32; 4],
+    pub emission_params: [f32; 4],
 }
 
 #[allow(dead_code)]
@@ -25,10 +45,26 @@ impl Material for Diffuse {
         self.emission
     }
 
-    fn scatter(&self, hit: &WorldPhoton3State, rng: &mut StdRng) -> Option<(Color, ThreeVector)> {
-        let new_direction = 
-            (hit.normal.unwrap() + random_on_sphere(TangentSpace::CartesianWorld, rng) * 0.5).normalize();
-        Some((self.albedo, new_direction))
+    fn gpu_material_kind(&self) -> u32 {
+        GPU_MATERIAL_DIFFUSE
+    }
+
+    fn gpu_material_params(&self) -> [f32; 4] {
+        [
+            self.albedo.r / 255.0,
+            self.albedo.g / 255.0,
+            self.albedo.b / 255.0,
+            0.0,
+        ]
+    }
+
+    fn gpu_emission_params(&self) -> [f32; 4] {
+        [
+            self.emission.r / 255.0,
+            self.emission.g / 255.0,
+            self.emission.b / 255.0,
+            0.0,
+        ]
     }
 }
 
@@ -44,27 +80,31 @@ impl Material for Metal {
         self.emission
     }
 
-    fn scatter(&self, hit: &WorldPhoton3State, rng: &mut StdRng) -> Option<(Color, ThreeVector)> {
-        assert!(0.0 <= self.fuzz);
-        assert!(self.fuzz <= 1.0);
+    fn gpu_material_kind(&self) -> u32 {
+        GPU_MATERIAL_METAL
+    }
 
-        let incoming = hit.photon3.vel.normalize();
-        let reflected = incoming - 2.0 * incoming.dot(hit.normal.unwrap()) * hit.normal.unwrap();
-        let noise = self.fuzz * random_on_sphere(TangentSpace::CartesianWorld, rng);
-    
-        let new_direction = (reflected + noise).normalize();
+    fn gpu_material_params(&self) -> [f32; 4] {
+        [
+            self.albedo.r / 255.0,
+            self.albedo.g / 255.0,
+            self.albedo.b / 255.0,
+            self.fuzz,
+        ]
+    }
 
-        if new_direction.dot(hit.normal.unwrap()) > 0.0 {
-            Some((self.albedo, new_direction))
-        } else {
-            None
-        }
+    fn gpu_emission_params(&self) -> [f32; 4] {
+        [
+            self.emission.r / 255.0,
+            self.emission.g / 255.0,
+            self.emission.b / 255.0,
+            0.0,
+        ]
     }
 }
 
 pub trait Surface {
-    fn hit(&self, ray: Point3) -> bool;
-    fn get_hit_data(&self, ray: &Photon3) -> WorldPhoton3State<'_>;
+    fn as_packed_gpu_object(&self) -> Option<PackedGpuObject>;
 }
 
 #[allow(dead_code)]
@@ -75,27 +115,16 @@ pub struct Sphere {
 }
 
 impl Surface for Sphere {
-    fn hit(&self, x: Point3) -> bool {
-        assert!(x.chart == Chart::CartesianWorld);
-        (x - self.center).distance_to_zero() <= self.radius    
-    }
-
-    fn get_hit_data(&self, world_ray: &Photon3) -> WorldPhoton3State<'_> {
-        assert!(world_ray.pos.chart == Chart::CartesianWorld);
-        assert!(world_ray.vel.vector_space == TangentSpace::CartesianWorld);
-        assert!(self.hit(world_ray.pos));
-
-        let x = world_ray.pos - self.center;
-        let dist = x.distance_to_zero();
-
-        let scale_factor = 1.000001 * self.radius / dist;
-        let new_pos = self.center + x * scale_factor;
-        let normal = x.as_threevector().normalize();
-
-        return WorldPhoton3State {
-            photon3: Photon3 { pos: new_pos, vel: world_ray.vel },
-            normal: Some(normal),
-            material: Some(self.material.as_ref()),
-        };
+    fn as_packed_gpu_object(&self) -> Option<PackedGpuObject> {
+        assert!(self.center.chart == Chart::CartesianWorld);
+        Some(PackedGpuObject {
+            kind: GPU_OBJECT_SPHERE,
+            material_kind: self.material.gpu_material_kind(),
+            _pad0: 0,
+            _pad1: 0,
+            data0: [self.center.x(), self.center.y(), self.center.z(), self.radius],
+            material_params: self.material.gpu_material_params(),
+            emission_params: self.material.gpu_emission_params(),
+        })
     }
 }

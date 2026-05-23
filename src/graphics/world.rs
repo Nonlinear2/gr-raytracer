@@ -1,10 +1,9 @@
-use crate::geometry::photon::{Photon3, Photon4, WorldPhoton3State, StopReason};
+use crate::geometry::photon::{Photon3, Photon4};
+use crate::geometry::surface::PackedGpuObject;
 use crate::geometry::surface::Surface;
-use crate::geometry::manifold::{Chart, PseudoRiemanian4Manifold};
+use crate::geometry::manifold::{PseudoRiemanian4Manifold};
 use crate::graphics::geodesic_integrator::GpuGeodesicIntegrator;
-use crate::SCENE_SIZE;
-
-const MAX_STEPS: u32 = 1000;
+use crate::graphics::color::Color;
 
 pub type Objects = Vec<Box<dyn Surface>>;
 
@@ -14,30 +13,15 @@ pub struct World {
 }
 
 impl World {
-    pub fn evolve_until_stop(&self, initial_rays: Vec<Photon3>, _debug: bool) -> Vec<(WorldPhoton3State<'_>, StopReason)> {
-        assert!(self.objects.is_empty(), "gpu currently does not support object hits");
-
-        let integrator = GpuGeodesicIntegrator::new(&*self.manifold).unwrap();
+    pub fn evolve_until_stop(&self, initial_rays: Vec<Photon3>) -> Vec<Color> {
+        let packed_objects: Vec<PackedGpuObject> = self.objects.iter().filter_map(|obj| obj.as_packed_gpu_object()).collect();
+        let integrator = GpuGeodesicIntegrator::new(&*self.manifold, &packed_objects).unwrap();
 
         let input_rays: Vec<Photon4> = initial_rays
             .into_iter()
             .map(|ray| self.manifold.world_photon3_to_photon4(ray))
             .collect();
 
-        let results = integrator.integrate(input_rays).unwrap();
-
-        results
-            .into_iter()
-            .map(|(photon, stop_reason)| {
-                (
-                    WorldPhoton3State {
-                        photon3: self.manifold.to_world_photon3(photon),
-                        normal: None,
-                        material: None,
-                    },
-                    stop_reason,
-                )
-            })
-            .collect()
+        integrator.integrate(input_rays).unwrap()
     }
 }

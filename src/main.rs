@@ -23,8 +23,6 @@ const HEIGHT: u32 = 400;
 const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
 const RNG_SEED: u64 = 0;
 
-const SCENE_SIZE: f32 = 3.;
-
 #[derive(Default)]
 struct App {
     window: Option<&'static Window>,

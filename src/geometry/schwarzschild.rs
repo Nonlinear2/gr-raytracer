@@ -1,4 +1,3 @@
-use crate::SCENE_SIZE;
 use crate::geometry::manifold::{Chart, HasAtlas3, PseudoRiemanian4Manifold};
 use crate::geometry::photon::{Photon4, Photon3};
 use crate::geometry::point::{Point3, Point4};
@@ -6,6 +5,8 @@ use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
 use crate::integration::euler;
 use crate::integration::solvers::positive_root;
 use glam::{Mat4, Vec4};
+
+const SCENE_SIZE: f32 = 3.0;
 
 pub struct Schwarzschild4Manifold {
     pub subatlas_center: Point3, // center of the atlas for fixed-time submanifolds expressed in Chart::CartesianWorld 

@@ -4,7 +4,9 @@ use std::sync::mpsc;
 use wgpu::util::DeviceExt;
 
 use crate::geometry::manifold::PseudoRiemanian4Manifold;
-use crate::geometry::photon::{Photon4, StopReason, PackedPhoton4, PackedRayResult};
+use crate::geometry::photon::{PackedColorResult, PackedPhoton4, Photon4};
+use crate::geometry::surface::PackedGpuObject;
+use crate::graphics::color::Color;
 
 const WORKGROUP_SIZE: u32 = 64;
 
@@ -12,15 +14,16 @@ pub struct GpuGeodesicIntegrator {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pipeline: wgpu::ComputePipeline,
+    object_buffer: wgpu::Buffer,
 }
 
 impl GpuGeodesicIntegrator {
-    pub fn new(manifold: &dyn PseudoRiemanian4Manifold) -> Option<Self> {
+    pub fn new(manifold: &dyn PseudoRiemanian4Manifold, objects: &[PackedGpuObject]) -> Option<Self> {
         let shader_source = Self::get_shader(manifold);
-        pollster::block_on(Self::new_async(shader_source)).ok()
+        pollster::block_on(Self::new_async(shader_source, objects.to_vec())).ok()
     }
 
-    pub fn get_shader(manifold: &dyn PseudoRiemanian4Manifold) -> String {
+    pub fn get_shader(_manifold: &dyn PseudoRiemanian4Manifold) -> String {
 
         // Concatenate shader
 
@@ -33,7 +36,7 @@ impl GpuGeodesicIntegrator {
         include_str!("../geometry/schwarzschild.wgsl").to_string()
     }
 
-    async fn new_async(shader_source: String) -> Result<Self, String> {
+    async fn new_async(shader_source: String, packed_objects: Vec<PackedGpuObject>) -> Result<Self, String> {
 
         let adapter = wgpu::Instance::default()
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -61,6 +64,27 @@ impl GpuGeodesicIntegrator {
             source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source.into())),
         });
 
+        let object_count = packed_objects.len() as u32;
+        let object_data = if object_count == 0 {
+            vec![PackedGpuObject {
+                kind: 0,
+                material_kind: 0,
+                _pad0: 0,
+                _pad1: 0,
+                data0: [0.0; 4],
+                material_params: [0.0; 4],
+                emission_params: [0.0; 4],
+            }]
+        } else {
+            packed_objects
+        };
+
+        let object_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("objects"),
+            contents: bytemuck::cast_slice(&object_data),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("evolve-bind-group-layout"),
             entries: &[
@@ -84,6 +108,16 @@ impl GpuGeodesicIntegrator {
                     },
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
 
@@ -102,20 +136,20 @@ impl GpuGeodesicIntegrator {
             cache: None,
         });
 
-        Ok(Self { device, queue, pipeline })
+        Ok(Self { device, queue, pipeline, object_buffer })
     }
 
     pub fn integrate(
         &self,
         rays: Vec<Photon4>,
-    ) -> Result<Vec<(Photon4, StopReason)>, String> {
+    ) -> Result<Vec<Color>, String> {
         if rays.is_empty() {
             return Ok(Vec::new());
         }
 
         let packed_rays: Vec<PackedPhoton4> = rays.iter().copied().map(PackedPhoton4::from).collect();
 
-        let buffer_size = std::mem::size_of::<PackedRayResult>() as u64 * rays.len() as u64;
+        let buffer_size = std::mem::size_of::<PackedColorResult>() as u64 * rays.len() as u64;
 
         let input_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("input"),
@@ -148,6 +182,10 @@ impl GpuGeodesicIntegrator {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: output_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: self.object_buffer.as_entire_binding(),
                 },
             ],
         });
@@ -194,10 +232,14 @@ impl GpuGeodesicIntegrator {
         }
 
         let mapped = slice.get_mapped_range();
-        let packed_output: &[PackedRayResult] = bytemuck::cast_slice(&mapped);
-        let output = packed_output.iter().copied().map(
-            |result| (result.photon.into(), StopReason::try_from(result.stop_reason).unwrap())
-        ).collect();
+        let packed_output: &[PackedColorResult] = bytemuck::cast_slice(&mapped);
+        let output = packed_output.iter().copied().map(|result| {
+            Color::new(
+                result.color[0] * 255.0,
+                result.color[1] * 255.0,
+                result.color[2] * 255.0,
+            )
+        }).collect();
         drop(mapped);
         readback_buffer.unmap();
 
