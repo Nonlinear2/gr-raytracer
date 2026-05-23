@@ -165,22 +165,23 @@ fn sphere_hit(center: vec3<f32>, radius: f32, x: vec3<f32>) -> bool {
     return length(x - center) <= radius;
 }
 
-fn diffuse_scatter(incoming: vec3<f32>, normal: vec3<f32>, x: vec3<f32>, rng_seed: u32) -> vec3<f32> {
+fn diffuse_scatter(incoming: vec3<f32>, normal: vec3<f32>, x: vec3<f32>, rng_seed: u32) -> vec4<f32> {
     let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
-    return normalize(normal + 0.5 * rand_dir);
+    let dir = normalize(normal + 0.99 * rand_dir);
+    return vec4<f32>(dir, 1.0);
 }
 
-fn metal_scatter(incoming: vec3<f32>, normal: vec3<f32>, x: vec3<f32>, rng_seed: u32, fuzz: f32) -> vec3<f32> {
+fn metal_scatter(incoming: vec3<f32>, normal: vec3<f32>, x: vec3<f32>, rng_seed: u32, fuzz: f32) -> vec4<f32> {
     let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
 
     let f = clamp(fuzz, 0.0, 0.99);
-    var scattered = normalize(reflect(incoming, normal) + f * rand_dir);
+    var scattered_dir = normalize(reflect(incoming, normal) + f * rand_dir);
 
-    if (dot(scattered, normal) <= 0.0) {
-        return -normal; // sentinel for no bounce
+    if (dot(scattered_dir, normal) <= 0.0) {
+        return vec4<f32>(-normal, 0.0);
     }
 
-    return scattered;
+    return vec4<f32>(scattered_dir, 1.0);
 }
 
 // euler.wgsl
@@ -645,16 +646,18 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
 
                     let seed_base = ray_index * 73856093u + step * 19349663u + obj_idx * 83492791u + bounce_count * 2654435761u;
                     
-                    var scattered_dir = VEC3_ZERO;
+                    var scattered = vec4<f32>(0.0, 0.0, 0.0, 0.0);
                     if (object.material_kind == MATERIAL_METAL) {
-                        scattered_dir = metal_scatter(incoming, normal, world_pos, seed_base, object.material_params.w);
+                        scattered = metal_scatter(incoming, normal, world_pos, seed_base, object.material_params.w);
                     } else {
-                        scattered_dir = diffuse_scatter(incoming, normal, world_pos, seed_base);
+                        scattered = diffuse_scatter(incoming, normal, world_pos, seed_base);
                     }
 
-                    if (all(scattered_dir == -normal)) { // no bounce
+                    if (scattered.w < 0.5) { // no valid bounce
                         return packed_color_result(radiance + throughput * object.emission_params.xyz);
                     }
+
+                    let scattered_dir = normalize(scattered.xyz);
 
                     radiance = radiance + throughput * object.emission_params.xyz;
                     throughput = throughput * object.material_params.xyz;
@@ -665,8 +668,11 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
                         PackedThreeVector(scattered_dir, CARTESIAN_WORLD),
                     );
 
+                    let next_chart = preferred_chart_for_point(PackedPoint3(new_world_pos, CARTESIAN_WORLD));
+                    ray = photon3_to_photon4(bounced_world, next_chart);
+
                     bounce_count = bounce_count + 1u;
-                    return packed_color_result(radiance);
+                    break; // continue the outer step loop with updated ray
                 }
             }
         }
