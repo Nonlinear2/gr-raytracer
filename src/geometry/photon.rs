@@ -104,9 +104,3 @@ pub struct PackedRayResult {
     pub stop_reason: u32,
     pub padding: [u32; 7],
 }
-
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-pub struct PackedColorResult {
-    pub color: [f32; 4],
-}

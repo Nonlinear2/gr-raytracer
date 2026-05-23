@@ -120,7 +120,12 @@ struct PackedObject {
 }
 
 struct PackedColorResult {
-    color: vec4<f32>,
+    color: vec3<f32>,
+    _pad0: f32,
+}
+
+fn packed_color_result(color: vec3<f32>) -> PackedColorResult {
+    return PackedColorResult(color, 0.0);
 }
 
 fn new_point3(r: f32, theta: f32, phi: f32, chart: u32) -> PackedPoint3 {
@@ -579,12 +584,12 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
         let world_pos = transition_point(ray_pos3, CARTESIAN_WORLD).inner;
 
         if (ray.pos.inner.y <= R_S) {
-            return PackedColorResult(vec4<f32>(radiance, 1.0));
+            return packed_color_result(radiance);
         }
 
         if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) {
             radiance = radiance + throughput * sky_color(world_pos);
-            return PackedColorResult(vec4<f32>(radiance, 1.0));
+            return packed_color_result(radiance);
         }
 
         var handled_object_bounce = false;
@@ -599,7 +604,7 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
 
                 if (dist <= radius) {
                     if (bounce_count >= MAX_BOUNCES) {
-                        return PackedColorResult(vec4<f32>(radiance, 1.0));
+                        return packed_color_result(radiance);
                     }
 
                     let normal = normalize(rel);
@@ -634,7 +639,7 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
 
                     bounce_count = bounce_count + 1u;
                     handled_object_bounce = true;
-                    return PackedColorResult(vec4<f32>(radiance, 1.0));
+                    return packed_color_result(radiance);
                 }
             }
         }
@@ -651,7 +656,7 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
         }
     }
 
-    return PackedColorResult(vec4<f32>(radiance, 1.0));
+    return packed_color_result(radiance);
 }
 
 struct Input {

@@ -4,10 +4,10 @@ use std::sync::mpsc;
 use wgpu::util::DeviceExt;
 
 use crate::geometry::manifold::PseudoRiemanian4Manifold;
-use crate::geometry::photon::{PackedColorResult, PackedPhoton4, Photon4};
+use crate::geometry::photon::{PackedPhoton4, Photon4};
 use crate::geometry::surface::PackedGpuObject;
 use crate::graphics::camera::World;
-use crate::graphics::color::Color;
+use crate::graphics::color::{Color, PackedColorResult};
 
 const WORKGROUP_SIZE: u32 = 64;
 

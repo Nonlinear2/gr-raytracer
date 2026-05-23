@@ -1,3 +1,4 @@
+use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -52,3 +53,10 @@ impl std::ops::DivAssign<f32> for Color {
 
 impl From<Vec3> for Color { fn from(v: Vec3) -> Self { Color::from_vec3(v) } }
 impl From<Color> for Vec3 { fn from(c: Color) -> Vec3 { Vec3::new(c.r, c.g, c.b) } }
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+pub struct PackedColorResult {
+    pub color: [f32; 3],
+    pub _pad0: f32,
+}
