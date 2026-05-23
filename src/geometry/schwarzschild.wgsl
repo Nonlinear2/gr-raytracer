@@ -28,6 +28,8 @@ const MATERIAL_METAL: u32 = 2u;
 
 const MAX_BOUNCES: u32 = 2u;
 
+const VEC3_ZERO: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0);
+
 fn zero_matrix() -> mat4x4<f32> {
     return mat4x4<f32>(
         vec4<f32>(0.0),
@@ -114,7 +116,7 @@ struct PackedObject {
     material_kind: u32,
     _pad0: u32,
     _pad1: u32,
-    data0: vec4<f32>,
+    data: vec4<f32>,
     material_params: vec4<f32>,
     emission_params: vec4<f32>,
 }
@@ -155,6 +157,36 @@ fn four_vector_as_point4(v: PackedFourVector) -> PackedPoint4 {
 fn reflect(v: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
     return v - 2.0 * dot(v, n) * n;
 }
+
+
+// surface.wgsl
+
+fn sphere_hit(center: vec3<f32>, radius: f32, x: vec3<f32>) -> bool {
+    return length(x - center) <= radius;
+}
+
+// fn diffuse_scatter(center: vec3<f32>, radius: f32, x: vec3<f32>) -> bool {
+// TODO
+// }
+
+// fn metal_scatter(center: vec3<f32>, radius: f32, x: vec3<f32>, rng_seed: u32) -> bool {
+//     let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
+
+//     radiance = radiance + throughput * object.emission_params.xyz;
+//     throughput = throughput * object.material_params.xyz;
+
+//     var bounced_dir = incoming;
+//     if (object.material_kind == MATERIAL_METAL) {
+//         let fuzz = clamp(object.material_params.w, 0.0, 1.0);
+//         bounced_dir = normalize(reflect(incoming, normal) + fuzz * rand_dir);
+//     } else {
+//         bounced_dir = normalize(normal + rand_dir);
+//     }
+
+//     if (dot(bounced_dir, normal) <= 0.0) {
+//         bounced_dir = normal;
+//     }
+// }
 
 // euler.wgsl
 
@@ -576,7 +608,7 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
     var ray = input_ray;
     var bounce_count: u32 = 0u;
     var throughput = vec3<f32>(1.0, 1.0, 1.0);
-    var radiance = vec3<f32>(0.0, 0.0, 0.0);
+    var radiance = VEC3_ZERO;
 
     for (var step: u32 = 0u; step < MAX_STEPS; step = step + 1u) {
         ray = step_along_null_geodesic(ray);
@@ -584,25 +616,23 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
         let world_pos = transition_point(ray_pos3, CARTESIAN_WORLD).inner;
 
         if (ray.pos.inner.y <= R_S) {
-            return packed_color_result(radiance);
+            return packed_color_result(VEC3_ZERO);
         }
 
         if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) {
-            radiance = radiance + throughput * sky_color(world_pos);
-            return packed_color_result(radiance);
+            return packed_color_result(throughput * sky_color(world_pos));
         }
 
         var handled_object_bounce = false;
-        for (var object_index: u32 = 0u; object_index < arrayLength(&objects.data); object_index = object_index + 1u) {
-            let object = objects.data[object_index];
+        for (var obj_idx: u32 = 0u; obj_idx < arrayLength(&objects.data); obj_idx = obj_idx + 1u) {
+            let object = objects.data[obj_idx];
             if (object.kind == OBJECT_SPHERE) {
 
-                let center = object.data0.xyz;
-                let radius = object.data0.w;
+                let center = object.data.xyz;
+                let radius = object.data.w;
                 let rel = world_pos - center;
-                let dist = length(rel);
 
-                if (dist <= radius) {
+                if sphere_hit(center, radius, world_pos) {
                     if (bounce_count >= MAX_BOUNCES) {
                         return packed_color_result(radiance);
                     }
@@ -611,7 +641,7 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
                     let ray_vel_world = transition_vector(ray_pos3, PackedThreeVector(ray.vel.inner.yzw, ray.vel.vector_space), CARTESIAN_WORLD).inner;
                     let incoming = normalize(ray_vel_world);
 
-                    let seed_base = ray_index * 73856093u + step * 19349663u + object_index * 83492791u + bounce_count * 2654435761u;
+                    let seed_base = ray_index * 73856093u + step * 19349663u + obj_idx * 83492791u + bounce_count * 2654435761u;
                     let rand_dir = random_unit_vector(seed_base ^ 0xA341316Cu, seed_base ^ 0xC8013EA4u);
 
                     radiance = radiance + throughput * object.emission_params.xyz;
