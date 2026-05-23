@@ -165,28 +165,22 @@ fn sphere_hit(center: vec3<f32>, radius: f32, x: vec3<f32>) -> bool {
     return length(x - center) <= radius;
 }
 
-// fn diffuse_scatter(center: vec3<f32>, radius: f32, x: vec3<f32>) -> bool {
-// TODO
-// }
+fn diffuse_scatter(incoming: vec3<f32>, normal: vec3<f32>, x: vec3<f32>, rng_seed: u32) -> vec3<f32> {
+    let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
 
-// fn metal_scatter(center: vec3<f32>, radius: f32, x: vec3<f32>, rng_seed: u32) -> bool {
-//     let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
+    return normalize(normal + 0.5 * rand_dir);
+}
 
-//     radiance = radiance + throughput * object.emission_params.xyz;
-//     throughput = throughput * object.material_params.xyz;
+fn metal_scatter(incoming: vec3<f32>, normal: vec3<f32>, x: vec3<f32>, rng_seed: u32) -> vec3<f32> {
+    let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
 
-//     var bounced_dir = incoming;
-//     if (object.material_kind == MATERIAL_METAL) {
-//         let fuzz = clamp(object.material_params.w, 0.0, 1.0);
-//         bounced_dir = normalize(reflect(incoming, normal) + fuzz * rand_dir);
-//     } else {
-//         bounced_dir = normalize(normal + rand_dir);
-//     }
+    let fuzz = clamp(object.material_params.w, 0.0, 0.99);
+    let bounced_dir = normalize(reflect(incoming, normal) + fuzz * rand_dir);
 
-//     if (dot(bounced_dir, normal) <= 0.0) {
-//         bounced_dir = normal;
-//     }
-// }
+    if (dot(bounced_dir, normal) <= 0.0) {
+        bounced_dir = -normal; // sentinel for no bounce
+    }
+}
 
 // euler.wgsl
 
@@ -616,14 +610,20 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
         let world_pos = transition_point(ray_pos3, CARTESIAN_WORLD).inner;
 
         if (ray.pos.inner.y <= R_S) {
-            return packed_color_result(VEC3_ZERO);
+            return packed_color_result(radiance);
         }
 
         if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) {
-            return packed_color_result(throughput * sky_color(world_pos));
+            return packed_color_result(radiance + throughput * sky_color(world_pos));
         }
 
-        var handled_object_bounce = false;
+        let preferred_chart = preferred_chart_for_point(PackedPoint3(world_pos, CARTESIAN_WORLD));
+        if (preferred_chart != ray.pos.chart) {
+            let pos3 = PackedPoint3(ray.pos.inner.yzw, ray.pos.chart);
+            let vel3 = PackedThreeVector(ray.vel.inner.yzw, ray.vel.vector_space);
+            ray = photon3_to_photon4(PackedPhoton3(pos3, vel3), preferred_chart);
+        }
+
         for (var obj_idx: u32 = 0u; obj_idx < arrayLength(&objects.data); obj_idx = obj_idx + 1u) {
             let object = objects.data[obj_idx];
             if (object.kind == OBJECT_SPHERE) {
@@ -634,55 +634,40 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
 
                 if sphere_hit(center, radius, world_pos) {
                     if (bounce_count >= MAX_BOUNCES) {
-                        return packed_color_result(radiance);
+                        return packed_color_result(radiance + throughput * object.emission_params.xyz);
                     }
 
                     let normal = normalize(rel);
-                    let ray_vel_world = transition_vector(ray_pos3, PackedThreeVector(ray.vel.inner.yzw, ray.vel.vector_space), CARTESIAN_WORLD).inner;
-                    let incoming = normalize(ray_vel_world);
+                    let incoming = normalize(
+                        transition_vector(ray_pos3, PackedThreeVector(ray.vel.inner.yzw, ray.vel.vector_space), CARTESIAN_WORLD).inner
+                    );
 
                     let seed_base = ray_index * 73856093u + step * 19349663u + obj_idx * 83492791u + bounce_count * 2654435761u;
-                    let rand_dir = random_unit_vector(seed_base ^ 0xA341316Cu, seed_base ^ 0xC8013EA4u);
+                    
+                    var scattered_dir = VEC3_ZERO;
+                    if (object.material_kind == MATERIAL_METAL) {
+                        scattered_dir = metal_scatter();
+                    } else {
+                        scattered_dir = diffuse_scatter();
+                    }
+
+                    if (scattered_dir == -normal) { // no bounce 
+                        return packed_color_result(radiance + throughput * object.emission_params.xyz);
+                    }
 
                     radiance = radiance + throughput * object.emission_params.xyz;
                     throughput = throughput * object.material_params.xyz;
-
-                    var bounced_dir = incoming;
-                    if (object.material_kind == MATERIAL_METAL) {
-                        let fuzz = clamp(object.material_params.w, 0.0, 1.0);
-                        bounced_dir = normalize(reflect(incoming, normal) + fuzz * rand_dir);
-                    } else {
-                        bounced_dir = normalize(normal + rand_dir);
-                    }
-
-                    if (dot(bounced_dir, normal) <= 0.0) {
-                        bounced_dir = normal;
-                    }
 
                     let new_world_pos = center + normal * (radius * 1.000001);
                     let bounced_world = PackedPhoton3(
                         PackedPoint3(new_world_pos, CARTESIAN_WORLD),
                         PackedThreeVector(bounced_dir, CARTESIAN_WORLD),
                     );
-                    let next_chart = preferred_chart_for_point(PackedPoint3(new_world_pos, CARTESIAN_WORLD));
-                    ray = photon3_to_photon4(bounced_world, next_chart);
-
+                    
                     bounce_count = bounce_count + 1u;
-                    handled_object_bounce = true;
                     return packed_color_result(radiance);
                 }
             }
-        }
-
-        if (handled_object_bounce) {
-            continue;
-        }
-
-        let preferred_chart = preferred_chart_for_point(PackedPoint3(world_pos, CARTESIAN_WORLD));
-        if (preferred_chart != ray.pos.chart) {
-            let pos3 = PackedPoint3(ray.pos.inner.yzw, ray.pos.chart);
-            let vel3 = PackedThreeVector(ray.vel.inner.yzw, ray.vel.vector_space);
-            ray = photon3_to_photon4(PackedPhoton3(pos3, vel3), preferred_chart);
         }
     }
 
