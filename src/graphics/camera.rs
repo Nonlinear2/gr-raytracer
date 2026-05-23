@@ -88,7 +88,7 @@ impl Camera {
 
         let manifold_rays = rays.into_iter().map(|ray| world.manifold.world_photon3_to_photon4(ray)).collect();
 
-        let colors = integrator.run_kernel(manifold_rays).unwrap();
+        let colors = integrator.run_kernel(manifold_rays);
 
         for (pixel, samples) in frame
                 .chunks_exact_mut(4)

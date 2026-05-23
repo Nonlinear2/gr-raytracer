@@ -68,6 +68,14 @@ fn random_unit_vector(seed0: u32, seed1: u32) -> vec3<f32> {
     return vec3<f32>(r_xy * cos(phi), r_xy * sin(phi), z);
 }
 
+fn sky_color(world_pos: vec3<f32>) -> vec3<f32> {
+    let tx = floor(world_pos.x * 2.0);
+    let ty = floor(world_pos.y * 2.0);
+    if (u32(abs(i32(tx + ty))) % 2u == 0u) {
+        return vec3<f32>(35.0 / 255.0);
+    }
+    return vec3<f32>(235.0 / 255.0);
+}
 
 // packed_types.wgsl
 
@@ -137,6 +145,10 @@ fn four_vector_zero(vector_space: u32) -> PackedFourVector {
 
 fn four_vector_as_point4(v: PackedFourVector) -> PackedPoint4 {
     return PackedPoint4(v.inner, v.vector_space);
+}
+
+fn reflect(v: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
+    return v - 2.0 * dot(v, n) * n;
 }
 
 // euler.wgsl
@@ -555,19 +567,6 @@ fn step_along_null_geodesic(photon: PackedPhoton4) -> PackedPhoton4 {
     return euler_step(photon.pos, photon.vel, four_vector_as_point4(photon.vel), del_k);
 }
 
-fn reflect(v: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
-    return v - 2.0 * dot(v, n) * n;
-}
-
-fn sky_color(world_pos: vec3<f32>) -> vec3<f32> {
-    let tx = floor(world_pos.x * 2.0);
-    let ty = floor(world_pos.y * 2.0);
-    if (u32(abs(i32(tx + ty))) % 2u == 0u) {
-        return vec3<f32>(35.0 / 255.0);
-    }
-    return vec3<f32>(235.0 / 255.0);
-}
-
 fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
     var ray = input_ray;
     var bounce_count: u32 = 0u;
@@ -576,17 +575,16 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
 
     for (var step: u32 = 0u; step < MAX_STEPS; step = step + 1u) {
         ray = step_along_null_geodesic(ray);
-        let ray_pos = PackedPoint3(ray.pos.inner.yzw, ray.pos.chart);
+        let ray_pos3 = PackedPoint3(ray.pos.inner.yzw, ray.pos.chart);
+        let world_pos = transition_point(ray_pos3, CARTESIAN_WORLD).inner;
 
         if (ray.pos.inner.y <= R_S) {
-            break;
+            return PackedColorResult(vec4<f32>(radiance, 1.0));
         }
-
-        let world_pos = transition_point(ray_pos, CARTESIAN_WORLD).inner;
 
         if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) {
             radiance = radiance + throughput * sky_color(world_pos);
-            break;
+            return PackedColorResult(vec4<f32>(radiance, 1.0));
         }
 
         var handled_object_bounce = false;
@@ -605,7 +603,7 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
                     }
 
                     let normal = normalize(rel);
-                    let ray_vel_world = transition_vector(ray_pos, PackedThreeVector(ray.vel.inner.yzw, ray.vel.vector_space), CARTESIAN_WORLD).inner;
+                    let ray_vel_world = transition_vector(ray_pos3, PackedThreeVector(ray.vel.inner.yzw, ray.vel.vector_space), CARTESIAN_WORLD).inner;
                     let incoming = normalize(ray_vel_world);
 
                     let seed_base = ray_index * 73856093u + step * 19349663u + object_index * 83492791u + bounce_count * 2654435761u;
@@ -636,7 +634,7 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
 
                     bounce_count = bounce_count + 1u;
                     handled_object_bounce = true;
-                    break;
+                    return PackedColorResult(vec4<f32>(radiance, 1.0));
                 }
             }
         }

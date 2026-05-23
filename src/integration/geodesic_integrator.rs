@@ -137,9 +137,7 @@ impl GeodesicIntegrator {
         Ok(Self { device, queue, pipeline, object_buffer })
     }
 
-    fn create_buffers(&self, packed_rays: &[PackedPhoton4]) -> (wgpu::Buffer, wgpu::Buffer, wgpu::Buffer, u64) {
-        let buffer_size = std::mem::size_of::<PackedColorResult>() as u64 * packed_rays.len() as u64;
-
+    fn create_buffers(&self, packed_rays: &[PackedPhoton4], rays_byte_size: u64) -> (wgpu::Buffer, wgpu::Buffer, wgpu::Buffer) {
         let input_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("input"),
             contents: bytemuck::cast_slice(packed_rays),
@@ -148,19 +146,19 @@ impl GeodesicIntegrator {
 
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("output"),
-            size: buffer_size,
+            size: rays_byte_size,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
 
         let readback_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("readback"),
-            size: buffer_size,
+            size: rays_byte_size,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
 
-        (input_buffer, output_buffer, readback_buffer, buffer_size)
+        (input_buffer, output_buffer, readback_buffer)
     }
 
     fn create_bind_group(&self, input_buffer: &wgpu::Buffer, output_buffer: &wgpu::Buffer) -> wgpu::BindGroup {
@@ -175,7 +173,7 @@ impl GeodesicIntegrator {
         })
     }
 
-    fn dispatch_and_readback(&self, bind_group: &wgpu::BindGroup, packed_rays_len: usize, output_buffer: &wgpu::Buffer, readback_buffer: &wgpu::Buffer, buffer_size: u64) -> Result<Vec<Color>, String> {
+    fn dispatch_and_readback(&self, bind_group: &wgpu::BindGroup, packed_rays_len: usize, output_buffer: &wgpu::Buffer, readback_buffer: &wgpu::Buffer, buffer_size: u64) -> Vec<Color> {
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("encoder") });
 
         {
@@ -195,11 +193,7 @@ impl GeodesicIntegrator {
 
         self.device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }).unwrap();
 
-        match receiver.recv() {
-            Ok(Ok(())) => {}
-            Ok(Err(err)) => return Err(format!("GPU readback failed: {err}")),
-            Err(_) => return Err(String::from("GPU readback channel closed")),
-        }
+        match receiver.recv() { Ok(Ok(())) => {}, _ => panic!() }
 
         let mapped = slice.get_mapped_range();
         let packed_output: &[PackedColorResult] = bytemuck::cast_slice(&mapped);
@@ -209,14 +203,16 @@ impl GeodesicIntegrator {
         drop(mapped);
         readback_buffer.unmap();
 
-        Ok(output)
+        output
     }
 
-    pub fn run_kernel(&self, rays: Vec<Photon4>) -> Result<Vec<Color>, String> {
+    pub fn run_kernel(&self, rays: Vec<Photon4>) -> Vec<Color> {
 
         let packed_rays: Vec<PackedPhoton4> = rays.iter().copied().map(PackedPhoton4::from).collect();
-        let (input_buffer, output_buffer, readback_buffer, buffer_size) = self.create_buffers(&packed_rays);
+        let rays_byte_size = std::mem::size_of::<PackedColorResult>() as u64 * packed_rays.len() as u64;
+
+        let (input_buffer, output_buffer, readback_buffer) = self.create_buffers(&packed_rays, rays_byte_size);
         let bind_group = self.create_bind_group(&input_buffer, &output_buffer);
-        self.dispatch_and_readback(&bind_group, packed_rays.len(), &output_buffer, &readback_buffer, buffer_size)
+        self.dispatch_and_readback(&bind_group, packed_rays.len(), &output_buffer, &readback_buffer, rays_byte_size)
     }
 }
