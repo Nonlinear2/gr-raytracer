@@ -137,21 +137,12 @@ impl GeodesicIntegrator {
         Ok(Self { device, queue, pipeline, object_buffer })
     }
 
-    pub fn run_kernel(
-        &self,
-        rays: Vec<Photon4>,
-    ) -> Result<Vec<Color>, String> {
-        if rays.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let packed_rays: Vec<PackedPhoton4> = rays.iter().copied().map(PackedPhoton4::from).collect();
-
-        let buffer_size = std::mem::size_of::<PackedColorResult>() as u64 * rays.len() as u64;
+    fn create_buffers(&self, packed_rays: &[PackedPhoton4]) -> (wgpu::Buffer, wgpu::Buffer, wgpu::Buffer, u64) {
+        let buffer_size = std::mem::size_of::<PackedColorResult>() as u64 * packed_rays.len() as u64;
 
         let input_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("input"),
-            contents: bytemuck::cast_slice(&packed_rays),
+            contents: bytemuck::cast_slice(packed_rays),
             usage: wgpu::BufferUsages::STORAGE,
         });
 
@@ -169,59 +160,40 @@ impl GeodesicIntegrator {
             mapped_at_creation: false,
         });
 
-        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        (input_buffer, output_buffer, readback_buffer, buffer_size)
+    }
+
+    fn create_bind_group(&self, input_buffer: &wgpu::Buffer, output_buffer: &wgpu::Buffer) -> wgpu::BindGroup {
+        self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("schwarzschild-evolve-bind-group"),
             layout: &self.pipeline.get_bind_group_layout(0),
             entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: input_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: output_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: self.object_buffer.as_entire_binding(),
-                },
+                wgpu::BindGroupEntry { binding: 0, resource: input_buffer.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 1, resource: output_buffer.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 2, resource: self.object_buffer.as_entire_binding() },
             ],
-        });
+        })
+    }
 
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("encoder"),
-        });
+    fn dispatch_and_readback(&self, bind_group: &wgpu::BindGroup, packed_rays_len: usize, output_buffer: &wgpu::Buffer, readback_buffer: &wgpu::Buffer, buffer_size: u64) -> Result<Vec<Color>, String> {
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("encoder") });
 
         {
-            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("pass"),
-                timestamp_writes: None,
-            });
+            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: Some("pass"), timestamp_writes: None });
             pass.set_pipeline(&self.pipeline);
-            pass.set_bind_group(0, &bind_group, &[]);
-            pass.dispatch_workgroups((packed_rays.len() as u32).div_ceil(WORKGROUP_SIZE), 1, 1);
+            pass.set_bind_group(0, bind_group, &[]);
+            pass.dispatch_workgroups((packed_rays_len as u32).div_ceil(WORKGROUP_SIZE), 1, 1);
         }
 
-        encoder.copy_buffer_to_buffer(
-            &output_buffer,
-            0,
-            &readback_buffer,
-            0,
-            buffer_size
-        );
+        encoder.copy_buffer_to_buffer(output_buffer, 0, readback_buffer, 0, buffer_size);
 
         self.queue.submit(Some(encoder.finish()));
 
         let slice = readback_buffer.slice(..);
         let (sender, receiver) = mpsc::channel();
-        slice.map_async(wgpu::MapMode::Read, move |result| {
-            let _ = sender.send(result);
-        });
+        slice.map_async(wgpu::MapMode::Read, move |result| { let _ = sender.send(result); });
 
-        self.device.poll(wgpu::PollType::Wait {
-            submission_index: None,
-            timeout: None,
-        }).unwrap();
+        self.device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }).unwrap();
 
         match receiver.recv() {
             Ok(Ok(())) => {}
@@ -232,15 +204,19 @@ impl GeodesicIntegrator {
         let mapped = slice.get_mapped_range();
         let packed_output: &[PackedColorResult] = bytemuck::cast_slice(&mapped);
         let output = packed_output.iter().copied().map(|result| {
-            Color::new(
-                result.color[0] * 255.0,
-                result.color[1] * 255.0,
-                result.color[2] * 255.0,
-            )
+            Color::new(result.color[0] * 255.0, result.color[1] * 255.0, result.color[2] * 255.0)
         }).collect();
         drop(mapped);
         readback_buffer.unmap();
 
         Ok(output)
+    }
+
+    pub fn run_kernel(&self, rays: Vec<Photon4>) -> Result<Vec<Color>, String> {
+
+        let packed_rays: Vec<PackedPhoton4> = rays.iter().copied().map(PackedPhoton4::from).collect();
+        let (input_buffer, output_buffer, readback_buffer, buffer_size) = self.create_buffers(&packed_rays);
+        let bind_group = self.create_bind_group(&input_buffer, &output_buffer);
+        self.dispatch_and_readback(&bind_group, packed_rays.len(), &output_buffer, &readback_buffer, buffer_size)
     }
 }
