@@ -167,19 +167,20 @@ fn sphere_hit(center: vec3<f32>, radius: f32, x: vec3<f32>) -> bool {
 
 fn diffuse_scatter(incoming: vec3<f32>, normal: vec3<f32>, x: vec3<f32>, rng_seed: u32) -> vec3<f32> {
     let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
-
     return normalize(normal + 0.5 * rand_dir);
 }
 
-fn metal_scatter(incoming: vec3<f32>, normal: vec3<f32>, x: vec3<f32>, rng_seed: u32) -> vec3<f32> {
+fn metal_scatter(incoming: vec3<f32>, normal: vec3<f32>, x: vec3<f32>, rng_seed: u32, fuzz: f32) -> vec3<f32> {
     let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
 
-    let fuzz = clamp(object.material_params.w, 0.0, 0.99);
-    let bounced_dir = normalize(reflect(incoming, normal) + fuzz * rand_dir);
+    let f = clamp(fuzz, 0.0, 0.99);
+    var scattered = normalize(reflect(incoming, normal) + f * rand_dir);
 
-    if (dot(bounced_dir, normal) <= 0.0) {
-        bounced_dir = -normal; // sentinel for no bounce
+    if (dot(scattered, normal) <= 0.0) {
+        return -normal; // sentinel for no bounce
     }
+
+    return scattered;
 }
 
 // euler.wgsl
@@ -646,12 +647,12 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
                     
                     var scattered_dir = VEC3_ZERO;
                     if (object.material_kind == MATERIAL_METAL) {
-                        scattered_dir = metal_scatter();
+                        scattered_dir = metal_scatter(incoming, normal, world_pos, seed_base, object.material_params.w);
                     } else {
-                        scattered_dir = diffuse_scatter();
+                        scattered_dir = diffuse_scatter(incoming, normal, world_pos, seed_base);
                     }
 
-                    if (scattered_dir == -normal) { // no bounce 
+                    if (all(scattered_dir == -normal)) { // no bounce
                         return packed_color_result(radiance + throughput * object.emission_params.xyz);
                     }
 
@@ -661,9 +662,9 @@ fn evolve_ray(input_ray: PackedPhoton4, ray_index: u32) -> PackedColorResult {
                     let new_world_pos = center + normal * (radius * 1.000001);
                     let bounced_world = PackedPhoton3(
                         PackedPoint3(new_world_pos, CARTESIAN_WORLD),
-                        PackedThreeVector(bounced_dir, CARTESIAN_WORLD),
+                        PackedThreeVector(scattered_dir, CARTESIAN_WORLD),
                     );
-                    
+
                     bounce_count = bounce_count + 1u;
                     return packed_color_result(radiance);
                 }
