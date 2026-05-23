@@ -11,14 +11,14 @@ use crate::graphics::color::Color;
 
 const WORKGROUP_SIZE: u32 = 64;
 
-pub struct GpuGeodesicIntegrator {
+pub struct GeodesicIntegrator {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pipeline: wgpu::ComputePipeline,
     object_buffer: wgpu::Buffer,
 }
 
-impl GpuGeodesicIntegrator {
+impl GeodesicIntegrator {
     pub fn new(world: &World) -> Option<Self> {
         let shader_source = Self::get_shader(&*world.manifold);
         let packed_objects: Vec<PackedGpuObject> = world.objects.iter().filter_map(|obj| obj.as_packed_gpu_object()).collect();
@@ -45,9 +45,7 @@ impl GpuGeodesicIntegrator {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: None,
                 force_fallback_adapter: false,
-            })
-            .await
-            .map_err(|_| String::from("no gpu adapter found"))?;
+            }).await.map_err(|_| String::from("no gpu adapter found"))?;
 
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
@@ -57,9 +55,7 @@ impl GpuGeodesicIntegrator {
                 memory_hints: wgpu::MemoryHints::Performance,
                 trace: wgpu::Trace::Off,
                 experimental_features: wgpu::ExperimentalFeatures::default(),
-            })
-            .await
-            .map_err(|err| format!("failed to create gpu device: {err}"))?;
+            }).await.map_err(|err| format!("failed to create gpu device: {err}"))?;
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("evolve-shader"),

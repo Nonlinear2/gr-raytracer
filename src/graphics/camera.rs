@@ -1,4 +1,4 @@
-use crate::{geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, surface::Surface, vector::TangentSpace}, graphics::{geodesic_integrator::GpuGeodesicIntegrator}};
+use crate::{geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, surface::Surface, vector::TangentSpace}, integration::{geodesic_integrator::GeodesicIntegrator}};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
@@ -73,6 +73,8 @@ impl Camera {
     }
 
     pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
+        let integrator = GeodesicIntegrator::new(world).unwrap();
+
         let mut rays = Vec::with_capacity((self.img_width * self.img_height * self.samples_per_pixel) as usize);
 
         for j in 0..self.img_height as usize {
@@ -84,7 +86,6 @@ impl Camera {
             }
         }
 
-        let integrator = GpuGeodesicIntegrator::new(world).unwrap();
         let manifold_rays = rays.into_iter().map(|ray| world.manifold.world_photon3_to_photon4(ray)).collect();
 
         let colors = integrator.run_kernel(manifold_rays).unwrap();
