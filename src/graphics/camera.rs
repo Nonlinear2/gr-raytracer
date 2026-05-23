@@ -76,34 +76,13 @@ impl Camera {
             StopReason::MaxStepsReached => {
                 Color { r: 255., g: 0., b: 0. }
             },
-            StopReason::ObjectHit => {
-                let material = hit.material.unwrap();
-                if let Some((attenuation, new_direction)) = material.scatter(hit, rng) {
-                    let ray = Photon3::new(hit.photon3.pos, new_direction);
-
-                    let bounced = self.ray_color(ray, depth - 1, world, debug, rng);
-
-                    return material.emission()
-                        + Color {
-                            r: attenuation.r * bounced.r / 255.0,
-                            g: attenuation.g * bounced.g / 255.0,
-                            b: attenuation.b * bounced.b / 255.0,
-                        };
-                }
-                return material.emission();
-            }
+            _ => panic!(),
         }
     }
 
-    pub fn ray_color(&self, ray: Photon3, depth: u32, world: &World, debug: bool, rng: &mut StdRng) -> Color {
-        let (hit, stop_reason) = world.evolve_until_stop(ray, debug);
-        self.color_from_stop(&hit, stop_reason, depth, world, debug, rng)
-    }
-
-
     pub fn ray_color_gpu(&self, rays: Vec<Photon3>, depth: u32, world: &World, debug: bool, rng: &mut StdRng) -> Vec<Color> {
 
-        let data = world.evolve_until_stop_gpu(rays, debug);
+        let data = world.evolve_until_stop(rays, debug);
 
         data.into_iter()
             .map(|(hit, stop_reason)| self.color_from_stop(&hit, stop_reason, depth, world, debug, rng))
@@ -120,35 +99,7 @@ impl Camera {
         pos
     }
 
-    #[allow(dead_code)]
     pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
-        for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            if idx % 100 == 0 {
-                println!("pixels computed: {}", idx);
-            }
-
-            let i = idx % self.img_width as usize;
-            let j = idx / self.img_width as usize;
-
-            let mut color = Color::BLACK;
-            for _ in 0..self.samples_per_pixel {
-                let ray_direction = (self.get_pixel_position(i, j, true, rng) - self.center).as_threevector();
-
-                let ray = Photon3::new(self.center, ray_direction);
-
-                color += self.ray_color(ray, MAX_LIGHT_BOUNCES, &world, false, rng);
-            }
-
-            color /= self.samples_per_pixel as f32;
-
-            pixel[0] = color.r as u8; // R
-            pixel[1] = color.g as u8; // G
-            pixel[2] = color.b as u8; // B
-            pixel[3] = 0xff; // A
-        }
-    }
-
-    pub fn render_on_gpu(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
         let mut rays = Vec::with_capacity((self.img_width * self.img_height * self.samples_per_pixel) as usize);
 
         for j in 0..self.img_height as usize {

@@ -118,7 +118,7 @@ fn main() {
     let start = Instant::now();
     let mut rng = StdRng::seed_from_u64(RNG_SEED);
 
-    camera.render_on_gpu(buffer.as_mut_slice(), &world, &mut rng);
+    camera.render(buffer.as_mut_slice(), &world, &mut rng);
 
     let elapsed = start.elapsed();
     println!("Elapsed time: {:?}", elapsed);
