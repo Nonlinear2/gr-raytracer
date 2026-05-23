@@ -10,9 +10,8 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::graphics::camera::Camera;
+use crate::graphics::camera::{Camera, World};
 use crate::geometry::point::Point3;
-use crate::graphics::world::World;
 use crate::geometry::schwarzschild::Schwarzschild4Manifold;
 use crate::geometry::manifold::Chart::CartesianWorld;
 

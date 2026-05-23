@@ -1,4 +1,4 @@
-use crate::{geometry::photon::{Photon3}, geometry::vector::TangentSpace, graphics::world::World};
+use crate::{geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, surface::Surface, vector::TangentSpace}, graphics::{geodesic_integrator::GpuGeodesicIntegrator}};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
@@ -6,6 +6,13 @@ use crate::geometry::manifold::Chart::CartesianWorld;
 use rand::{rngs::StdRng, RngExt};
 
 const SAMPLES_PER_PIXEL: u32 = 1;
+
+pub type Objects = Vec<Box<dyn Surface>>;
+
+pub struct World {
+    pub manifold: Box<dyn PseudoRiemanian4Manifold>,
+    pub objects: Objects,
+}
 
 pub struct Camera {
     pub center: Point3,
@@ -77,14 +84,17 @@ impl Camera {
             }
         }
 
-        let colors = world.evolve_until_stop(rays);
-        
-        for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let mut color = Color::BLACK;
-            let sample_start = idx * self.samples_per_pixel as usize;
-            let sample_end = sample_start + self.samples_per_pixel as usize;
+        let integrator = GpuGeodesicIntegrator::new(world).unwrap();
+        let manifold_rays = rays.into_iter().map(|ray| world.manifold.world_photon3_to_photon4(ray)).collect();
 
-            for sample_color in &colors[sample_start..sample_end] {
+        let colors = integrator.run_kernel(manifold_rays).unwrap();
+
+        for (pixel, samples) in frame
+                .chunks_exact_mut(4)
+                .zip(colors.chunks_exact(self.samples_per_pixel as usize)) {
+
+            let mut color = Color::BLACK;
+            for sample_color in samples {
                 color += *sample_color;
             }
 

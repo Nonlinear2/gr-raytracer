@@ -6,6 +6,7 @@ use wgpu::util::DeviceExt;
 use crate::geometry::manifold::PseudoRiemanian4Manifold;
 use crate::geometry::photon::{PackedColorResult, PackedPhoton4, Photon4};
 use crate::geometry::surface::PackedGpuObject;
+use crate::graphics::camera::World;
 use crate::graphics::color::Color;
 
 const WORKGROUP_SIZE: u32 = 64;
@@ -18,9 +19,10 @@ pub struct GpuGeodesicIntegrator {
 }
 
 impl GpuGeodesicIntegrator {
-    pub fn new(manifold: &dyn PseudoRiemanian4Manifold, objects: &[PackedGpuObject]) -> Option<Self> {
-        let shader_source = Self::get_shader(manifold);
-        pollster::block_on(Self::new_async(shader_source, objects.to_vec())).ok()
+    pub fn new(world: &World) -> Option<Self> {
+        let shader_source = Self::get_shader(&*world.manifold);
+        let packed_objects: Vec<PackedGpuObject> = world.objects.iter().filter_map(|obj| obj.as_packed_gpu_object()).collect();
+        pollster::block_on(Self::new_async(shader_source, packed_objects)).ok()
     }
 
     pub fn get_shader(_manifold: &dyn PseudoRiemanian4Manifold) -> String {
@@ -139,7 +141,7 @@ impl GpuGeodesicIntegrator {
         Ok(Self { device, queue, pipeline, object_buffer })
     }
 
-    pub fn integrate(
+    pub fn run_kernel(
         &self,
         rays: Vec<Photon4>,
     ) -> Result<Vec<Color>, String> {
