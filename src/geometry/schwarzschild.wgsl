@@ -11,11 +11,15 @@ const STOP_BACKGROUND_REACHED: u32 = 1u;
 const STOP_OBJECT_HIT: u32 = 2u;
 const STOP_HORIZON_HIT: u32 = 3u;
 
+/// which global chart we use to describe points on the submanifolds of R^4 obtained by fixing the time coordinate.
+/// Important points: 
+/// These charts will designate the maps from coordinates to "manifold" and not the opposite. They are technically inverse charts
+
 // Chart
 const CHART_CARTESIAN_WORLD: u32 = 0u;
-const CHART_CARTESIAN: u32 = 1u;
-const CHART_SPHERICAL_Z: u32 = 2u;
-const CHART_SPHERICAL_X: u32 = 3u;
+const CHART_CARTESIAN: u32 = 1u; // cartesian with center point
+const CHART_SPHERICAL_Z: u32 = 2u; // spherical coordinates with center and (r: 1, theta: 0, phi: ...) pointing towards positive Z 
+const CHART_SPHERICAL_X: u32 = 3u; // spherical coordinates with center and (r: 1, theta: 0, phi: ...) pointing towards positive X 
 
 // TangentSpace
 const TANGENT_CARTESIAN_WORLD: u32 = 0u;
@@ -26,12 +30,12 @@ const TANGENT_SPHERICAL_X: u32 = 3u;
 // objects
 const OBJECT_NONE: u32 = 0u;
 const OBJECT_SPHERE: u32 = 1u;
+const OBJECT_DISC: u32 = 2u;
 
 // materials
 const MATERIAL_NONE: u32 = 0u;
 const MATERIAL_DIFFUSE: u32 = 1u;
 const MATERIAL_METAL: u32 = 2u;
-
 
 const MAX_BOUNCES: u32 = 2u;
 
@@ -124,6 +128,7 @@ struct PackedObject {
     _pad0: u32,
     _pad1: u32,
     data: vec4<f32>,
+    data1: vec4<f32>,
     material_params: vec4<f32>,
     emission_params: vec4<f32>,
 }
@@ -166,10 +171,153 @@ fn reflect(v: vec3<f32>, n: vec3<f32>) -> vec3<f32> {
 }
 
 
+struct RayTraceState {
+    ray: Photon4,
+    bounce_count: u32,
+    radiance: vec3<f32>,
+    throughput: vec3<f32>,
+    hit: u32,
+}
+
+fn new_ray_trace_state(ray: Photon4) -> RayTraceState {
+    return RayTraceState(ray, 0u, VEC3_ZERO, vec3<f32>(1.0, 1.0, 1.0), 0u);
+}
+
 // surface.wgsl
 
-fn sphere_hit(center: Point3, radius: f32, x: Point3) -> bool {
-    return length(x.inner - center.inner) <= radius;
+fn sphere_hit(object: PackedObject, hit_point: Point3) -> bool {
+    let center = Point3(object.data.xyz, CHART_CARTESIAN_WORLD);
+    return length(hit_point.inner - center.inner) <= object.data.w;
+}
+
+fn disc_hit(ray_start: vec3<f32>, ray_end: vec3<f32>, object: PackedObject) -> vec4<f32> {
+    let center = object.data.xyz;
+    let normal = normalize(object.data1.xyz);
+    let radius = object.data.w;
+
+    let segment = ray_end - ray_start;
+    let denom = dot(segment, normal);
+    let start_plane_dist = dot(center - ray_start, normal);
+    let epsilon = 1e-5;
+
+    if (abs(denom) < epsilon) {
+        if (abs(start_plane_dist) <= epsilon && length(ray_start - center) <= radius) {
+            return vec4<f32>(ray_start, 1.0);
+        }
+        return vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    }
+
+    let t = start_plane_dist / denom;
+    if (t < 0.0 || t > 1.0) {
+        return vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    }
+
+    let hit_point = ray_start + t * segment;
+    if (length(hit_point - center) <= radius) {
+        return vec4<f32>(hit_point, 1.0);
+    }
+
+    return vec4<f32>(0.0, 0.0, 0.0, 0.0);
+}
+
+fn finish_surface_bounce(
+    state: RayTraceState,
+    object: PackedObject,
+    hit_point: Point3,
+    normal: ThreeVector,
+    incoming: ThreeVector,
+    ray_index: u32,
+    step: u32,
+    obj_idx: u32,
+    new_world_pos: vec3<f32>,
+) -> RayTraceState {
+    if (state.bounce_count >= MAX_BOUNCES) {
+        return RayTraceState(
+            state.ray,
+            state.bounce_count,
+            state.radiance + state.throughput * (object.material_params.xyz + object.emission_params.xyz),
+            state.throughput,
+            2u,
+        );
+    }
+
+    let seed_base = ray_index * 73856093u + step * 19349663u + obj_idx * 83492791u + state.bounce_count * 2654435761u;
+
+    var scattered = FourVector(vec4<f32>(0.0, 0.0, 0.0, 0.0), TANGENT_CARTESIAN_WORLD);
+    if (object.material_kind == MATERIAL_METAL) {
+        scattered = metal_scatter(incoming, normal, hit_point, seed_base, object.material_params.w);
+    } else {
+        scattered = diffuse_scatter(incoming, normal, hit_point, seed_base);
+    }
+
+    if (scattered.inner.w < 0.5) {
+        return RayTraceState(
+            state.ray,
+            state.bounce_count,
+            vec3<f32>(235.0 / 255.0, 35.0 / 255.0, 35.0 / 255.0),
+            state.throughput,
+            2u,
+        );
+    }
+
+    let scattered_dir = normalize(scattered.inner.xyz);
+    let radiance = state.radiance + state.throughput * object.emission_params.xyz;
+    let throughput = state.throughput * object.material_params.xyz;
+    let bounced_world = Photon3(
+        Point3(new_world_pos, CHART_CARTESIAN_WORLD),
+        ThreeVector(scattered_dir, TANGENT_CARTESIAN_WORLD),
+    );
+
+    return RayTraceState(
+        photon3_to_photon4(bounced_world, preferred_chart_for_point(Point3(new_world_pos, CHART_CARTESIAN_WORLD))),
+        state.bounce_count + 1u,
+        radiance,
+        throughput,
+        1u,
+    );
+}
+
+fn resolve_sphere_object(
+    state: RayTraceState,
+    object: PackedObject,
+    hit_point: Point3,
+    ray_pos3: Point3,
+    ray_index: u32,
+    step: u32,
+    obj_idx: u32,
+) -> RayTraceState {
+    let center = Point3(object.data.xyz, CHART_CARTESIAN_WORLD);
+    let radius = object.data.w;
+    let rel = hit_point.inner - center.inner;
+    let normal = ThreeVector(normalize(rel), TANGENT_CARTESIAN_WORLD);
+    let incoming = ThreeVector(
+        normalize(transition_vector(ray_pos3, ThreeVector(state.ray.vel.inner.yzw, state.ray.vel.vector_space), TANGENT_CARTESIAN_WORLD).inner),
+        TANGENT_CARTESIAN_WORLD,
+    );
+    let new_world_pos = center.inner + normal.inner * (radius * 1.000001);
+
+    return finish_surface_bounce(state, object, hit_point, normal, incoming, ray_index, step, obj_idx, new_world_pos);
+}
+
+fn resolve_disc_object(
+    state: RayTraceState,
+    object: PackedObject,
+    hit_world: vec3<f32>,
+    prev_ray_pos3: Point3,
+    prev_ray: Photon4,
+    ray_index: u32,
+    step: u32,
+    obj_idx: u32,
+) -> RayTraceState {
+    let normal = ThreeVector(normalize(object.data1.xyz), TANGENT_CARTESIAN_WORLD);
+    let hit_point = Point3(hit_world, CHART_CARTESIAN_WORLD);
+    let incoming = ThreeVector(
+        normalize(transition_vector(prev_ray_pos3, ThreeVector(prev_ray.vel.inner.yzw, prev_ray.vel.vector_space), TANGENT_CARTESIAN_WORLD).inner),
+        TANGENT_CARTESIAN_WORLD,
+    );
+    let new_world_pos = hit_world + normal.inner * 0.000001;
+
+    return finish_surface_bounce(state, object, hit_point, normal, incoming, ray_index, step, obj_idx, new_world_pos);
 }
 
 fn diffuse_scatter(incoming: ThreeVector, normal: ThreeVector, x: Point3, rng_seed: u32) -> FourVector {
@@ -243,9 +391,13 @@ fn euler_step(x: Point4, k: FourVector, del_x: Point4, del_k: FourVector) -> Pho
 // schwarzschild.wgsl
 
 // CONSTS
-const SUBATLAS_CENTER: vec3<f32> = vec3<f32>(0.0, 0.0, -1.0);
+const SUBATLAS_CENTER: vec3<f32> = vec3<f32>(0.0, 0.0, -1.0);  // center is a point in world space
 const R_S: f32 = 0.25;
 const SCENE_SIZE: f32 = 3.0;
+
+
+// HasAtlas3 for Schwarzschild4Manifold
+// Atlas describing submanifolds of R^4 given by fixing the time coordinate (so this coordinate doesnt get converted).
 
 fn preferred_chart_for_point(point: Point3) -> u32 {
     let point_world = transition_point(point, CHART_CARTESIAN_WORLD);
@@ -504,6 +656,8 @@ fn transition_vector(point: Point3, v: ThreeVector, to: u32) -> ThreeVector {
     }
 }
 
+// impl PseudoRiemanian4Manifold for Schwarzschild4Manifold
+
 fn photon3_to_photon4(photon: Photon3, chart: u32) -> Photon4 {
     let pos = transition_point(photon.pos, chart);
     let vel = transition_vector(photon.pos, photon.vel, chart);
@@ -608,87 +762,65 @@ fn step_along_null_geodesic(photon: Photon4) -> Photon4 {
 }
 
 fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
-    var ray = input_ray;
-    var bounce_count: u32 = 0u;
-    var throughput = vec3<f32>(1.0, 1.0, 1.0);
-    var radiance = VEC3_ZERO;
+    var state = new_ray_trace_state(input_ray);
 
     for (var step: u32 = 0u; step < MAX_STEPS; step = step + 1u) {
-        ray = step_along_null_geodesic(ray);
-        let ray_pos3 = Point3(ray.pos.inner.yzw, ray.pos.chart);
+        let prev_ray = state.ray;
+        state.ray = step_along_null_geodesic(state.ray);
+
+        let prev_ray_pos3 = Point3(prev_ray.pos.inner.yzw, prev_ray.pos.chart);
+        let ray_pos3 = Point3(state.ray.pos.inner.yzw, state.ray.pos.chart);
+        let prev_world_pos = transition_point(prev_ray_pos3, CHART_CARTESIAN_WORLD).inner;
         let world_pos = transition_point(ray_pos3, CHART_CARTESIAN_WORLD).inner;
 
-        if (ray.pos.inner.y <= R_S) {
-            return packed_color_result(radiance);
+        if (state.ray.pos.inner.y <= R_S) { // hit singularity
+            return packed_color_result(state.radiance);
         }
 
-        if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) {
-            return packed_color_result(radiance + throughput * sky_color(world_pos));
+        if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) { // background reached 
+            return packed_color_result(state.radiance + state.throughput * sky_color(world_pos));
         }
 
         let hit_point = Point3(world_pos, CHART_CARTESIAN_WORLD);
         let preferred_chart = preferred_chart_for_point(hit_point);
-        if (preferred_chart != ray.pos.chart) {
-            let pos3 = Point3(ray.pos.inner.yzw, ray.pos.chart);
-            let vel3 = ThreeVector(ray.vel.inner.yzw, ray.vel.vector_space);
-            ray = photon3_to_photon4(Photon3(pos3, vel3), preferred_chart);
+        if (preferred_chart != state.ray.pos.chart) {
+            let pos3 = Point3(state.ray.pos.inner.yzw, state.ray.pos.chart);
+            let vel3 = ThreeVector(state.ray.vel.inner.yzw, state.ray.vel.vector_space);
+            state.ray = photon3_to_photon4(Photon3(pos3, vel3), preferred_chart);
         }
 
         for (var obj_idx: u32 = 0u; obj_idx < arrayLength(&objects.data); obj_idx = obj_idx + 1u) {
             let object = objects.data[obj_idx];
             if (object.kind == OBJECT_SPHERE) {
+                if (sphere_hit(object, hit_point)) {
+                    state = resolve_sphere_object(state, object, hit_point, ray_pos3, ray_index, step, obj_idx);
 
-                let center = Point3(object.data.xyz, CHART_CARTESIAN_WORLD);
-                let radius = object.data.w;
-                let rel = hit_point.inner - center.inner;
-
-                if sphere_hit(center, radius, hit_point) {
-                    if (bounce_count >= MAX_BOUNCES) {
-                        return packed_color_result(radiance + throughput * (object.material_params.xyz + object.emission_params.xyz));
+                    if (state.hit == 2u) {
+                        return packed_color_result(state.radiance);
                     }
 
-                    let normal = ThreeVector(normalize(rel), TANGENT_CARTESIAN_WORLD);
-                    let incoming = ThreeVector(
-                        normalize(transition_vector(ray_pos3, ThreeVector(ray.vel.inner.yzw, ray.vel.vector_space), TANGENT_CARTESIAN_WORLD).inner),
-                        TANGENT_CARTESIAN_WORLD
-                    );
-
-                    let seed_base = ray_index * 73856093u + step * 19349663u + obj_idx * 83492791u + bounce_count * 2654435761u;
-                    
-                    var scattered = FourVector(vec4<f32>(0.0, 0.0, 0.0, 0.0), TANGENT_CARTESIAN_WORLD);
-                    if (object.material_kind == MATERIAL_METAL) {
-                        scattered = metal_scatter(incoming, normal, hit_point, seed_base, object.material_params.w);
-                    } else {
-                        scattered = diffuse_scatter(incoming, normal, hit_point, seed_base);
-                    }
-
-                    if (scattered.inner.w < 0.5) { // no valid bounce
-                        return packed_color_result(vec3<f32>(235.0 / 255.0, 35.0 / 255.0, 35.0 / 255.0));
-                        // return packed_color_result(radiance + throughput * object.emission_params.xyz);
-                    }
-
-                    let scattered_dir = normalize(scattered.inner.xyz);
-
-                    radiance = radiance + throughput * object.emission_params.xyz;
-                    throughput = throughput * object.material_params.xyz;
-
-                    let new_world_pos = center.inner + normal.inner * (radius * 1.000001);
-                    let bounced_world = Photon3(
-                        Point3(new_world_pos, CHART_CARTESIAN_WORLD),
-                        ThreeVector(scattered_dir, TANGENT_CARTESIAN_WORLD),
-                    );
-
-                    let next_chart = preferred_chart_for_point(Point3(new_world_pos, CHART_CARTESIAN_WORLD));
-                    ray = photon3_to_photon4(bounced_world, next_chart);
-
-                    bounce_count = bounce_count + 1u;
+                    if (state.hit == 1u) {
                     break; // continue the outer step loop with updated ray
+                    }
+                }
+            } else if (object.kind == OBJECT_DISC) {
+                let disc_hit = disc_hit(prev_world_pos, world_pos, object);
+                if (disc_hit.w > 0.5) {
+                    state = resolve_disc_object(state, object, disc_hit.xyz, prev_ray_pos3, prev_ray, ray_index, step, obj_idx);
+
+                    if (state.hit == 2u) {
+                        return packed_color_result(state.radiance);
+                    }
+
+                    if (state.hit == 1u) {
+                    break;
+                    }
                 }
             }
         }
     }
 
-    return packed_color_result(radiance);
+    return packed_color_result(state.radiance);
 }
 
 struct Input {

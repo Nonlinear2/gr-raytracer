@@ -10,7 +10,7 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 
-use crate::{geometry::surface::{Metal, Sphere}, graphics::{camera::{Camera, World}, color::Color}};
+use crate::{geometry::{surface::{Disc, Metal, Sphere}, vector::ThreeVector}, graphics::{camera::{Camera, World}, color::Color}};
 use crate::geometry::point::Point3;
 use crate::geometry::schwarzschild::Schwarzschild4Manifold;
 use crate::geometry::manifold::Chart::CartesianWorld;
@@ -94,12 +94,22 @@ fn main() {
             //     material: Box::new( {}),
             // }),
             Box::new(Sphere {
-                center: Point3::new(0.6, 0., -0.5, CartesianWorld),
+                center: Point3::new(0.0, 0.0, 0.0, CartesianWorld),
                 radius: 0.1,
                 material: Box::new(Metal {
                     albedo: Color::new(128., 128., 128.),
                     emission: Color::new(0., 0., 0.),
                     fuzz: 0.0,
+                }),
+            }),
+            Box::new(Disc {
+                center: Point3::new(0.6, 0., -0.5, CartesianWorld),
+                normal: ThreeVector::new(0.2, 0.8, 0.0, geometry::vector::TangentSpace::CartesianWorld),
+                radius: 0.6,
+                material: Box::new(Metal {
+                    albedo: Color::new(128., 128., 128.),
+                    emission: Color::new(0., 0., 0.),
+                    fuzz: 0.7,
                 }),
             })
         ],

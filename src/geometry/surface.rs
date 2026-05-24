@@ -5,6 +5,7 @@ use crate::graphics::color::Color;
 use bytemuck::{Pod, Zeroable};
 
 pub const GPU_OBJECT_SPHERE: u32 = 1;
+pub const GPU_OBJECT_DISC: u32 = 2;
 pub const GPU_MATERIAL_DIFFUSE: u32 = 1;
 pub const GPU_MATERIAL_METAL: u32 = 2;
 
@@ -24,6 +25,7 @@ pub struct PackedGpuObject {
     pub _pad0: u32,
     pub _pad1: u32,
     pub data0: [f32; 4],
+    pub data1: [f32; 4],
     pub material_params: [f32; 4],
     pub emission_params: [f32; 4],
 }
@@ -111,6 +113,35 @@ impl Surface for Sphere {
             _pad0: 0,
             _pad1: 0,
             data0: [self.center.x(), self.center.y(), self.center.z(), self.radius],
+            data1: [0.0; 4],
+            material_params: self.material.packed_material_params(),
+            emission_params: self.material.packed_emission_params(),
+        })
+    }
+}
+
+#[allow(dead_code)]
+pub struct Disc {
+    pub center: Point3,
+    pub normal: crate::geometry::vector::ThreeVector,
+    pub radius: f32,
+    pub material: Box<dyn Material>,
+}
+
+impl Surface for Disc {
+    fn as_packed_gpu_object(&self) -> Option<PackedGpuObject> {
+        assert!(self.center.chart == Chart::CartesianWorld);
+        assert!(matches!(self.normal.vector_space, crate::geometry::vector::TangentSpace::CartesianWorld));
+
+        let normal = self.normal.normalize();
+
+        Some(PackedGpuObject {
+            kind: GPU_OBJECT_DISC,
+            material_kind: self.material.packed_material_kind(),
+            _pad0: 0,
+            _pad1: 0,
+            data0: [self.center.x(), self.center.y(), self.center.z(), self.radius],
+            data1: [normal.x(), normal.y(), normal.z(), 0.0],
             material_params: self.material.packed_material_params(),
             emission_params: self.material.packed_emission_params(),
         })

@@ -70,6 +70,7 @@ impl GeodesicIntegrator {
                 _pad0: 0,
                 _pad1: 0,
                 data0: [0.0; 4],
+                data1: [0.0; 4],
                 material_params: [0.0; 4],
                 emission_params: [0.0; 4],
             }]
