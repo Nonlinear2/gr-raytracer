@@ -51,10 +51,9 @@ fn zero_matrix() -> mat4x4<f32> {
 }
 
 fn quadratic_positive_root(a: f32, b: f32, c: f32) -> f32 {
-    let discriminant = max(b * b - 4.0 * a * c, 0.0);
-    let sqrt_discriminant = sqrt(discriminant);
+    let delta = max(b * b - 4.0 * a * c, 0.0);
     let sign_b = select(1.0, -1.0, b < 0.0);
-    let q = -0.5 * (b + sign_b * sqrt_discriminant);
+    let q = -0.5 * (b + sign_b * sqrt(delta));
     let root0 = q / a;
     let root1 = c / q;
     return max(root0, root1);
@@ -122,17 +121,6 @@ struct Photon4 {
     vel: FourVector,
 }
 
-struct PackedObject {
-    kind: u32,
-    material_kind: u32,
-    _pad0: u32,
-    _pad1: u32,
-    data: vec4<f32>,
-    data1: vec4<f32>,
-    material_params: vec4<f32>,
-    emission_params: vec4<f32>,
-}
-
 struct ColorResult {
     color: vec3<f32>,
     _pad0: f32,
@@ -185,15 +173,39 @@ fn new_ray_trace_state(ray: Photon4) -> RayTraceState {
 
 // surface.wgsl
 
+struct PackedObject {
+    kind: u32,
+    material: u32,
+    _pad0: u32,
+    _pad1: u32,
+    data0: vec4<f32>,
+    data1: vec4<f32>,
+    material_params: vec4<f32>,
+    emission_params: vec4<f32>,
+}
+
+//          |               sphere              |        disc
+// data0.x: | center.x (chart: CARTESIAN_WORLD) | center.x (chart: CARTESIAN_WORLD)
+// data0.y: | center.y (chart: CARTESIAN_WORLD) | center.y (chart: CARTESIAN_WORLD)
+// data0.z: | center.z (chart: CARTESIAN_WORLD) | center.z (chart: CARTESIAN_WORLD)
+// data0.w: | radius                            | radius
+// data1.x: | None                              | normal.x (tangent space: CARTESIAN_WORLD)
+// data1.y: | None                              | normal.y (tangent space: CARTESIAN_WORLD)
+// data1.z: | None                              | normal.z (tangent space: CARTESIAN_WORLD)
+// data1.w: | None                              | None
+
+
 fn sphere_hit(object: PackedObject, hit_point: Point3) -> bool {
-    let center = Point3(object.data.xyz, CHART_CARTESIAN_WORLD);
-    return length(hit_point.inner - center.inner) <= object.data.w;
+    let center = object.data0.xyz;
+    let radius = object.data0.w;
+    return length(hit_point.inner - center) <= radius;
 }
 
 fn disc_hit(ray_start: vec3<f32>, ray_end: vec3<f32>, object: PackedObject) -> vec4<f32> {
-    let center = object.data.xyz;
+    let center = object.data0.xyz;
+    let radius = object.data0.w;
+
     let normal = normalize(object.data1.xyz);
-    let radius = object.data.w;
 
     let segment = ray_end - ray_start;
     let denom = dot(segment, normal);
@@ -244,7 +256,7 @@ fn finish_surface_bounce(
     let seed_base = ray_index * 73856093u + step * 19349663u + obj_idx * 83492791u + state.bounce_count * 2654435761u;
 
     var scattered = FourVector(vec4<f32>(0.0, 0.0, 0.0, 0.0), TANGENT_CARTESIAN_WORLD);
-    if (object.material_kind == MATERIAL_METAL) {
+    if (object.material == MATERIAL_METAL) {
         scattered = metal_scatter(incoming, normal, hit_point, seed_base, object.material_params.w);
     } else {
         scattered = diffuse_scatter(incoming, normal, hit_point, seed_base);
@@ -286,15 +298,15 @@ fn resolve_sphere_object(
     step: u32,
     obj_idx: u32,
 ) -> RayTraceState {
-    let center = Point3(object.data.xyz, CHART_CARTESIAN_WORLD);
-    let radius = object.data.w;
-    let rel = hit_point.inner - center.inner;
+    let center = object.data0.xyz;
+    let radius = object.data0.w;
+    let rel = hit_point.inner - center;
     let normal = ThreeVector(normalize(rel), TANGENT_CARTESIAN_WORLD);
     let incoming = ThreeVector(
         normalize(transition_vector(ray_pos3, ThreeVector(state.ray.vel.inner.yzw, state.ray.vel.vector_space), TANGENT_CARTESIAN_WORLD).inner),
         TANGENT_CARTESIAN_WORLD,
     );
-    let new_world_pos = center.inner + normal.inner * (radius * 1.000001);
+    let new_world_pos = center + normal.inner * (radius * 1.000001);
 
     return finish_surface_bounce(state, object, hit_point, normal, incoming, ray_index, step, obj_idx, new_world_pos);
 }
