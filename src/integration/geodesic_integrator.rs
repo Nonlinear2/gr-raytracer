@@ -66,12 +66,11 @@ impl GeodesicIntegrator {
         let object_data = if object_count == 0 {
             vec![PackedGpuObject {
                 kind: 0,
-                material_kind: 0,
+                material: crate::geometry::surface::PackedMaterial { kind: 0, color: [0.0; 3], params: 0.0 },
                 _pad0: 0,
                 _pad1: 0,
                 data0: [0.0; 4],
                 data1: [0.0; 4],
-                material_params: [0.0; 4],
                 emission_params: [0.0; 4],
             }]
         } else {

@@ -21,13 +21,21 @@ pub trait Material {
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct PackedGpuObject {
     pub kind: u32,
-    pub material_kind: u32,
+    pub material: PackedMaterial,
     pub _pad0: u32,
     pub _pad1: u32,
     pub data0: [f32; 4],
     pub data1: [f32; 4],
-    pub material_params: [f32; 4],
     pub emission_params: [f32; 4],
+}
+
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+pub struct PackedMaterial {
+    pub kind: u32,
+    pub color: [f32; 3],
+    pub params: f32,
 }
 
 #[allow(dead_code)]
@@ -109,12 +117,19 @@ impl Surface for Sphere {
         assert!(self.center.chart == Chart::CartesianWorld);
         Some(PackedGpuObject {
             kind: GPU_OBJECT_SPHERE,
-            material_kind: self.material.packed_material_kind(),
+            material: PackedMaterial {
+                kind: self.material.packed_material_kind(),
+                color: [
+                    self.material.packed_material_params()[0],
+                    self.material.packed_material_params()[1],
+                    self.material.packed_material_params()[2],
+                ],
+                params: self.material.packed_material_params()[3],
+            },
             _pad0: 0,
             _pad1: 0,
             data0: [self.center.x(), self.center.y(), self.center.z(), self.radius],
             data1: [0.0; 4],
-            material_params: self.material.packed_material_params(),
             emission_params: self.material.packed_emission_params(),
         })
     }
@@ -137,12 +152,19 @@ impl Surface for Disc {
 
         Some(PackedGpuObject {
             kind: GPU_OBJECT_DISC,
-            material_kind: self.material.packed_material_kind(),
+            material: PackedMaterial {
+                kind: self.material.packed_material_kind(),
+                color: [
+                    self.material.packed_material_params()[0],
+                    self.material.packed_material_params()[1],
+                    self.material.packed_material_params()[2],
+                ],
+                params: self.material.packed_material_params()[3],
+            },
             _pad0: 0,
             _pad1: 0,
             data0: [self.center.x(), self.center.y(), self.center.z(), self.radius],
             data1: [normal.x(), normal.y(), normal.z(), 0.0],
-            material_params: self.material.packed_material_params(),
             emission_params: self.material.packed_emission_params(),
         })
     }
