@@ -1,25 +1,19 @@
 use crate::geometry::manifold::Chart;
 use crate::geometry::point::Point3;
-use crate::geometry::vector::{TangentSpace, ThreeVector, random_on_sphere};
 use crate::graphics::color::Color;
 
 use bytemuck::{Pod, Zeroable};
-use rand::rngs::StdRng;
 
 pub const GPU_OBJECT_SPHERE: u32 = 1;
 pub const GPU_MATERIAL_DIFFUSE: u32 = 1;
 pub const GPU_MATERIAL_METAL: u32 = 2;
 
 pub trait Material {
-    fn emission(&self) -> Color {
-        Color::BLACK
-    }
+    fn packed_material_kind(&self) -> u32;
 
-    fn gpu_material_kind(&self) -> u32;
+    fn packed_material_params(&self) -> [f32; 4];
 
-    fn gpu_material_params(&self) -> [f32; 4];
-
-    fn gpu_emission_params(&self) -> [f32; 4];
+    fn packed_emission_params(&self) -> [f32; 4];
 }
 
 #[repr(C)]
@@ -41,15 +35,12 @@ pub struct Diffuse {
 }
 
 impl Material for Diffuse {
-    fn emission(&self) -> Color {
-        self.emission
-    }
 
-    fn gpu_material_kind(&self) -> u32 {
+    fn packed_material_kind(&self) -> u32 {
         GPU_MATERIAL_DIFFUSE
     }
 
-    fn gpu_material_params(&self) -> [f32; 4] {
+    fn packed_material_params(&self) -> [f32; 4] {
         [
             self.albedo.r / 255.0,
             self.albedo.g / 255.0,
@@ -58,7 +49,7 @@ impl Material for Diffuse {
         ]
     }
 
-    fn gpu_emission_params(&self) -> [f32; 4] {
+    fn packed_emission_params(&self) -> [f32; 4] {
         [
             self.emission.r / 255.0,
             self.emission.g / 255.0,
@@ -76,15 +67,12 @@ pub struct Metal {
 }
 
 impl Material for Metal {
-    fn emission(&self) -> Color {
-        self.emission
-    }
 
-    fn gpu_material_kind(&self) -> u32 {
+    fn packed_material_kind(&self) -> u32 {
         GPU_MATERIAL_METAL
     }
 
-    fn gpu_material_params(&self) -> [f32; 4] {
+    fn packed_material_params(&self) -> [f32; 4] {
         [
             self.albedo.r / 255.0,
             self.albedo.g / 255.0,
@@ -93,7 +81,7 @@ impl Material for Metal {
         ]
     }
 
-    fn gpu_emission_params(&self) -> [f32; 4] {
+    fn packed_emission_params(&self) -> [f32; 4] {
         [
             self.emission.r / 255.0,
             self.emission.g / 255.0,
@@ -119,12 +107,12 @@ impl Surface for Sphere {
         assert!(self.center.chart == Chart::CartesianWorld);
         Some(PackedGpuObject {
             kind: GPU_OBJECT_SPHERE,
-            material_kind: self.material.gpu_material_kind(),
+            material_kind: self.material.packed_material_kind(),
             _pad0: 0,
             _pad1: 0,
             data0: [self.center.x(), self.center.y(), self.center.z(), self.radius],
-            material_params: self.material.gpu_material_params(),
-            emission_params: self.material.gpu_emission_params(),
+            material_params: self.material.packed_material_params(),
+            emission_params: self.material.packed_emission_params(),
         })
     }
 }
