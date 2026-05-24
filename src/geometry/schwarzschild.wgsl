@@ -167,28 +167,36 @@ struct RayTraceState {
     bounce_count: u32,
     radiance: vec3<f32>,
     throughput: vec3<f32>,
-    stop: u32,
 }
 
 fn new_ray_trace_state(ray: Photon4) -> RayTraceState {
-    return RayTraceState(ray, 0u, VEC3_ZERO, vec3<f32>(1.0, 1.0, 1.0), 1);
+    return RayTraceState(ray, 0u, VEC3_ZERO, vec3<f32>(1.0, 1.0, 1.0));
 }
 
 const RAY_TRACE_STATE_ZERO = RayTraceState(
     Photon4(Point4(VEC4_ZERO, CHART_CARTESIAN_WORLD), FourVector(VEC4_ZERO, TANGENT_CARTESIAN_WORLD)), 
-    0u, VEC3_ZERO, vec3<f32>(1.0, 1.0, 1.0), 1
+    0u, VEC3_ZERO, vec3<f32>(1.0, 1.0, 1.0)
 );
 
 // surface.wgsl
 
+struct Material {
+    kind: u32,
+    color: vec3<f32>,
+    params: f32,
+}
+
+//          |               Diffuse              |        Metal
+// params:  | None                               | fuzz
+
+
 struct PackedObject {
     kind: u32,
-    material: u32,
+    material: Material,
     _pad0: u32,
     _pad1: u32,
     data0: vec4<f32>,
     data1: vec4<f32>,
-    material_params: vec4<f32>,
     emission_params: vec4<f32>,
 }
 
@@ -287,14 +295,14 @@ fn disc_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>, manif
 }
 
 fn material_scatter(
-    material: u32,
+    material: Material,
     hit_data: HitData,
     rng_seed: u32
 ) -> vec4<f32> {
 
-    switch material {
+    switch material.kind {
         case MATERIAL_DIFFUSE: { return diffuse_scatter(hit_data, rng_seed); }
-        case MATERIAL_METAL: { return metal_scatter(hit_data, rng_seed, ); }
+        case MATERIAL_METAL: { return metal_scatter(hit_data, rng_seed, material.params); }
         default: { return VEC4_ZERO; }
     }
 }
@@ -781,20 +789,36 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
 
             let hit_data = object_hit(object, prev_world_pos, world_pos, ray_vel3);
 
-            if (hit_data.is_hit == 1) {
-                if (state.bounce_count >= MAX_BOUNCES) {
-                    return packed_color_result(state.radiance);
-                }
-
-                let rng_seed = ray_index * 73856093u + step * 19349663u 
-                    + obj_idx * 83492791u + state.bounce_count * 2654435761u;
-
-                state = material_scatter();
-
-                if (state.stop == 1) {
-                    break; // continue the outer step loop with updated ray
-                }
+            if (hit_data.is_hit == 0) {
+                continue;
             }
+
+            if (state.bounce_count >= MAX_BOUNCES) {
+                return packed_color_result(state.radiance);
+            }
+
+            let rng_seed = ray_index * 73856093u + step * 19349663u 
+                + obj_idx * 83492791u + state.bounce_count * 2654435761u;
+
+            let scatter_data = material_scatter(object.material, hit_data, rng_seed);
+
+            if (scatter_data.w < 0.5){
+                ///
+                break; // continue the outer step loop with updated ray
+            }
+            
+            let new_photon = Photon3(
+                Point3(hit_data.hit_point, CHART_CARTESIAN_WORLD),
+                ThreeVector(scatter_data.xyz, TANGENT_CARTESIAN_WORLD)
+            );
+
+
+            state = RayTraceState(
+                photon3_to_photon4(new_photon, preferred_chart_for_point(hit_data.hit_point)),
+                state.bounce_count + 1u,
+                state.radiance + state.throughput * object.emission_params.xyz,
+                state.throughput * object.material.color,
+            );
         }
     }
 
