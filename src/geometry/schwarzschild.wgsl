@@ -790,6 +790,11 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
                 continue;
             }
 
+            // // DEBUG: return magenta for sphere hits so we can detect them uniquely
+            // if (object.kind == OBJECT_DISC) {
+            //     return packed_color_result(vec3<f32>(1.0, 0.0, 1.0));
+            // }
+
             if (state.bounce_count >= MAX_BOUNCES) {
                 return packed_color_result(state.radiance);
             }
@@ -799,21 +804,24 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
 
             let scatter_data = material_scatter(object.material, hit_data, rng_seed);
 
-            if (scatter_data.w < 0.5){
-                break; // continue the outer step loop with updated ray
+            // update state
+            state.radiance += state.throughput * object.emission_params.xyz;
+            state.throughput *= object.material.color;
+
+            if (scatter_data.w < 0.5){ // no bounce
+                return packed_color_result(state.radiance);
             }
-            
+
             let new_photon = Photon3(
                 Point3(hit_data.hit_point, CHART_CARTESIAN_WORLD),
                 ThreeVector(scatter_data.xyz, TANGENT_CARTESIAN_WORLD)
             );
 
-
             state = RayTraceState(
                 photon3_to_photon4(new_photon, preferred_chart_for_point(hit_data.hit_point)),
                 state.bounce_count + 1u,
-                state.radiance + state.throughput * object.emission_params.xyz,
-                state.throughput * object.material.color,
+                state.radiance,
+                state.throughput,
             );
         }
     }

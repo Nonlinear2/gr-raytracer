@@ -88,7 +88,7 @@ fn main() {
             //     center: Point3::new_cartesian(0., 0., -1.),
             //     radius: 0.27,
             //     // material: Box::new(Diffuse {
-            //     //     albedo: Color { x: 128., y: 0., z: 0. },
+            //     //     color: Color { x: 128., y: 0., z: 0. },
             //     //     emission: Vec3 { x: 0., y: 0., z: 0. },
             //     // }),
             //     material: Box::new( {}),
@@ -97,21 +97,21 @@ fn main() {
                 center: Point3::new(0.6, 0., -0.5, CartesianWorld),
                 radius: 0.1,
                 material: Box::new(Metal {
-                    albedo: Color::new(128., 128., 128.),
+                    color: Color::new(128., 128., 128.),
                     emission: Color::new(0., 0., 0.),
                     fuzz: 0.0,
                 }),
             }),
-            // Box::new(Disc {
-            //     center: Point3::new(0.6, 0., -0.5, CartesianWorld),
-            //     normal: ThreeVector::new(0.2, 0.8, 0.0, geometry::vector::TangentSpace::CartesianWorld),
-            //     radius: 0.6,
-            //     material: Box::new(Metal {
-            //         albedo: Color::new(128., 128., 128.),
-            //         emission: Color::new(0., 0., 0.),
-            //         fuzz: 0.7,
-            //     }),
-            // })
+            Box::new(Disc {
+                center: Point3::new(0.0, 0.0, -1.0, CartesianWorld),
+                normal: ThreeVector::new(0.2, 0.8, 0.3, geometry::vector::TangentSpace::CartesianWorld),
+                radius: 0.6,
+                material: Box::new(Metal {
+                    color: Color::new(128., 128., 128.),
+                    emission: Color::new(237.0, 193.0, 154.0),
+                    fuzz: 0.0,
+                }),
+            })
         ],
     };
 

@@ -42,7 +42,7 @@ pub struct PackedMaterial {
 
 #[allow(dead_code)]
 pub struct Diffuse {
-    pub albedo: Color,
+    pub color: Color,
     pub emission: Color,
 }
 
@@ -54,9 +54,9 @@ impl Material for Diffuse {
 
     fn packed_material_params(&self) -> [f32; 4] {
         [
-            self.albedo.r / 255.0,
-            self.albedo.g / 255.0,
-            self.albedo.b / 255.0,
+            self.color.r / 255.0,
+            self.color.g / 255.0,
+            self.color.b / 255.0,
             0.0,
         ]
     }
@@ -73,7 +73,7 @@ impl Material for Diffuse {
 
 #[allow(dead_code)]
 pub struct Metal {
-    pub albedo: Color,
+    pub color: Color,
     pub emission: Color,
     pub fuzz: f32,
 }
@@ -86,9 +86,9 @@ impl Material for Metal {
 
     fn packed_material_params(&self) -> [f32; 4] {
         [
-            self.albedo.r / 255.0,
-            self.albedo.g / 255.0,
-            self.albedo.b / 255.0,
+            self.color.r / 255.0,
+            self.color.g / 255.0,
+            self.color.b / 255.0,
             self.fuzz,
         ]
     }
