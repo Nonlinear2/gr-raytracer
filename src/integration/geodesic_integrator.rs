@@ -5,7 +5,7 @@ use wgpu::util::DeviceExt;
 
 use crate::geometry::manifold::PseudoRiemanian4Manifold;
 use crate::geometry::photon::{PackedPhoton4, Photon4};
-use crate::geometry::surface::PackedGpuObject;
+use crate::geometry::surface::PackedObject;
 use crate::graphics::camera::World;
 use crate::graphics::color::{Color, PackedColorResult};
 
@@ -21,7 +21,7 @@ pub struct GeodesicIntegrator {
 impl GeodesicIntegrator {
     pub fn new(world: &World) -> Option<Self> {
         let shader_source = Self::get_shader(&*world.manifold);
-        let packed_objects: Vec<PackedGpuObject> = world.objects.iter().filter_map(|obj| obj.as_packed_gpu_object()).collect();
+        let packed_objects: Vec<PackedObject> = world.objects.iter().filter_map(|obj| obj.as_packed_object()).collect();
         pollster::block_on(Self::new_async(shader_source, packed_objects)).ok()
     }
 
@@ -38,7 +38,7 @@ impl GeodesicIntegrator {
         include_str!("../geometry/schwarzschild.wgsl").to_string()
     }
 
-    async fn new_async(shader_source: String, packed_objects: Vec<PackedGpuObject>) -> Result<Self, String> {
+    async fn new_async(shader_source: String, packed_objects: Vec<PackedObject>) -> Result<Self, String> {
 
         let adapter = wgpu::Instance::default()
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -64,7 +64,7 @@ impl GeodesicIntegrator {
 
         let object_count = packed_objects.len() as u32;
         let object_data = if object_count == 0 {
-            vec![PackedGpuObject {
+            vec![PackedObject {
                 kind: 0,
                 _pad0: [0u32;3],
                 material: crate::geometry::surface::PackedMaterial { kind: 0, _pad0: [0u32;3], color: [0.0,0.0,0.0], params: 0.0, _pad1: [0u32;4] },

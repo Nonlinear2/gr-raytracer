@@ -1,13 +1,13 @@
-use crate::{geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, surface::Surface, vector::TangentSpace}, integration::{geodesic_integrator::GeodesicIntegrator}};
+use crate::{geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, surface::Object, vector::TangentSpace}, integration::{geodesic_integrator::GeodesicIntegrator}};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
 
 use rand::{rngs::StdRng, RngExt};
 
-const SAMPLES_PER_PIXEL: u32 = 1;
+const SAMPLES_PER_PIXEL: u32 = 2;
 
-pub type Objects = Vec<Box<dyn Surface>>;
+pub type Objects = Vec<Box<dyn Object>>;
 
 pub struct World {
     pub manifold: Box<dyn PseudoRiemanian4Manifold>,

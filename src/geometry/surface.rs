@@ -19,19 +19,6 @@ pub trait Material {
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-pub struct PackedGpuObject {
-    pub kind: u32,
-    pub _pad0: [u32; 3],
-    pub material: PackedMaterial,
-    pub _pad1: [u32; 4],
-    pub data0: [f32; 4],
-    pub data1: [f32; 4],
-    pub emission_params: [f32; 4],
-}
-
-
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
 pub struct PackedMaterial {
     pub kind: u32,
     pub _pad0: [u32; 3],
@@ -103,8 +90,20 @@ impl Material for Metal {
     }
 }
 
-pub trait Surface {
-    fn as_packed_gpu_object(&self) -> Option<PackedGpuObject>;
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+pub struct PackedObject {
+    pub kind: u32,
+    pub _pad0: [u32; 3],
+    pub material: PackedMaterial,
+    pub _pad1: [u32; 4],
+    pub data0: [f32; 4],
+    pub data1: [f32; 4],
+    pub emission_params: [f32; 4],
+}
+
+pub trait Object {
+    fn as_packed_object(&self) -> Option<PackedObject>;
 }
 
 #[allow(dead_code)]
@@ -114,10 +113,10 @@ pub struct Sphere {
     pub material: Box<dyn Material>,
 }
 
-impl Surface for Sphere {
-    fn as_packed_gpu_object(&self) -> Option<PackedGpuObject> {
+impl Object for Sphere {
+    fn as_packed_object(&self) -> Option<PackedObject> {
         assert!(self.center.chart == Chart::CartesianWorld);
-        Some(PackedGpuObject {
+        Some(PackedObject {
             kind: GPU_OBJECT_SPHERE,
             _pad0: [0u32; 3],
             material: PackedMaterial {
@@ -147,14 +146,14 @@ pub struct Disc {
     pub material: Box<dyn Material>,
 }
 
-impl Surface for Disc {
-    fn as_packed_gpu_object(&self) -> Option<PackedGpuObject> {
+impl Object for Disc {
+    fn as_packed_object(&self) -> Option<PackedObject> {
         assert!(self.center.chart == Chart::CartesianWorld);
         assert!(matches!(self.normal.vector_space, crate::geometry::vector::TangentSpace::CartesianWorld));
 
         let normal = self.normal.normalize();
 
-        Some(PackedGpuObject {
+        Some(PackedObject {
             kind: GPU_OBJECT_DISC,
             _pad0: [0u32; 3],
             material: PackedMaterial {
