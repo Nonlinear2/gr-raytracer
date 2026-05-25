@@ -222,10 +222,10 @@ struct HitData {
 const NO_HIT = HitData(0, VEC3_ZERO, VEC3_ZERO, VEC3_ZERO);
 
 // manifold vel is in any chart
-fn object_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>, manifold_vel: ThreeVector) -> HitData {
+fn object_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>) -> HitData {
     switch object.kind {
-        case OBJECT_SPHERE: { return sphere_hit(object, new_pos, manifold_vel); }
-        case OBJECT_DISC: { return disc_hit(object, prev_pos, new_pos, manifold_vel); }
+        case OBJECT_SPHERE: { return sphere_hit(object, prev_pos, new_pos); }
+        case OBJECT_DISC: { return disc_hit(object, prev_pos, new_pos); }
         default: { return NO_HIT; }
     }
 }
@@ -233,23 +233,21 @@ fn object_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>, man
 // manifold vel is in any chart
 // pos is in CARTESIAN_WORLD chart
 // returns: hit_pos, is_hit
-fn sphere_hit(object: PackedObject, pos: vec3<f32>, manifold_vel: ThreeVector) -> HitData {
+fn sphere_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>) -> HitData {
     let center = object.data0.xyz;
     let radius = object.data0.w;
 
-    let relative_pos = pos - center;
-    let normal = normalize(relative_pos);
+    let normal = normalize(new_pos - center);
     let hit_point = center + normal * (radius * (1.0 + EPS)); //avoid precision errors
 
-    if (length(pos - center) > radius) { // no hit
+    if (length(new_pos - center) > radius) { // no hit
         return NO_HIT;
     }
 
     return HitData(
         1,
         hit_point,
-        transition_vector(Point3(pos, CHART_CARTESIAN_WORLD), manifold_vel, TANGENT_CARTESIAN_WORLD
-        ).inner,
+        normalize(new_pos - prev_pos),
         normal
     );
 }
@@ -257,7 +255,7 @@ fn sphere_hit(object: PackedObject, pos: vec3<f32>, manifold_vel: ThreeVector) -
 // manifold vel is in any chart
 // prev_pos and new_pos are in CARTESIAN_WORLD chart
 // returns: hit_pos, is_hit
-fn disc_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>, manifold_vel: ThreeVector) -> HitData {
+fn disc_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>) -> HitData {
     let center = object.data0.xyz;
     let radius = object.data0.w;
 
@@ -290,7 +288,7 @@ fn disc_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>, manif
     return HitData(
         1,
         hit_point + EPS * directed_normal,
-        transition_vector(Point3(new_pos, CHART_CARTESIAN_WORLD), manifold_vel, TANGENT_CARTESIAN_WORLD).inner,
+        normalize(new_pos - prev_pos),
         directed_normal
     );
 }
@@ -770,8 +768,6 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
         let ray_pos3 = Point3(state.ray.pos.inner.yzw, state.ray.pos.chart);
         let world_pos = transition_point(ray_pos3, CHART_CARTESIAN_WORLD).inner;
 
-        let ray_vel3 = ThreeVector(state.ray.vel.inner.yzw, state.ray.vel.vector_space);
-
         if (state.ray.pos.inner.y <= R_S) { // hit singularity
             return packed_color_result(state.radiance);
         }
@@ -788,7 +784,7 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
         for (var obj_idx: u32 = 0u; obj_idx < arrayLength(&objects.data); obj_idx = obj_idx + 1u) {
             let object = objects.data[obj_idx];
 
-            let hit_data = object_hit(object, prev_world_pos, world_pos, ray_vel3);
+            let hit_data = object_hit(object, prev_world_pos, world_pos);
 
             if (hit_data.is_hit == 0) {
                 continue;
