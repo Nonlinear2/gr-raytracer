@@ -21,9 +21,9 @@ pub trait Material {
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct PackedGpuObject {
     pub kind: u32,
+    pub _pad0: [u32; 3],
     pub material: PackedMaterial,
-    pub _pad0: u32,
-    pub _pad1: u32,
+    pub _pad1: [u32; 4],
     pub data0: [f32; 4],
     pub data1: [f32; 4],
     pub emission_params: [f32; 4],
@@ -34,8 +34,10 @@ pub struct PackedGpuObject {
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct PackedMaterial {
     pub kind: u32,
+    pub _pad0: [u32; 3],
     pub color: [f32; 3],
     pub params: f32,
+    pub _pad1: [u32; 4],
 }
 
 #[allow(dead_code)]
@@ -117,17 +119,19 @@ impl Surface for Sphere {
         assert!(self.center.chart == Chart::CartesianWorld);
         Some(PackedGpuObject {
             kind: GPU_OBJECT_SPHERE,
+            _pad0: [0u32; 3],
             material: PackedMaterial {
                 kind: self.material.packed_material_kind(),
+                _pad0: [0u32; 3],
                 color: [
                     self.material.packed_material_params()[0],
                     self.material.packed_material_params()[1],
                     self.material.packed_material_params()[2],
                 ],
                 params: self.material.packed_material_params()[3],
+                _pad1: [0u32; 4],
             },
-            _pad0: 0,
-            _pad1: 0,
+            _pad1: [0u32; 4],
             data0: [self.center.x(), self.center.y(), self.center.z(), self.radius],
             data1: [0.0; 4],
             emission_params: self.material.packed_emission_params(),
@@ -152,17 +156,19 @@ impl Surface for Disc {
 
         Some(PackedGpuObject {
             kind: GPU_OBJECT_DISC,
+            _pad0: [0u32; 3],
             material: PackedMaterial {
                 kind: self.material.packed_material_kind(),
+                _pad0: [0u32; 3],
                 color: [
                     self.material.packed_material_params()[0],
                     self.material.packed_material_params()[1],
                     self.material.packed_material_params()[2],
                 ],
                 params: self.material.packed_material_params()[3],
+                _pad1: [0u32; 4],
             },
-            _pad0: 0,
-            _pad1: 0,
+            _pad1: [0u32; 4],
             data0: [self.center.x(), self.center.y(), self.center.z(), self.radius],
             data1: [normal.x(), normal.y(), normal.z(), 0.0],
             emission_params: self.material.packed_emission_params(),

@@ -94,7 +94,7 @@ fn main() {
             //     material: Box::new( {}),
             // }),
             Box::new(Sphere {
-                center: Point3::new(0.0, 0.0, 0.0, CartesianWorld),
+                center: Point3::new(0.6, 0., -0.5, CartesianWorld),
                 radius: 0.1,
                 material: Box::new(Metal {
                     albedo: Color::new(128., 128., 128.),
@@ -102,16 +102,16 @@ fn main() {
                     fuzz: 0.0,
                 }),
             }),
-            Box::new(Disc {
-                center: Point3::new(0.6, 0., -0.5, CartesianWorld),
-                normal: ThreeVector::new(0.2, 0.8, 0.0, geometry::vector::TangentSpace::CartesianWorld),
-                radius: 0.6,
-                material: Box::new(Metal {
-                    albedo: Color::new(128., 128., 128.),
-                    emission: Color::new(0., 0., 0.),
-                    fuzz: 0.7,
-                }),
-            })
+            // Box::new(Disc {
+            //     center: Point3::new(0.6, 0., -0.5, CartesianWorld),
+            //     normal: ThreeVector::new(0.2, 0.8, 0.0, geometry::vector::TangentSpace::CartesianWorld),
+            //     radius: 0.6,
+            //     material: Box::new(Metal {
+            //         albedo: Color::new(128., 128., 128.),
+            //         emission: Color::new(0., 0., 0.),
+            //         fuzz: 0.7,
+            //     }),
+            // })
         ],
     };
 

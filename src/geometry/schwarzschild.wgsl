@@ -182,8 +182,10 @@ const RAY_TRACE_STATE_ZERO = RayTraceState(
 
 struct Material {
     kind: u32,
+    _pad0: array<u32, 3>,
     color: vec3<f32>,
     params: f32,
+    _pad1: array<u32, 4>,
 }
 
 //          |               Diffuse              |        Metal
@@ -193,8 +195,7 @@ struct Material {
 struct PackedObject {
     kind: u32,
     material: Material,
-    _pad0: u32,
-    _pad1: u32,
+    _pad0: array<u32, 3>,
     data0: vec4<f32>,
     data1: vec4<f32>,
     emission_params: vec4<f32>,
@@ -238,7 +239,7 @@ fn sphere_hit(object: PackedObject, pos: vec3<f32>, manifold_vel: ThreeVector) -
 
     let relative_pos = pos - center;
     let normal = normalize(relative_pos);
-    let hit_point = center + normal * (radius * (1+EPS)); //avoid precision errors
+    let hit_point = center + normal * (radius * (1.0 + EPS)); //avoid precision errors
 
     if (length(pos - center) > radius) { // no hit
         return NO_HIT;
@@ -803,7 +804,6 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
             let scatter_data = material_scatter(object.material, hit_data, rng_seed);
 
             if (scatter_data.w < 0.5){
-                ///
                 break; // continue the outer step loop with updated ray
             }
             
