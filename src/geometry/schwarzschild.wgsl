@@ -337,24 +337,11 @@ fn metal_scatter(hit_data: HitData, rng_seed: u32, fuzz: f32) -> vec4<f32> {
 
 // euler.wgsl
 
-fn euler_step(photon: Photon4) -> Photon4 {
-    let derivative = geodesic_derivative(photon);
-    let pos = photon.pos;
-    let vel = photon.vel;
-    let del_pos = derivative.d_pos;
-    let del_vel = derivative.d_vel;
+fn wrap_photon(pos: Point4, vel: FourVector) -> Photon4 {
+    var new_pos = pos;
+    var new_vel = vel;
 
-    var new_pos = Point4(
-        pos.inner + EULER_STEP_SIZE * del_pos.inner,
-        pos.chart
-    );
-
-    var new_vel = FourVector(
-        vel.inner + EULER_STEP_SIZE * del_vel.inner,
-        vel.vector_space
-    );
-
-    if (photon.pos.chart == CHART_SPHERICAL_X || photon.pos.chart == CHART_SPHERICAL_Z) {
+    if (pos.chart == CHART_SPHERICAL_X || pos.chart == CHART_SPHERICAL_Z) {
         var theta = new_pos.inner.z;
         var phi = new_pos.inner.w;
         var k_theta = new_vel.inner.z;
@@ -381,6 +368,24 @@ fn euler_step(photon: Photon4) -> Photon4 {
     return Photon4(new_pos, new_vel);
 }
 
+fn euler_step(photon: Photon4) -> Photon4 {
+    let derivative = geodesic_derivative(photon);
+    let pos = photon.pos;
+    let vel = photon.vel;
+
+    var new_pos = Point4(
+        pos.inner + EULER_STEP_SIZE * derivative.d_pos.inner,
+        pos.chart
+    );
+
+    var new_vel = FourVector(
+        vel.inner + EULER_STEP_SIZE * derivative.d_vel.inner,
+        vel.vector_space
+    );
+
+    return wrap_photon(new_pos, new_vel);
+}
+
 // runge_kutta.wgsl
 
 fn rk4_step(photon: Photon4) -> Photon4 {
@@ -392,56 +397,35 @@ fn rk4_step(photon: Photon4) -> Photon4 {
 
     let pos = photon.pos;
     let vel = photon.vel;
+    let h   = RK4_STEP_SIZE;
 
     let k1 = geodesic_derivative(photon);
-    let k2 = geodesic_derivative(Photon4(
-            Point4(pos.inner + k1.d_pos.inner*RK4_STEP_SIZE/2.0, pos.chart),
-        FourVector(vel.inner + k1.d_vel.inner*RK4_STEP_SIZE/2.0, vel.vector_space),
-    ));
-    let k3 = geodesic_derivative(Photon4(
-            Point4(photon.pos.inner + k2.d_pos.inner*RK4_STEP_SIZE/2.0, photon.pos.chart),
-        FourVector(photon.vel.inner + k2.d_vel.inner*RK4_STEP_SIZE/2.0, photon.vel.vector_space),
-    ));
-    let k4 = geodesic_derivative(Photon4(
-            Point4(photon.pos.inner + k3.d_pos.inner*RK4_STEP_SIZE, photon.pos.chart),
-        FourVector(photon.vel.inner + k3.d_vel.inner*RK4_STEP_SIZE, photon.vel.vector_space),
+
+    let k2 = geodesic_derivative(wrap_photon(
+        Point4(pos.inner + k1.d_pos.inner * h/2.0, pos.chart),
+        FourVector(vel.inner + k1.d_vel.inner * h/2.0, vel.vector_space)
     ));
 
-    var new_pos = Point4(
-        pos.inner + RK4_STEP_SIZE * (k1.d_pos.inner + 2*k2.d_pos.inner + 2*k3.d_pos.inner + k4.d_pos.inner) / 6,
+    let k3 = geodesic_derivative(wrap_photon(
+        Point4(pos.inner + k2.d_pos.inner * h/2.0, pos.chart),
+        FourVector(vel.inner + k2.d_vel.inner * h/2.0, vel.vector_space)
+    ));
+
+    let k4 = geodesic_derivative(wrap_photon(
+        Point4(pos.inner + k3.d_pos.inner * h, pos.chart),
+        FourVector(vel.inner + k3.d_vel.inner * h, vel.vector_space)
+    ));
+
+    let new_pos = Point4(
+        pos.inner + h * (k1.d_pos.inner + 2.0*k2.d_pos.inner + 2.0*k3.d_pos.inner + k4.d_pos.inner) / 6.0,
         pos.chart
     );
-
-    var new_vel = FourVector(
-        vel.inner + RK4_STEP_SIZE * (k1.d_vel.inner + 2*k2.d_vel.inner + 2*k3.d_vel.inner + k4.d_vel.inner) / 6,
+    let new_vel = FourVector(
+        vel.inner + h * (k1.d_vel.inner + 2.0*k2.d_vel.inner + 2.0*k3.d_vel.inner + k4.d_vel.inner) / 6.0,
         vel.vector_space
     );
 
-    if (photon.pos.chart == CHART_SPHERICAL_X || photon.pos.chart == CHART_SPHERICAL_Z) {
-        var theta = new_pos.inner.z;
-        var phi = new_pos.inner.w;
-        var k_theta = new_vel.inner.z;
-
-        // a negative radius should never be reached.
-
-        if (theta < 0.0) {
-            theta = -theta;
-            k_theta = -k_theta;
-            phi = phi + PI;
-        }
-
-        if (theta > PI) {
-            theta = TAU - theta;
-            k_theta = -k_theta;
-            phi = phi + PI;
-        }
-
-        new_pos.inner.z = clamp(theta, 0.0, PI);
-        new_pos.inner.w = phi - TAU * floor(phi / TAU); // mod tau
-        new_vel.inner.z = k_theta;
-    }
-
-    return Photon4(new_pos, new_vel);
+    return wrap_photon(new_pos, new_vel);
 }
 
 // schwarzschild.wgsl
@@ -823,7 +807,7 @@ fn geodesic_derivative(photon: Photon4) -> PhotonDerivative {
 }
 
 fn step_along_null_geodesic(photon: Photon4) -> Photon4 {
-    return rk4_step(photon);
+    return euler_step(photon);
 }
 
 fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
