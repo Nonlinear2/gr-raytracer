@@ -1,4 +1,4 @@
-use crate::{geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, surface::Object, vector::TangentSpace}, integration::{geodesic_integrator::GeodesicIntegrator}};
+use crate::{MAX_INTEGRATION_STEPS, geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, surface::Object, vector::TangentSpace}, integration::geodesic_integrator::GeodesicIntegrator};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
@@ -73,7 +73,7 @@ impl Camera {
     }
 
     pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
-        let integrator = GeodesicIntegrator::new(world).unwrap();
+        let integrator = GeodesicIntegrator::new(world, MAX_INTEGRATION_STEPS, true).unwrap();
 
         let mut rays = Vec::with_capacity((self.img_width * self.img_height * self.samples_per_pixel) as usize);
 
@@ -86,9 +86,17 @@ impl Camera {
             }
         }
 
-        let manifold_rays = rays.into_iter().map(|ray| world.manifold.world_photon3_to_photon4(ray)).collect();
+        let manifold_rays: Vec<_> = rays.into_iter().map(|ray| world.manifold.world_photon3_to_photon4(ray)).collect();
+        let trace_ray = manifold_rays.get(148700).copied();
 
         let colors = integrator.run_kernel(manifold_rays);
+
+        if let Some(ray) = trace_ray {
+            let path = integrator.trace_ray_path(ray);
+            for position in path.iter() {
+                println!("{:.6}, {:.6}, {:.6}", position[0], position[1], position[2]);
+            }
+        }
 
         for (pixel, samples) in frame
                 .chunks_exact_mut(4)

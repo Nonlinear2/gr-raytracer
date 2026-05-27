@@ -5,7 +5,9 @@ const RK4_STEP_SIZE: f32 = 0.005;
 
 const PI: f32 = 3.141592653589793;
 const TAU: f32 = 6.283185307179586;
-const MAX_STEPS: u32 = 1000u;
+
+const MAX_STEPS: u32 = 1u; // filled by get_shader
+const DEBUG_RAY_TRAJECTORY: u32 = 0u; // filled by get_shader
 
 const EPS: f32 = 10e-10;
 
@@ -138,6 +140,15 @@ struct ColorResult {
 
 fn packed_color_result(color: vec3<f32>) -> ColorResult {
     return ColorResult(color, 0.0);
+}
+
+struct TracePos {
+    pos: vec3<f32>,
+    fill_flag: f32,
+}
+
+struct TraceResult {
+    positions: array<TracePos, MAX_STEPS>,
 }
 
 fn new_point3(r: f32, theta: f32, phi: f32, chart: u32) -> Point3 {
@@ -807,7 +818,7 @@ fn geodesic_derivative(photon: Photon4) -> PhotonDerivative {
 }
 
 fn step_along_null_geodesic(photon: Photon4) -> Photon4 {
-    return euler_step(photon);
+    return rk4_step(photon);
 }
 
 fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
@@ -822,6 +833,10 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
 
         let ray_pos3 = Point3(state.ray.pos.inner.yzw, state.ray.pos.chart);
         let world_pos = transition_point(ray_pos3, CHART_CARTESIAN_WORLD).inner;
+
+        if (DEBUG_RAY_TRAJECTORY == 1u) {
+            trace_results.positions[step] = TracePos(world_pos, 1.0);
+        }
 
         if (state.ray.pos.inner.y <= R_S) { // hit singularity
             return packed_color_result(state.radiance);
@@ -905,10 +920,18 @@ var<storage, read_write> output_results: Output;
 @group(0) @binding(2)
 var<storage, read> objects: PackedObjects;
 
+@group(0) @binding(3)
+var<storage, read_write> trace_results: TraceResult;
+
 @compute @workgroup_size(64)
 fn evolve_rays(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let ray_index = global_id.x;
     let ray_count = arrayLength(&input_photons.data);
+
+    // if (ray_index < 148700) {
+    //     output_results.data[ray_index] = packed_color_result(vec3<f32>(1.0, 0.0, 0.0));
+    //     return;
+    // }
 
     if (ray_index >= ray_count) {
         return;
