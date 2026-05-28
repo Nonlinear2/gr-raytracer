@@ -6,7 +6,7 @@ const RK4_STEP_SIZE: f32 = 0.005;
 const PI: f32 = 3.141592653589793;
 const TAU: f32 = 6.283185307179586;
 
-const MAX_STEPS: u32 = 1u; // filled by get_shader
+const MAX_STEPS: u32 = 0u; // filled by get_shader
 const DEBUG_RAY_TRAJECTORY: u32 = 0u; // filled by get_shader
 
 const EPS: f32 = 10e-10;
@@ -148,7 +148,7 @@ struct TracePos {
 }
 
 struct TraceResult {
-    positions: array<TracePos, MAX_STEPS>,
+    positions: array<TracePos, 1000u>,
 }
 
 fn new_point3(r: f32, theta: f32, phi: f32, chart: u32) -> Point3 {

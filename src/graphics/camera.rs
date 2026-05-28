@@ -87,13 +87,11 @@ impl Camera {
         }
 
         let manifold_rays: Vec<_> = rays.into_iter().map(|ray| world.manifold.world_photon3_to_photon4(ray)).collect();
-        let trace_ray = manifold_rays.get(148700).copied();
 
-        let colors = integrator.run_kernel(manifold_rays);
+        let (colors, trace) = integrator.run_kernel(manifold_rays);
 
-        if let Some(ray) = trace_ray {
-            let path = integrator.trace_ray_path(ray);
-            for position in path.iter() {
+        if let Some(trace_result) = trace.as_ref().and_then(|trace| trace.first()) {
+            for position in trace_result.positions.iter().copied().filter(|point| point.fill_flag > 0.5).map(|point| point.pos) {
                 println!("{:.6}, {:.6}, {:.6}", position[0], position[1], position[2]);
             }
         }

@@ -16,7 +16,6 @@ pub struct GeodesicIntegrator {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pipeline: wgpu::ComputePipeline,
-    trace_pipeline: wgpu::ComputePipeline,
     object_buffer: wgpu::Buffer,
 
     debug_ray_trajectory: bool,
@@ -39,13 +38,14 @@ impl GeodesicIntegrator {
         // let manifold_source = manifold.get_shader();
 
         // [common_source, packed_source, euler_source, &manifold_source].join("\n")
-        let base = include_str!("../geometry/schwarzschild.wgsl");
-        base.replace(
-            "const MAX_STEPS: u32 = 0u; // filled by get_shader",
-            &format!("const MAX_STEPS: u32 = {};", max_steps)
-        ).replace(
-            "const DEBUG_RAY_TRAJECTORY: u32 = 0u; // filled by get_shader",
-            &format!("const DEBUG_RAY_TRAJECTORY: u32 = {};", debug_ray_trajectory as u32)
+        include_str!("../geometry/schwarzschild.wgsl")
+            .replace(
+                "const MAX_STEPS: u32 = 0u;", 
+                &format!("const MAX_STEPS: u32 = {};", max_steps)
+            ).replace(
+                "const DEBUG_RAY_TRAJECTORY: u32 = 0u;", 
+                &format!("const DEBUG_RAY_TRAJECTORY: u32 = {};", debug_ray_trajectory as u32
+            )
         )
     }
 
@@ -73,8 +73,7 @@ impl GeodesicIntegrator {
             source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source.into())),
         });
 
-        let object_count = packed_objects.len() as u32;
-        let object_data = if object_count == 0 {
+        let object_data = if packed_objects.is_empty() {
             vec![PackedObject {
                 kind: 0,
                 _pad0: [0u32;3],
@@ -160,19 +159,10 @@ impl GeodesicIntegrator {
             cache: None,
         });
 
-        let trace_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("trace-pipeline"),
-            layout: Some(&pipeline_layout),
-            module: &shader,
-            entry_point: Some("trace_ray"),
-            compilation_options: Default::default(),
-            cache: None,
-        });
-
-        Ok(Self { device, queue, pipeline, trace_pipeline, object_buffer, debug_ray_trajectory })
+        Ok(Self { device, queue, pipeline, object_buffer, debug_ray_trajectory })
     }
 
-    fn create_buffers(&self, packed_rays: &[PackedPhoton4], rays_byte_size: u64) -> (wgpu::Buffer, wgpu::Buffer, wgpu::Buffer, wgpu::Buffer) {
+    fn create_buffers(&self, packed_rays: &[PackedPhoton4], rays_byte_size: u64) -> (wgpu::Buffer, wgpu::Buffer, wgpu::Buffer, wgpu::Buffer, Option<wgpu::Buffer>) {
         let input_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("input"),
             contents: bytemuck::cast_slice(packed_rays),
@@ -193,51 +183,27 @@ impl GeodesicIntegrator {
             mapped_at_creation: false,
         });
 
-        let trace_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("trace-ray"),
-            size: std::mem::size_of::<PackedTraceResult>() as u64,
-            usage: wgpu::BufferUsages::STORAGE,
-            mapped_at_creation: false,
-        });
-
-        (input_buffer, output_buffer, readback_buffer, trace_buffer)
-    }
-
-    fn create_trace_buffers(&self, packed_ray: &PackedPhoton4) -> (wgpu::Buffer, wgpu::Buffer, wgpu::Buffer, wgpu::Buffer) {
-        let input_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("trace-input"),
-            contents: bytemuck::bytes_of(packed_ray),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-
-        let color_byte_size = std::mem::size_of::<PackedColorResult>() as u64;
-
-        let color_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("trace-color-dummy"),
-            size: color_byte_size,
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
-
-        let trace_byte_size = std::mem::size_of::<PackedTraceResult>() as u64;
-
         let trace_output_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("trace-output"),
             contents: bytemuck::bytes_of(&PackedTraceResult::zeroed()),
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
         });
+    
+        let trace_readback = if self.debug_ray_trajectory {
+            Some(self.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("trace-readback"),
+                size: std::mem::size_of::<PackedTraceResult>() as u64,
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                mapped_at_creation: false,
+            }))
+        } else {
+            None
+        };
 
-        let readback_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("trace-readback"),
-            size: trace_byte_size,
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-            mapped_at_creation: false,
-        });
-
-        (input_buffer, color_buffer, trace_output_buffer, readback_buffer)
+        (input_buffer, output_buffer, readback_buffer, trace_output_buffer, trace_readback)
     }
 
-    fn create_bind_group(&self, input_buffer: &wgpu::Buffer, output_buffer: &wgpu::Buffer, trace_buffer: &wgpu::Buffer) -> wgpu::BindGroup {
+    fn create_bind_group(&self, input_buffer: &wgpu::Buffer, output_buffer: &wgpu::Buffer, trace_output_buffer: &wgpu::Buffer) -> wgpu::BindGroup {
         let mut entries = vec![
             wgpu::BindGroupEntry { binding: 0, resource: input_buffer.as_entire_binding() },
             wgpu::BindGroupEntry { binding: 1, resource: output_buffer.as_entire_binding() },
@@ -245,7 +211,7 @@ impl GeodesicIntegrator {
         ];
 
         if self.debug_ray_trajectory {
-            entries.push(wgpu::BindGroupEntry { binding: 3, resource: trace_buffer.as_entire_binding() });
+            entries.push(wgpu::BindGroupEntry { binding: 3, resource: trace_output_buffer.as_entire_binding() });
         }
 
         self.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -255,7 +221,7 @@ impl GeodesicIntegrator {
         })
     }
 
-    fn dispatch_and_readback(&self, bind_group: &wgpu::BindGroup, packed_rays_len: usize, output_buffer: &wgpu::Buffer, readback_buffer: &wgpu::Buffer, buffer_size: u64) -> Vec<Color> {
+    fn dispatch_and_readback(&self, bind_group: &wgpu::BindGroup, packed_rays_len: usize, output_buffer: &wgpu::Buffer, readback_buffer: &wgpu::Buffer, buffer_size: u64, trace_output_buffer: &wgpu::Buffer, trace_readback: Option<&wgpu::Buffer>) -> (Vec<Color>, Option<Vec<PackedTraceResult>>) {
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("encoder") });
 
         {
@@ -266,82 +232,67 @@ impl GeodesicIntegrator {
         }
 
         encoder.copy_buffer_to_buffer(output_buffer, 0, readback_buffer, 0, buffer_size);
+        let trace_byte_size = std::mem::size_of::<PackedTraceResult>() as u64;
+        if let Some(trace_readback) = trace_readback {
+            encoder.copy_buffer_to_buffer(trace_output_buffer, 0, trace_readback, 0, trace_byte_size);
+        }
 
         self.queue.submit(Some(encoder.finish()));
 
         let slice = readback_buffer.slice(..);
+        let trace_slice_opt = trace_readback.map(|b| b.slice(..));
+
         let (sender, receiver) = mpsc::channel();
         slice.map_async(wgpu::MapMode::Read, move |result| { let _ = sender.send(result); });
 
+        let (_trace_sender, trace_receiver) = if let Some(trace_slice) = trace_slice_opt.as_ref() {
+            let (s, r) = mpsc::channel();
+            let s_clone = s.clone();
+            trace_slice.map_async(wgpu::MapMode::Read, move |res| { let _ = s_clone.send(res); });
+            (Some(s), Some(r))
+        } else {
+            (None, None)
+        };
+
         self.device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }).unwrap();
 
-        match receiver.recv() { Ok(Ok(())) => {}, _ => panic!() }
+        match receiver.recv() { Ok(Ok(())) => {}, _ => panic!("failed to map output buffer") }
+        if let Some(trace_receiver) = trace_receiver {
+            match trace_receiver.recv() { Ok(Ok(())) => {}, _ => panic!("failed to map trace buffer") }
+        }
 
         let mapped = slice.get_mapped_range();
         let packed_output: &[PackedColorResult] = bytemuck::cast_slice(&mapped);
-        let output = packed_output.iter().copied().map(|result| {
+        let output: Vec<Color> = packed_output.iter().copied().map(|result| {
             Color::new(result.color[0] * 255.0, result.color[1] * 255.0, result.color[2] * 255.0)
         }).collect();
+
+        let trace_results = if let Some(trace_slice) = trace_slice_opt {
+            let mapped_trace = trace_slice.get_mapped_range();
+            let packed_trace: &[PackedTraceResult] = bytemuck::cast_slice(&mapped_trace);
+            let traces: Vec<PackedTraceResult> = packed_trace.iter().copied().collect();
+            drop(mapped_trace);
+            if let Some(tb) = trace_readback {
+                tb.unmap();
+            }
+            Some(traces)
+        } else {
+            None
+        };
+
         drop(mapped);
         readback_buffer.unmap();
 
-        output
+        (output, trace_results)
     }
 
-    fn dispatch_trace_and_readback(&self, bind_group: &wgpu::BindGroup, output_buffer: &wgpu::Buffer, readback_buffer: &wgpu::Buffer, buffer_size: u64) -> PackedTraceResult {
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("trace-encoder") });
-
-        {
-            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { label: Some("trace-pass"), timestamp_writes: None });
-            pass.set_pipeline(&self.trace_pipeline);
-            pass.set_bind_group(0, bind_group, &[]);
-            pass.dispatch_workgroups(1, 1, 1);
-        }
-
-        encoder.copy_buffer_to_buffer(output_buffer, 0, readback_buffer, 0, buffer_size);
-
-        self.queue.submit(Some(encoder.finish()));
-
-        let slice = readback_buffer.slice(..);
-        let (sender, receiver) = mpsc::channel();
-        slice.map_async(wgpu::MapMode::Read, move |result| { let _ = sender.send(result); });
-
-        self.device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }).unwrap();
-
-        match receiver.recv() { Ok(Ok(())) => {}, _ => panic!() }
-
-        let mapped = slice.get_mapped_range();
-        let packed_output: &PackedTraceResult = bytemuck::from_bytes(&mapped);
-        let output = *packed_output;
-        drop(mapped);
-        readback_buffer.unmap();
-
-        output
-    }
-
-    pub fn run_kernel(&self, rays: Vec<Photon4>) -> Vec<Color> {
+    pub fn run_kernel(&self, rays: Vec<Photon4>) -> (Vec<Color>, Option<Vec<PackedTraceResult>>) {
 
         let packed_rays: Vec<PackedPhoton4> = rays.iter().copied().map(PackedPhoton4::from).collect();
         let rays_byte_size = std::mem::size_of::<PackedColorResult>() as u64 * packed_rays.len() as u64;
 
-        let (input_buffer, output_buffer, readback_buffer, trace_buffer) = self.create_buffers(&packed_rays, rays_byte_size);
-        let bind_group = self.create_bind_group(&input_buffer, &output_buffer, &trace_buffer);
-        self.dispatch_and_readback(&bind_group, packed_rays.len(), &output_buffer, &readback_buffer, rays_byte_size)
-    }
-
-    pub fn trace_ray_path(&self, ray: Photon4) -> Vec<[f32; 3]> {
-        assert!(self.debug_ray_trajectory);
-
-        let packed_ray = PackedPhoton4::from(ray);
-        let (input_buffer, color_buffer, trace_output_buffer, readback_buffer) = self.create_trace_buffers(&packed_ray);
-        let bind_group = self.create_bind_group(&input_buffer, &color_buffer, &trace_output_buffer);
-        let trace = self.dispatch_trace_and_readback(&bind_group, &trace_output_buffer, &readback_buffer, std::mem::size_of::<PackedTraceResult>() as u64);
-
-        trace.positions
-            .iter()
-            .copied()
-            .filter(|point| point.fill_flag > 0.5) // check fill flag (1.0 means filled)
-            .map(|point| point.pos)
-            .collect()
+        let (input_buffer, output_buffer, readback_buffer, trace_output_buffer, trace_readback) = self.create_buffers(&packed_rays, rays_byte_size);
+        let bind_group = self.create_bind_group(&input_buffer, &output_buffer, &trace_output_buffer);
+        self.dispatch_and_readback(&bind_group, packed_rays.len(), &output_buffer, &readback_buffer, rays_byte_size, &trace_output_buffer, trace_readback.as_ref())
     }
 }
