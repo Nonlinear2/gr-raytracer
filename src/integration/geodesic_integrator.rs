@@ -93,7 +93,7 @@ impl GeodesicIntegrator {
             usage: wgpu::BufferUsages::STORAGE,
         });
 
-        let mut bind_group_entries = vec![
+        let bind_group_entries = vec![
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::COMPUTE,
@@ -124,10 +124,7 @@ impl GeodesicIntegrator {
                 },
                 count: None,
             },
-        ];
-
-        if debug_ray_trajectory {
-            bind_group_entries.push(wgpu::BindGroupLayoutEntry {
+            wgpu::BindGroupLayoutEntry {
                 binding: 3,
                 visibility: wgpu::ShaderStages::COMPUTE,
                 ty: wgpu::BindingType::Buffer {
@@ -136,8 +133,8 @@ impl GeodesicIntegrator {
                     min_binding_size: None,
                 },
                 count: None,
-            });
-        }
+            },
+        ];
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("evolve-bind-group-layout"),
@@ -204,15 +201,12 @@ impl GeodesicIntegrator {
     }
 
     fn create_bind_group(&self, input_buffer: &wgpu::Buffer, output_buffer: &wgpu::Buffer, trace_output_buffer: &wgpu::Buffer) -> wgpu::BindGroup {
-        let mut entries = vec![
+        let entries = vec![
             wgpu::BindGroupEntry { binding: 0, resource: input_buffer.as_entire_binding() },
             wgpu::BindGroupEntry { binding: 1, resource: output_buffer.as_entire_binding() },
             wgpu::BindGroupEntry { binding: 2, resource: self.object_buffer.as_entire_binding() },
+            wgpu::BindGroupEntry { binding: 3, resource: trace_output_buffer.as_entire_binding() },
         ];
-
-        if self.debug_ray_trajectory {
-            entries.push(wgpu::BindGroupEntry { binding: 3, resource: trace_output_buffer.as_entire_binding() });
-        }
 
         self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("schwarzschild-evolve-bind-group"),
