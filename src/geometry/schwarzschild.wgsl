@@ -1,7 +1,6 @@
 // common.wgsl
 
-const EULER_STEP_SIZE: f32 = 0.005;
-const RK4_STEP_SIZE: f32 = 0.005;
+const INTEGRATION_STEP_SIZE: f32 = 0.005;
 
 const PI: f32 = 3.141592653589793;
 const TAU: f32 = 6.283185307179586;
@@ -385,12 +384,12 @@ fn euler_step(photon: Photon4) -> Photon4 {
     let vel = photon.vel;
 
     var new_pos = Point4(
-        pos.inner + EULER_STEP_SIZE * derivative.d_pos.inner,
+        pos.inner + INTEGRATION_STEP_SIZE * derivative.d_pos.inner,
         pos.chart
     );
 
     var new_vel = FourVector(
-        vel.inner + EULER_STEP_SIZE * derivative.d_vel.inner,
+        vel.inner + INTEGRATION_STEP_SIZE * derivative.d_vel.inner,
         vel.vector_space
     );
 
@@ -408,7 +407,7 @@ fn rk4_step(photon: Photon4) -> Photon4 {
 
     let pos = photon.pos;
     let vel = photon.vel;
-    let h   = RK4_STEP_SIZE;
+    let h   = INTEGRATION_STEP_SIZE;
 
     let k1 = geodesic_derivative(photon);
 
@@ -838,7 +837,7 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
             trace_results.positions[step] = TracePos(world_pos, 1.0);
         }
 
-        if (state.ray.pos.inner.y <= R_S) { // hit singularity
+        if (state.ray.pos.inner.y <= R_S + INTEGRATION_STEP_SIZE) { // avoid computing velocity inside of singularity with rk4
             return packed_color_result(state.radiance);
         }
 
@@ -927,11 +926,6 @@ var<storage, read_write> trace_results: TraceResult;
 fn evolve_rays(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let ray_index = global_id.x;
     let ray_count = arrayLength(&input_photons.data);
-
-    // if (ray_index < 148700) {
-    //     output_results.data[ray_index] = packed_color_result(vec3<f32>(1.0, 0.0, 0.0));
-    //     return;
-    // }
 
     if (ray_index >= ray_count) {
         return;
