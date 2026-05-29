@@ -1,7 +1,9 @@
-use crate::{MAX_INTEGRATION_STEPS, geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, surface::{Object, AllTextures}, vector::TangentSpace}, integration::geodesic_integrator::GeodesicIntegrator};
+use crate::{MAX_INTEGRATION_STEPS, geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, vector::TangentSpace}, integration::geodesic_integrator::GeodesicIntegrator};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
+use crate::graphics::surface::Object;
+use crate::graphics::texture::AllTextures;
 
 use rand::{rngs::StdRng, RngExt};
 
@@ -12,7 +14,7 @@ pub type Objects = Vec<Box<dyn Object>>;
 pub struct World {
     pub manifold: Box<dyn PseudoRiemanian4Manifold>,
     pub objects: Objects,
-    pub textures: Option<AllTextures>,
+    pub textures: AllTextures,
 }
 
 pub struct Camera {

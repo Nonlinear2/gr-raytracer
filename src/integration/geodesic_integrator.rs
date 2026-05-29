@@ -6,7 +6,8 @@ use wgpu::util::DeviceExt;
 
 use crate::geometry::manifold::PseudoRiemanian4Manifold;
 use crate::geometry::photon::{PackedPhoton4, PackedTraceResult, Photon4};
-use crate::geometry::surface::{AllTextures, Object, PackedAllTextures, PackedObject};
+use crate::graphics::texture::PackedAllTextures;
+use crate::graphics::surface::PackedObject;
 use crate::graphics::camera::World;
 use crate::graphics::color::{Color, PackedColorResult};
 
@@ -28,8 +29,7 @@ impl GeodesicIntegrator {
 
 
         let packed_objects: Vec<PackedObject> = world.objects.iter().filter_map(|obj| obj.as_packed_object()).collect();
-        let packed_textures = world.textures.unwrap().as_packed_texture();
-
+        let packed_textures = world.textures.clone().as_packed_texture();
 
         pollster::block_on(Self::new_async(shader_source, packed_objects, packed_textures, debug_ray_trajectory)).ok()
     }
