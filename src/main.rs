@@ -9,8 +9,8 @@ use winit::{
     window::Window
 };
 use pixels::{Pixels, SurfaceTexture};
-
-use crate::{geometry::{surface::{Diffuse, Disc, Metal, Sphere}, vector::ThreeVector}, graphics::{camera::{Camera, World}, color::Color}};
+use crate::geometry::surface::Texture;
+use crate::{geometry::{surface::{Diffuse, Disc, Metal, Sphere, TextureImage, Textures}, vector::ThreeVector}, graphics::{camera::{Camera, World}, color::Color}};
 use crate::geometry::point::Point3;
 use crate::geometry::schwarzschild::Schwarzschild4Manifold;
 use crate::geometry::manifold::Chart::CartesianWorld;
@@ -85,6 +85,13 @@ fn main() {
 
     let world = World {
         manifold: Box::new(Schwarzschild4Manifold::new(scene_center, 0.25)), // Box::new(EuclideanMetric {}),
+        textures: {
+            let texture = TextureImage::from_file("assets/packed_texture.ppm").expect("failed to load texture");
+            Some(Textures {
+                accretion_disc: texture.clone(),
+                sky_background: texture,
+            })
+        },
         objects: vec![
             // Box::new(Sphere {
             //     center: Point3::new_cartesian(0., 0., -1.),
@@ -103,6 +110,7 @@ fn main() {
                     emission: Color::new(0., 0., 0.),
                     fuzz: 0.0,
                 }),
+                texture: Texture::NONE,
             }),
             Box::new(Disc {
                 center: Point3::new(0.0, 0.0, -1.0, CartesianWorld),
@@ -112,6 +120,7 @@ fn main() {
                     color: Color::new(128., 128., 128.),
                     emission: Color::new(237.0, 193.0, 154.0),
                 }),
+                texture: Texture::ACCRETION,
             })
         ],
     };

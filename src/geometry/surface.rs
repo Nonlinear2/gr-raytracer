@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::geometry::manifold::Chart;
 use crate::geometry::point::Point3;
 use crate::graphics::color::Color;
@@ -6,8 +8,53 @@ use bytemuck::{Pod, Zeroable};
 
 pub const GPU_OBJECT_SPHERE: u32 = 1;
 pub const GPU_OBJECT_DISC: u32 = 2;
-pub const GPU_MATERIAL_DIFFUSE: u32 = 1;
-pub const GPU_MATERIAL_METAL: u32 = 2;
+
+#[allow(dead_code)]
+pub const GPU_MATERIAL_DIFFUSE: u32 = 0;
+pub const GPU_MATERIAL_METAL: u32 = 1;
+
+#[repr(u32)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Texture {
+    NONE = 0,
+    ACCRETION = 1,
+    BACKGROUND = 2,
+}
+
+#[derive(Clone)]
+pub struct TextureImage {
+    pub width: u32,
+    pub height: u32,
+    pub pixels: Vec<[f32; 4]>,
+}
+
+impl TextureImage {
+    pub fn from_file(path: impl AsRef<Path>) -> Result<Self, String> {
+        let image = image::open(path.as_ref())
+            .map_err(|err| format!("failed to load texture {:?}: {err}", path.as_ref()))?
+            .flipv()
+            .to_rgba8();
+
+        let (width, height) = image.dimensions();
+        let pixels = image.pixels().map(|pixel| {
+            [
+                pixel[0] as f32 / 255.0,
+                pixel[1] as f32 / 255.0,
+                pixel[2] as f32 / 255.0,
+                pixel[3] as f32 / 255.0,
+            ]
+        }).collect();
+
+        Ok(Self { width, height, pixels })
+    }
+}
+
+#[derive(Clone)]
+#[allow(dead_code)]
+pub struct Textures {
+    pub accretion_disc: TextureImage,
+    pub sky_background: TextureImage,
+}
 
 pub trait Material {
     fn packed_material_kind(&self) -> u32;
@@ -94,7 +141,8 @@ impl Material for Metal {
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct PackedObject {
     pub kind: u32,
-    pub _pad0: [u32; 3],
+    pub texture: u32,
+    pub _pad0: [u32; 2],
     pub material: PackedMaterial,
     pub _pad1: [u32; 4],
     pub data0: [f32; 4],
@@ -111,14 +159,17 @@ pub struct Sphere {
     pub center: Point3,
     pub radius: f32,
     pub material: Box<dyn Material>,
+    pub texture: Texture,
 }
 
 impl Object for Sphere {
     fn as_packed_object(&self) -> Option<PackedObject> {
         assert!(self.center.chart == Chart::CartesianWorld);
+
         Some(PackedObject {
             kind: GPU_OBJECT_SPHERE,
-            _pad0: [0u32; 3],
+            texture: self.texture as u32,
+            _pad0: [0u32; 2],
             material: PackedMaterial {
                 kind: self.material.packed_material_kind(),
                 _pad0: [0u32; 3],
@@ -144,6 +195,7 @@ pub struct Disc {
     pub normal: crate::geometry::vector::ThreeVector,
     pub radius: f32,
     pub material: Box<dyn Material>,
+    pub texture: Texture,
 }
 
 impl Object for Disc {
@@ -155,7 +207,8 @@ impl Object for Disc {
 
         Some(PackedObject {
             kind: GPU_OBJECT_DISC,
-            _pad0: [0u32; 3],
+            texture: self.texture as u32,
+            _pad0: [0u32; 2],
             material: PackedMaterial {
                 kind: self.material.packed_material_kind(),
                 _pad0: [0u32; 3],

@@ -1,4 +1,4 @@
-use crate::{MAX_INTEGRATION_STEPS, geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, surface::Object, vector::TangentSpace}, integration::geodesic_integrator::GeodesicIntegrator};
+use crate::{MAX_INTEGRATION_STEPS, geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, surface::{Object, Textures}, vector::TangentSpace}, integration::geodesic_integrator::GeodesicIntegrator};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
@@ -12,6 +12,7 @@ pub type Objects = Vec<Box<dyn Object>>;
 pub struct World {
     pub manifold: Box<dyn PseudoRiemanian4Manifold>,
     pub objects: Objects,
+    pub textures: Option<Textures>,
 }
 
 pub struct Camera {

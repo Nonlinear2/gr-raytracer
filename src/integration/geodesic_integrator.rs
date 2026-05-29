@@ -6,7 +6,7 @@ use wgpu::util::DeviceExt;
 
 use crate::geometry::manifold::PseudoRiemanian4Manifold;
 use crate::geometry::photon::{PackedPhoton4, PackedTraceResult, Photon4};
-use crate::geometry::surface::PackedObject;
+use crate::geometry::surface::{PackedObject, TextureImage};
 use crate::graphics::camera::World;
 use crate::graphics::color::{Color, PackedColorResult};
 
@@ -17,6 +17,7 @@ pub struct GeodesicIntegrator {
     queue: wgpu::Queue,
     pipeline: wgpu::ComputePipeline,
     object_buffer: wgpu::Buffer,
+    texture_buffer: wgpu::Buffer,
 
     debug_ray_trajectory: bool,
 }
@@ -25,7 +26,8 @@ impl GeodesicIntegrator {
     pub fn new(world: &World, max_steps: u32, debug_ray_trajectory: bool) -> Option<Self> {
         let shader_source = Self::get_shader(&*world.manifold, max_steps, debug_ray_trajectory);
         let packed_objects: Vec<PackedObject> = world.objects.iter().filter_map(|obj| obj.as_packed_object()).collect();
-        pollster::block_on(Self::new_async(shader_source, packed_objects, debug_ray_trajectory)).ok()
+        let texture = world.textures.as_ref()?.accretion_disc.clone();
+        pollster::block_on(Self::new_async(shader_source, packed_objects, texture, debug_ray_trajectory)).ok()
     }
 
     pub fn get_shader(_manifold: &dyn PseudoRiemanian4Manifold, max_steps: u32, debug_ray_trajectory: bool) -> String {
@@ -49,7 +51,7 @@ impl GeodesicIntegrator {
         )
     }
 
-    async fn new_async(shader_source: String, packed_objects: Vec<PackedObject>, debug_ray_trajectory: bool) -> Result<Self, String> {
+    async fn new_async(shader_source: String, packed_objects: Vec<PackedObject>, texture: TextureImage, debug_ray_trajectory: bool) -> Result<Self, String> {
 
         let adapter = wgpu::Instance::default()
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -73,23 +75,23 @@ impl GeodesicIntegrator {
             source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source.into())),
         });
 
-        let object_data = if packed_objects.is_empty() {
-            vec![PackedObject {
-                kind: 0,
-                _pad0: [0u32;3],
-                material: crate::geometry::surface::PackedMaterial { kind: 0, _pad0: [0u32;3], color: [0.0,0.0,0.0], params: 0.0, _pad1: [0u32;4] },
-                _pad1: [0u32;4],
-                data0: [0.0; 4],
-                data1: [0.0; 4],
-                emission_params: [0.0; 4],
-            }]
-        } else {
-            packed_objects
-        };
-
         let object_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("objects"),
-            contents: bytemuck::cast_slice(&object_data),
+            contents: bytemuck::cast_slice(&packed_objects),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+
+        let texture_header = [texture.width, texture.height, 0u32, 0u32];
+        let texture_pixel_bytes: &[u8] = bytemuck::cast_slice(texture.pixels.as_slice());
+        let mut texture_bytes = Vec::with_capacity(
+            bytemuck::bytes_of(&texture_header).len() + texture_pixel_bytes.len()
+        );
+        texture_bytes.extend_from_slice(bytemuck::bytes_of(&texture_header));
+        texture_bytes.extend_from_slice(texture_pixel_bytes);
+
+        let texture_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("texture"),
+            contents: &texture_bytes,
             usage: wgpu::BufferUsages::STORAGE,
         });
 
@@ -134,6 +136,16 @@ impl GeodesicIntegrator {
                 },
                 count: None,
             },
+            wgpu::BindGroupLayoutEntry {
+                binding: 4,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
         ];
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -156,7 +168,7 @@ impl GeodesicIntegrator {
             cache: None,
         });
 
-        Ok(Self { device, queue, pipeline, object_buffer, debug_ray_trajectory })
+        Ok(Self { device, queue, pipeline, object_buffer, texture_buffer, debug_ray_trajectory })
     }
 
     fn create_buffers(&self, packed_rays: &[PackedPhoton4], rays_byte_size: u64) -> (wgpu::Buffer, wgpu::Buffer, wgpu::Buffer, wgpu::Buffer, Option<wgpu::Buffer>) {
@@ -206,6 +218,7 @@ impl GeodesicIntegrator {
             wgpu::BindGroupEntry { binding: 1, resource: output_buffer.as_entire_binding() },
             wgpu::BindGroupEntry { binding: 2, resource: self.object_buffer.as_entire_binding() },
             wgpu::BindGroupEntry { binding: 3, resource: trace_output_buffer.as_entire_binding() },
+            wgpu::BindGroupEntry { binding: 4, resource: self.texture_buffer.as_entire_binding() },
         ];
 
         self.device.create_bind_group(&wgpu::BindGroupDescriptor {

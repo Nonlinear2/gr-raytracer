@@ -38,9 +38,13 @@ const OBJECT_SPHERE: u32 = 1u;
 const OBJECT_DISC: u32 = 2u;
 
 // materials
-const MATERIAL_NONE: u32 = 0u;
-const MATERIAL_DIFFUSE: u32 = 1u;
-const MATERIAL_METAL: u32 = 2u;
+const MATERIAL_DIFFUSE: u32 = 0u;
+const MATERIAL_METAL: u32 = 1u;
+
+// textures
+const TEXTURE_NONE: u32 = 0u;
+const TEXTURE_ACCRETION: u32 = 1u;
+const TEXTURE_BACKGROUND: u32 = 2u;
 
 const MAX_BOUNCES: u32 = 2u;
 
@@ -211,8 +215,10 @@ struct Material {
 
 struct PackedObject {
     kind: u32,
+    texture: u32,
+    _pad0: vec2<u32>,
     material: Material,
-    _pad0: array<u32, 3>,
+    _pad1: array<u32, 4>,
     data0: vec4<f32>,
     data1: vec4<f32>,
     emission_params: vec4<f32>,
@@ -323,6 +329,61 @@ fn material_scatter(
     }
 }
 
+struct TexturePixels {
+    size: vec2<u32>,
+    _pad: vec2<u32>,
+    data: array<vec4<f32>>,
+}
+
+@group(0) @binding(4)
+var<storage, read> texture_pixels: TexturePixels;
+
+fn sphere_uv(normal: vec3<f32>) -> vec2<f32> {
+    let u = atan2(normal.z, normal.x) / TAU + 0.5;
+    let v = acos(clamp(normal.y, -1.0, 1.0)) / PI;
+    return vec2<f32>(u, v);
+}
+
+fn disc_uv(object: PackedObject, hit_point: vec3<f32>) -> vec2<f32> {
+    let center = object.data0.xyz;
+    let normal = normalize(object.data1.xyz);
+    let reference_axis = select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), abs(normal.y) > 0.99);
+    let tangent = normalize(cross(reference_axis, normal));
+    let bitangent = cross(normal, tangent);
+    let local = hit_point - center;
+    let radius = object.data0.w;
+    return vec2<f32>(
+        dot(local, tangent) / radius * 0.5 + 0.5,
+        dot(local, bitangent) / radius * 0.5 + 0.5,
+    );
+}
+
+fn sample_texture(texture: u32, uv: vec2<f32>) -> vec3<f32> {
+    let size = vec2<f32>(texture_pixels.size);
+    let clamped_uv = clamp(uv, vec2<f32>(0.0), vec2<f32>(0.999999));
+    let pixel_xy = vec2<u32>(clamped_uv * size);
+    let pixel_index = pixel_xy.y * texture_pixels.size.x + pixel_xy.x;
+    return texture_pixels.data[pixel_index].xyz;
+}
+
+fn object_albedo(object: PackedObject, hit_data: HitData) -> vec3<f32> {
+    switch object.material.kind {
+        case MATERIAL_DIFFUSE: {
+            switch object.kind {
+                case OBJECT_SPHERE: {
+                    return object.material.color * sample_texture(sphere_uv(normalize(hit_data.hit_point - object.data0.xyz)));
+                }
+                case OBJECT_DISC: {
+                    return object.material.color * sample_texture(disc_uv(object, hit_data.hit_point));
+                }
+                default: {
+                    return object.material.color;
+                }
+            }
+        }
+        default: { return object.material.color; }
+    }
+}
 
 fn diffuse_scatter(hit_data: HitData, rng_seed: u32) -> vec4<f32> {
     let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
@@ -875,7 +936,7 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
 
             // update state
             state.radiance += state.throughput * object.emission_params.xyz;
-            state.throughput *= object.material.color;
+            state.throughput *= object_albedo(object, hit_data);
 
             if (scatter_data.w < 0.5){ // no bounce
                 return packed_color_result(state.radiance);

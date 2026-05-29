@@ -7,6 +7,7 @@ edition = "2024"
 bytemuck = { version = "1.24.0", features = ["derive"] }
 env_logger = "0.11.10"
 glam = "0.32.1"
+image = "0.25.6"
 num_enum = "0.7.6"
 pixels = "0.17.1"
 pollster = "0.4.0"
