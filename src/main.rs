@@ -10,7 +10,7 @@ use winit::{
 };
 use pixels::{Pixels, SurfaceTexture};
 use crate::geometry::surface::Texture;
-use crate::{geometry::{surface::{Diffuse, Disc, Metal, Sphere, TextureImage, Textures}, vector::ThreeVector}, graphics::{camera::{Camera, World}, color::Color}};
+use crate::{geometry::{surface::{Diffuse, Disc, Metal, Sphere, Texture, AllTextures}, vector::ThreeVector}, graphics::{camera::{Camera, World}, color::Color}};
 use crate::geometry::point::Point3;
 use crate::geometry::schwarzschild::Schwarzschild4Manifold;
 use crate::geometry::manifold::Chart::CartesianWorld;
@@ -86,8 +86,8 @@ fn main() {
     let world = World {
         manifold: Box::new(Schwarzschild4Manifold::new(scene_center, 0.25)), // Box::new(EuclideanMetric {}),
         textures: {
-            let texture = TextureImage::from_file("assets/packed_texture.ppm").expect("failed to load texture");
-            Some(Textures {
+            let texture = Texture::from_file("assets/packed_texture.ppm").expect("failed to load texture");
+            Some(AllTextures {
                 accretion_disc: texture.clone(),
                 sky_background: texture,
             })

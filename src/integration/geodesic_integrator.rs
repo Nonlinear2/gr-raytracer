@@ -6,7 +6,7 @@ use wgpu::util::DeviceExt;
 
 use crate::geometry::manifold::PseudoRiemanian4Manifold;
 use crate::geometry::photon::{PackedPhoton4, PackedTraceResult, Photon4};
-use crate::geometry::surface::{PackedObject, TextureImage};
+use crate::geometry::surface::{AllTextures, Object, PackedAllTextures, PackedObject};
 use crate::graphics::camera::World;
 use crate::graphics::color::{Color, PackedColorResult};
 
@@ -25,9 +25,13 @@ pub struct GeodesicIntegrator {
 impl GeodesicIntegrator {
     pub fn new(world: &World, max_steps: u32, debug_ray_trajectory: bool) -> Option<Self> {
         let shader_source = Self::get_shader(&*world.manifold, max_steps, debug_ray_trajectory);
+
+
         let packed_objects: Vec<PackedObject> = world.objects.iter().filter_map(|obj| obj.as_packed_object()).collect();
-        let texture = world.textures.as_ref()?.accretion_disc.clone();
-        pollster::block_on(Self::new_async(shader_source, packed_objects, texture, debug_ray_trajectory)).ok()
+        let packed_textures = world.textures.unwrap().as_packed_texture();
+
+
+        pollster::block_on(Self::new_async(shader_source, packed_objects, packed_textures, debug_ray_trajectory)).ok()
     }
 
     pub fn get_shader(_manifold: &dyn PseudoRiemanian4Manifold, max_steps: u32, debug_ray_trajectory: bool) -> String {
@@ -51,7 +55,7 @@ impl GeodesicIntegrator {
         )
     }
 
-    async fn new_async(shader_source: String, packed_objects: Vec<PackedObject>, texture: TextureImage, debug_ray_trajectory: bool) -> Result<Self, String> {
+    async fn new_async(shader_source: String, packed_objects: Vec<PackedObject>, packed_textures: PackedAllTextures, debug_ray_trajectory: bool) -> Result<Self, String> {
 
         let adapter = wgpu::Instance::default()
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -74,24 +78,16 @@ impl GeodesicIntegrator {
             label: Some("evolve-shader"),
             source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source.into())),
         });
-
+        
         let object_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("objects"),
             contents: bytemuck::cast_slice(&packed_objects),
             usage: wgpu::BufferUsages::STORAGE,
         });
 
-        let texture_header = [texture.width, texture.height, 0u32, 0u32];
-        let texture_pixel_bytes: &[u8] = bytemuck::cast_slice(texture.pixels.as_slice());
-        let mut texture_bytes = Vec::with_capacity(
-            bytemuck::bytes_of(&texture_header).len() + texture_pixel_bytes.len()
-        );
-        texture_bytes.extend_from_slice(bytemuck::bytes_of(&texture_header));
-        texture_bytes.extend_from_slice(texture_pixel_bytes);
-
         let texture_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("texture"),
-            contents: &texture_bytes,
+            contents: packed_textures.as_slice(),
             usage: wgpu::BufferUsages::STORAGE,
         });
 

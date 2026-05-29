@@ -329,14 +329,17 @@ fn material_scatter(
     }
 }
 
-struct TexturePixels {
-    size: vec2<u32>,
-    _pad: vec2<u32>,
+// Flattened texture header to match a contiguous GPU buffer uploaded from Rust.
+// Each info is stored as a u32x4: (size.x, size.y, pixel_offset, pad)
+struct AllTextures {
+    count: u32,
+    _pad0: vec3<u32>,
+    infos: array<vec4<u32>, 3>,
     data: array<vec4<f32>>,
 }
 
 @group(0) @binding(4)
-var<storage, read> texture_pixels: TexturePixels;
+var<storage, read> all_textures: AllTextures;
 
 fn sphere_uv(normal: vec3<f32>) -> vec2<f32> {
     let u = atan2(normal.z, normal.x) / TAU + 0.5;
@@ -359,30 +362,42 @@ fn disc_uv(object: PackedObject, hit_point: vec3<f32>) -> vec2<f32> {
 }
 
 fn sample_texture(texture: u32, uv: vec2<f32>) -> vec3<f32> {
-    let size = vec2<f32>(texture_pixels.size);
+    let info = all_textures.infos[texture];
+    let size = vec2<f32>(f32(info.x), f32(info.y));
     let clamped_uv = clamp(uv, vec2<f32>(0.0), vec2<f32>(0.999999));
     let pixel_xy = vec2<u32>(clamped_uv * size);
-    let pixel_index = pixel_xy.y * texture_pixels.size.x + pixel_xy.x;
-    return texture_pixels.data[pixel_index].xyz;
+    let pixel_index = info.z + pixel_xy.y * u32(info.x) + pixel_xy.x;
+    return all_textures.data[pixel_index].xyz;
 }
 
 fn object_albedo(object: PackedObject, hit_data: HitData) -> vec3<f32> {
     switch object.material.kind {
         case MATERIAL_DIFFUSE: {
-            switch object.kind {
-                case OBJECT_SPHERE: {
-                    return object.material.color * sample_texture(sphere_uv(normalize(hit_data.hit_point - object.data0.xyz)));
-                }
-                case OBJECT_DISC: {
-                    return object.material.color * sample_texture(disc_uv(object, hit_data.hit_point));
+            switch object.texture {
+                case TEXTURE_NONE: {
+                    return object.material.color;
                 }
                 default: {
-                    return object.material.color;
+                    switch object.kind {
+                        case OBJECT_SPHERE: {
+                            return object.material.color * sample_texture(object.texture, sphere_uv(normalize(hit_data.hit_point - object.data0.xyz)));
+                        }
+                        case OBJECT_DISC: {
+                            return object.material.color * sample_texture(object.texture, disc_uv(object, hit_data.hit_point));
+                        }
+                        default: {
+                            return object.material.color;
+                        }
+                    }
                 }
             }
         }
         default: { return object.material.color; }
     }
+}
+
+fn background_color(world_pos: vec3<f32>) -> vec3<f32> {
+    return sample_texture(TEXTURE_BACKGROUND, sphere_uv(normalize(world_pos - SUBATLAS_CENTER)));
 }
 
 fn diffuse_scatter(hit_data: HitData, rng_seed: u32) -> vec4<f32> {
@@ -903,7 +918,7 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
         }
 
         if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) { // background reached 
-            return packed_color_result(state.radiance + state.throughput * sky_color(world_pos));
+            return packed_color_result(state.radiance + state.throughput * background_color(world_pos));
         }
 
         let preferred_chart = preferred_chart_for_point(world_pos);
