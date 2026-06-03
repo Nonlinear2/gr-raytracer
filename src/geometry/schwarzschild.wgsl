@@ -90,15 +90,6 @@ fn random_unit_vector(seed0: u32, seed1: u32) -> vec3<f32> {
     return vec3<f32>(r_xy * cos(phi), r_xy * sin(phi), z);
 }
 
-fn sky_color(world_pos: vec3<f32>) -> vec3<f32> {
-    let tx = floor(world_pos.x * 2.0);
-    let ty = floor(world_pos.y * 2.0);
-    if (u32(abs(i32(tx + ty))) % 2u == 0u) {
-        return vec3<f32>(35.0 / 255.0, 105.0 / 255.0, 105.0 / 255.0);
-    }
-    return vec3<f32>(235.0 / 255.0);
-}
-
 // packed_types.wgsl
 
 struct Point3 {
@@ -343,14 +334,6 @@ struct PackedTextures {
 @group(0) @binding(4)
 var<storage, read> all_textures: PackedTextures;
 
-fn texture_header(texture: u32) -> vec4<u32> {
-    return all_textures.segments[texture].data;
-}
-
-fn texture_pixel(pixel_index: u32) -> vec4<f32> {
-    return bitcast<vec4<f32>>(all_textures.segments[pixel_index].data);
-}
-
 fn sphere_uv(normal: vec3<f32>) -> vec2<f32> {
     let u = atan2(normal.z, normal.x) / TAU + 0.5;
     let v = acos(clamp(normal.y, -1.0, 1.0)) / PI;
@@ -366,9 +349,17 @@ fn disc_uv(object: PackedObject, hit_point: vec3<f32>) -> vec2<f32> {
     let local = hit_point - center;
     let radius = object.data0.w;
     return vec2<f32>(
-        dot(local, tangent) / radius * 0.5 + 0.5,
-        dot(local, bitangent) / radius * 0.5 + 0.5,
+        atan2(dot(local, bitangent), dot(local, tangent)) / TAU + 0.5,
+        length(local) / radius,
     );
+}
+
+fn texture_header(texture: u32) -> vec4<u32> {
+    return all_textures.segments[texture].data;
+}
+
+fn texture_pixel(pixel_index: u32) -> vec4<f32> {
+    return bitcast<vec4<f32>>(all_textures.segments[pixel_index].data);
 }
 
 fn sample_texture(texture: u32, uv: vec2<f32>) -> vec3<f32> {
@@ -406,9 +397,44 @@ fn object_albedo(object: PackedObject, hit_data: HitData) -> vec3<f32> {
     }
 }
 
+fn object_emission(object: PackedObject, hit_data: HitData) -> vec3<f32> {
+    switch object.material.kind {
+        case MATERIAL_DIFFUSE: {
+            switch object.texture {
+                case TEXTURE_NONE: {
+                    return object.emission_params.xyz;
+                }
+                default: {
+                    switch object.kind {
+                        case OBJECT_SPHERE: {
+                            return object.emission_params.xyz * object_albedo(object, hit_data);
+                        }
+                        case OBJECT_DISC: {
+                            return object.emission_params.xyz * object_albedo(object, hit_data);
+                        }
+                        default: {
+                            return object.emission_params.xyz;
+                        }
+                    }
+                }
+            }
+        }
+        default: { return object.emission_params.xyz; }
+    }
+}
+
 fn background_color(world_pos: vec3<f32>) -> vec3<f32> {
     return sample_texture(TEXTURE_BACKGROUND, sphere_uv(normalize(world_pos - SUBATLAS_CENTER)));
 }
+
+// fn background_color(world_pos: vec3<f32>) -> vec3<f32> {
+//     let tx = floor(world_pos.x * 2.0);
+//     let ty = floor(world_pos.y * 2.0);
+//     if (u32(abs(i32(tx + ty))) % 2u == 0u) {
+//         return vec3<f32>(35.0 / 255.0, 105.0 / 255.0, 105.0 / 255.0);
+//     }
+//     return vec3<f32>(235.0 / 255.0);
+// }
 
 fn diffuse_scatter(hit_data: HitData, rng_seed: u32) -> vec4<f32> {
     let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
@@ -960,7 +986,7 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
             let scatter_data = material_scatter(object.material, hit_data, rng_seed);
 
             // update state
-            state.radiance += state.throughput * object.emission_params.xyz;
+            state.radiance += state.throughput * object_emission(object, hit_data);
             state.throughput *= object_albedo(object, hit_data);
 
             if (scatter_data.w < 0.5){ // no bounce
