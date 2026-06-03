@@ -329,17 +329,27 @@ fn material_scatter(
     }
 }
 
-// Flattened texture header to match a contiguous GPU buffer uploaded from Rust.
-// Each info is stored as a u32x4: (size.x, size.y, pixel_offset, pad)
-struct AllTextures {
-    count: u32,
-    _pad0: vec3<u32>,
-    infos: array<vec4<u32>, 3>,
-    data: array<vec4<f32>>,
+// header: (size.x, size.y, pixel_offset, pad)
+// pixel: vec4<f32> rgba
+
+struct TextureSegment {
+    data: vec4<u32>,
+}
+
+struct PackedTextures {
+    segments: array<TextureSegment>,
 }
 
 @group(0) @binding(4)
-var<storage, read> all_textures: AllTextures;
+var<storage, read> all_textures: PackedTextures;
+
+fn texture_header(texture: u32) -> vec4<u32> {
+    return all_textures.segments[texture].data;
+}
+
+fn texture_pixel(pixel_index: u32) -> vec4<f32> {
+    return bitcast<vec4<f32>>(all_textures.segments[pixel_index].data);
+}
 
 fn sphere_uv(normal: vec3<f32>) -> vec2<f32> {
     let u = atan2(normal.z, normal.x) / TAU + 0.5;
@@ -362,12 +372,12 @@ fn disc_uv(object: PackedObject, hit_point: vec3<f32>) -> vec2<f32> {
 }
 
 fn sample_texture(texture: u32, uv: vec2<f32>) -> vec3<f32> {
-    let info = all_textures.infos[texture];
-    let size = vec2<f32>(f32(info.x), f32(info.y));
+    let header = texture_header(texture);
+    let size = vec2<f32>(f32(header.x), f32(header.y));
     let clamped_uv = clamp(uv, vec2<f32>(0.0), vec2<f32>(0.999999));
     let pixel_xy = vec2<u32>(clamped_uv * size);
-    let pixel_index = info.z + pixel_xy.y * u32(info.x) + pixel_xy.x;
-    return all_textures.data[pixel_index].xyz;
+    let pixel_index = header.z + pixel_xy.y * u32(header.x) + pixel_xy.x;
+    return texture_pixel(pixel_index).xyz;
 }
 
 fn object_albedo(object: PackedObject, hit_data: HitData) -> vec3<f32> {

@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use bytemuck::{Pod, Zeroable};
+
 #[repr(u32)]
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -35,76 +37,71 @@ impl Texture {
 
         Ok(Self { width, height, pixels })
     }
+}
 
-    pub fn as_packed_texture(self) -> PackedTexture {
-        PackedTexture {
-            width: self.width,
-            height: self.height,
-            pixels: self.pixels,
-        }
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+struct TextureSegment {
+    data: [u32; 4],
+}
+
+pub struct PackedTextures {
+    segments: Vec<TextureSegment>,
+}
+
+impl PackedTextures {
+    pub fn as_slice(&self) -> &[u8] {
+        bytemuck::cast_slice(&self.segments)
     }
 }
 
 #[derive(Clone)]
-pub struct PackedTexture {
-    pub width: u32,
-    pub height: u32,
-    pub pixels: Vec<[f32; 4]>,
+pub struct Textures {
+    accretion: Texture,
+    background: Texture,
 }
 
-#[derive(Clone)]
-#[allow(dead_code)]
-pub struct AllTextures {
-    pub accretion_disc: Texture,
-    pub sky_background: Texture,
-}
+impl Textures {
+    pub fn as_packed_texture(&self) -> PackedTextures {
+        let header_count = 3u32;
+        let acc_pixels = self.accretion.pixels.len() as u32;
+        let bg_pixels = self.background.pixels.len() as u32;
 
-pub type PackedAllTextures = Vec<u8>;
+        let mut segments = Vec::with_capacity((header_count + acc_pixels + bg_pixels) as usize);
 
-impl AllTextures {
-    pub fn as_packed_texture(self) -> PackedAllTextures {
-        let tex0 = self.accretion_disc.as_packed_texture();
-        let tex1 = self.sky_background.as_packed_texture();
-        let textures = [tex0, tex1];
+        segments.push(TextureSegment {
+            data: [1, 1, 0, 0],
+        });
+        segments.push(TextureSegment {
+            data: [self.accretion.width, self.accretion.height, header_count, 0],
+        });
+        segments.push(TextureSegment {
+            data: [
+                self.background.width,
+                self.background.height,
+                header_count + acc_pixels,
+                0,
+            ],
+        });
 
-        // Build header: count (u32), pad (3*u32), then 3 infos (u32x4 each)
-        let mut header_u32s: Vec<u32> = Vec::new();
-        header_u32s.push(2u32); // count
-        header_u32s.extend_from_slice(&[0u32, 0u32, 0u32]); // _pad0
+        segments.extend(self.accretion.pixels.iter().map(|pixel| TextureSegment {
+            data: [
+                pixel[0].to_bits(),
+                pixel[1].to_bits(),
+                pixel[2].to_bits(),
+                pixel[3].to_bits(),
+            ],
+        }));
 
-        let mut current_offset: u32 = 0;
-        for i in 0..3 {
-            if i < 2 {
-                let tex = &textures[i];
-                header_u32s.push(tex.width);
-                header_u32s.push(tex.height);
-                header_u32s.push(current_offset);
-                header_u32s.push(0u32);
-                let pixels = tex.width.saturating_mul(tex.height);
-                current_offset = current_offset.saturating_add(pixels);
-            } else {
-                header_u32s.extend_from_slice(&[0u32, 0u32, 0u32, 0u32]);
-            }
-        }
+        segments.extend(self.background.pixels.iter().map(|pixel| TextureSegment {
+            data: [
+                pixel[0].to_bits(),
+                pixel[1].to_bits(),
+                pixel[2].to_bits(),
+                pixel[3].to_bits(),
+            ],
+        }));
 
-        // Flatten pixel floats
-        let mut pixel_floats: Vec<f32> = Vec::new();
-        for i in 0..2 {
-            let tex = &textures[i];
-            for px in &tex.pixels {
-                pixel_floats.push(px[0]);
-                pixel_floats.push(px[1]);
-                pixel_floats.push(px[2]);
-                pixel_floats.push(px[3]);
-            }
-        }
-
-        let mut texture_bytes: Vec<u8> = Vec::new();
-        texture_bytes.extend_from_slice(bytemuck::cast_slice(&header_u32s));
-        if !pixel_floats.is_empty() {
-            texture_bytes.extend_from_slice(bytemuck::cast_slice(&pixel_floats));
-        }
-
-        texture_bytes
+        PackedTextures { segments }
     }
 }

@@ -6,9 +6,9 @@ use wgpu::util::DeviceExt;
 
 use crate::geometry::manifold::PseudoRiemanian4Manifold;
 use crate::geometry::photon::{PackedPhoton4, PackedTraceResult, Photon4};
-use crate::graphics::texture::PackedAllTextures;
+use crate::graphics::texture::Textures;
 use crate::graphics::surface::PackedObject;
-use crate::graphics::camera::World;
+use crate::graphics::camera::{Objects, World};
 use crate::graphics::color::{Color, PackedColorResult};
 
 const WORKGROUP_SIZE: u32 = 64;
@@ -27,11 +27,7 @@ impl GeodesicIntegrator {
     pub fn new(world: &World, max_steps: u32, debug_ray_trajectory: bool) -> Option<Self> {
         let shader_source = Self::get_shader(&*world.manifold, max_steps, debug_ray_trajectory);
 
-
-        let packed_objects: Vec<PackedObject> = world.objects.iter().filter_map(|obj| obj.as_packed_object()).collect();
-        let packed_textures = world.textures.clone().as_packed_texture();
-
-        pollster::block_on(Self::new_async(shader_source, packed_objects, packed_textures, debug_ray_trajectory)).ok()
+        pollster::block_on(Self::new_async(shader_source, &world.objects, &world.textures, debug_ray_trajectory)).ok()
     }
 
     pub fn get_shader(_manifold: &dyn PseudoRiemanian4Manifold, max_steps: u32, debug_ray_trajectory: bool) -> String {
@@ -55,8 +51,11 @@ impl GeodesicIntegrator {
         )
     }
 
-    async fn new_async(shader_source: String, packed_objects: Vec<PackedObject>, packed_textures: PackedAllTextures, debug_ray_trajectory: bool) -> Result<Self, String> {
+    async fn new_async(shader_source: String, objects: &Objects, textures: &Textures, debug_ray_trajectory: bool) -> Result<Self, String> {
 
+        let packed_objects: Vec<PackedObject> = objects.iter().filter_map(|obj| obj.as_packed_object()).collect();
+        let packed_textures = textures.as_packed_texture();
+    
         let adapter = wgpu::Instance::default()
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,

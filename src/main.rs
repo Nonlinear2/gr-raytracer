@@ -9,11 +9,11 @@ use winit::{
     window::Window
 };
 use pixels::{Pixels, SurfaceTexture};
+use crate::graphics::texture::Textures;
 use crate::graphics::texture::Texture;
 use crate::graphics::texture::TextureId;
 use crate::graphics::surface::{Diffuse, Disc, Metal, Sphere};
 use crate::geometry::vector::ThreeVector;
-use crate::graphics::texture::AllTextures;
 use crate::graphics::camera::{Camera, World};
 use crate::graphics::color::Color;
 use crate::geometry::point::Point3;
@@ -92,9 +92,9 @@ fn main() {
         manifold: Box::new(Schwarzschild4Manifold::new(scene_center, 0.25)), // Box::new(EuclideanMetric {}),
         textures: {
             let texture = Texture::from_file("assets/packed_texture.ppm").expect("failed to load texture");
-            AllTextures {
-                accretion_disc: texture.clone(),
-                sky_background: texture,
+            Textures {
+                accretion: texture.clone(),
+                background: texture,
             }
         },
         objects: vec![
