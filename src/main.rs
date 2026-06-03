@@ -132,7 +132,7 @@ fn main() {
     };
 
     let mut buffer = vec![0u8; (WIDTH * HEIGHT * 4) as usize];
-    
+
     let camera: Camera = Camera::new(WIDTH, HEIGHT);
 
     let start = Instant::now();

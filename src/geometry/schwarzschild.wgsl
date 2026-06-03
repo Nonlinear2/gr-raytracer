@@ -210,8 +210,10 @@ struct PackedObject {
     _pad0: vec2<u32>,
     material: Material,
     _pad1: array<u32, 4>,
-    data0: vec4<f32>,
-    data1: vec4<f32>,
+    center: vec3<f32>,
+    radius: f32,
+    normal: vec3<f32>,
+    _pad2: u32,
     emission_params: vec4<f32>,
 }
 
@@ -227,15 +229,15 @@ struct PackedObject {
 
 // if is_hit is false, the other values dont have meaning
 struct HitData {
-    is_hit: u32,
+    is_hit: bool,
     hit_point: vec3<f32>, // in CARTESIAN_WORLD
     incoming_dir: vec3<f32>, // in TANGENT_CARTESIAN_WORLD
     normal: vec3<f32>, // in TANGENT_CARTESIAN_WORLD
 }
 
-const NO_HIT = HitData(0, VEC3_ZERO, VEC3_ZERO, VEC3_ZERO);
+const NO_HIT = HitData(false, VEC3_ZERO, VEC3_ZERO, VEC3_ZERO);
 
-// manifold vel is in any chart
+// pos is in CARTESIAN_WORLD chart
 fn object_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>) -> HitData {
     switch object.kind {
         case OBJECT_SPHERE: { return sphere_hit(object, prev_pos, new_pos); }
@@ -244,36 +246,28 @@ fn object_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>) -> 
     }
 }
 
-// manifold vel is in any chart
 // pos is in CARTESIAN_WORLD chart
 // returns: hit_pos, is_hit
 fn sphere_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>) -> HitData {
-    let center = object.data0.xyz;
-    let radius = object.data0.w;
+    let normal = normalize(new_pos - object.center);
+    let hit_point = object.center + normal * (object.radius * (1.0 + EPS)); //avoid precision errors
 
-    let normal = normalize(new_pos - center);
-    let hit_point = center + normal * (radius * (1.0 + EPS)); //avoid precision errors
-
-    if (length(new_pos - center) > radius) { // no hit
+    if (length(new_pos - object.center) > object.radius) { // no hit
         return NO_HIT;
     }
 
     return HitData(
-        1,
+        true,
         hit_point,
         normalize(new_pos - prev_pos),
         normal
     );
 }
 
-// manifold vel is in any chart
 // prev_pos and new_pos are in CARTESIAN_WORLD chart
 // returns: hit_pos, is_hit
 fn disc_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>) -> HitData {
-    let center = object.data0.xyz;
-    let radius = object.data0.w;
-
-    let normal = normalize(object.data1.xyz);
+    let normal = normalize(object.normal);
 
     let segment = new_pos - prev_pos;
     let segment_dot_normal = dot(segment, normal);
@@ -287,20 +281,20 @@ fn disc_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>) -> Hi
     // (prev_pos + t*segment - center) . normal = 0
     // (t*segment) . normal = (center - prev_pos) . normal
     // t = ((center - prev_pos) . normal) / (segment . normal)
-    let t = dot(center - prev_pos, normal) / segment_dot_normal;
+    let t = dot(object.center - prev_pos, normal) / segment_dot_normal;
 
     if (t < 0.0 || t > 1.0) { // check if intersection with disc plane is between prev_pos and new_pos
         return NO_HIT;
     }
 
     let hit_point = prev_pos + t * segment;
-    if (length(hit_point - center) > radius) {
+    if (length(hit_point - object.center) > object.radius) {
         return NO_HIT;
     }
 
     let directed_normal = select(normal, -normal, sign(segment_dot_normal) > 0);
     return HitData(
-        1,
+        true,
         hit_point + EPS * directed_normal,
         normalize(new_pos - prev_pos),
         directed_normal
@@ -361,23 +355,21 @@ struct PackedTextures {
 @group(0) @binding(4)
 var<storage, read> all_textures: PackedTextures;
 
-fn sphere_uv(normal: vec3<f32>) -> vec2<f32> {
-    let u = atan2(normal.z, normal.x) / TAU + 0.5;
-    let v = acos(clamp(normal.y, -1.0, 1.0)) / PI;
+fn sphere_uv(direction: vec3<f32>) -> vec2<f32> {
+    let u = atan2(direction.z, direction.x) / TAU + 0.5;
+    let v = acos(clamp(direction.y, -1.0, 1.0)) / PI;
     return vec2<f32>(u, v);
 }
 
 fn disc_uv(object: PackedObject, hit_point: vec3<f32>) -> vec2<f32> {
-    let center = object.data0.xyz;
-    let normal = normalize(object.data1.xyz);
+    let normal = normalize(object.normal);
     let reference_axis = select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), abs(normal.y) > 0.99);
     let tangent = normalize(cross(reference_axis, normal));
     let bitangent = cross(normal, tangent);
-    let local = hit_point - center;
-    let radius = object.data0.w;
+    let local = hit_point - object.center;
     return vec2<f32>(
         atan2(dot(local, bitangent), dot(local, tangent)) / TAU + 0.5,
-        length(local) / radius,
+        length(local) / object.radius,
     );
 }
 
@@ -408,7 +400,7 @@ fn object_albedo(object: PackedObject, hit_data: HitData) -> vec3<f32> {
                 default: {
                     switch object.kind {
                         case OBJECT_SPHERE: {
-                            return object.material.color * sample_texture(object.texture, sphere_uv(normalize(hit_data.hit_point - object.data0.xyz)));
+                            return object.material.color * sample_texture(object.texture, sphere_uv(normalize(hit_data.hit_point - object.center)));
                         }
                         case OBJECT_DISC: {
                             return object.material.color * sample_texture(object.texture, disc_uv(object, hit_data.hit_point));
@@ -422,6 +414,10 @@ fn object_albedo(object: PackedObject, hit_data: HitData) -> vec3<f32> {
         }
         default: { return object.material.color; }
     }
+}
+
+fn background_albedo(world_pos: vec3<f32>) -> vec3<f32> {
+    return sample_texture(TEXTURE_BACKGROUND, sphere_uv(normalize(world_pos - SUBATLAS_CENTER)));
 }
 
 fn object_emission(object: PackedObject, hit_data: HitData) -> vec3<f32> {
@@ -448,10 +444,6 @@ fn object_emission(object: PackedObject, hit_data: HitData) -> vec3<f32> {
         }
         default: { return object.emission_params.xyz; }
     }
-}
-
-fn background_color(world_pos: vec3<f32>) -> vec3<f32> {
-    return sample_texture(TEXTURE_BACKGROUND, sphere_uv(normalize(world_pos - SUBATLAS_CENTER)));
 }
 
 // fn background_color(world_pos: vec3<f32>) -> vec3<f32> {
@@ -960,7 +952,7 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
         }
 
         if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) { // background reached 
-            return packed_color_result(state.radiance + state.throughput * background_color(world_pos));
+            return packed_color_result(state.radiance + state.throughput * background_albedo(world_pos));
         }
 
         let preferred_chart = preferred_chart_for_point(world_pos);
@@ -973,7 +965,7 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
 
             let hit_data = object_hit(object, prev_world_pos, world_pos);
 
-            if (hit_data.is_hit == 0) {
+            if (!hit_data.is_hit) {
                 continue;
             }
 
