@@ -11,6 +11,14 @@ pub enum TextureId {
     BACKGROUND = 2,
 }
 
+impl TextureId {
+    pub const COUNT: usize = 3;
+
+    pub const fn as_index(self) -> usize {
+        self as usize
+    }
+}
+
 #[derive(Clone)]
 pub struct Texture {
     pub width: u32,
@@ -37,6 +45,14 @@ impl Texture {
 
         Ok(Self { width, height, pixels })
     }
+
+    fn solid_rgba(rgba: [f32; 4]) -> Self {
+        Self {
+            width: 1,
+            height: 1,
+            pixels: vec![rgba],
+        }
+    }
 }
 
 #[repr(C)]
@@ -57,50 +73,53 @@ impl PackedTextures {
 
 #[derive(Clone)]
 pub struct Textures {
-    pub accretion: Texture,
-    pub background: Texture,
+    textures: [Texture; TextureId::COUNT],
 }
 
 impl Textures {
+    pub fn new(accretion: Texture, background: Texture) -> Self {
+        Self {
+            textures: [
+                Texture::solid_rgba([0.0, 0.0, 0.0, 0.0]),
+                accretion,
+                background,
+            ],
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn get(&self, id: TextureId) -> &Texture {
+        &self.textures[id.as_index()]
+    }
+
     pub fn as_packed_texture(&self) -> PackedTextures {
-        let header_count = 3u32;
-        let acc_pixels = self.accretion.pixels.len() as u32;
-        let bg_pixels = self.background.pixels.len() as u32;
+        let header_count = TextureId::COUNT as u32;
+        let pixel_count = self
+            .textures
+            .iter()
+            .map(|texture| texture.pixels.len() as u32)
+            .sum::<u32>();
 
-        let mut segments = Vec::with_capacity((header_count + acc_pixels + bg_pixels) as usize);
+        let mut segments = Vec::with_capacity((header_count + pixel_count) as usize);
+        let mut pixel_offset = header_count;
 
-        segments.push(TextureSegment {
-            data: [1, 1, 0, 0],
-        });
-        segments.push(TextureSegment {
-            data: [self.accretion.width, self.accretion.height, header_count, 0],
-        });
-        segments.push(TextureSegment {
-            data: [
-                self.background.width,
-                self.background.height,
-                header_count + acc_pixels,
-                0,
-            ],
-        });
+        for texture in &self.textures {
+            segments.push(TextureSegment {
+                data: [texture.width, texture.height, pixel_offset, 0],
+            });
+            pixel_offset += texture.pixels.len() as u32;
+        }
 
-        segments.extend(self.accretion.pixels.iter().map(|pixel| TextureSegment {
-            data: [
-                pixel[0].to_bits(),
-                pixel[1].to_bits(),
-                pixel[2].to_bits(),
-                pixel[3].to_bits(),
-            ],
-        }));
-
-        segments.extend(self.background.pixels.iter().map(|pixel| TextureSegment {
-            data: [
-                pixel[0].to_bits(),
-                pixel[1].to_bits(),
-                pixel[2].to_bits(),
-                pixel[3].to_bits(),
-            ],
-        }));
+        for texture in &self.textures {
+            segments.extend(texture.pixels.iter().map(|pixel| TextureSegment {
+                data: [
+                    pixel[0].to_bits(),
+                    pixel[1].to_bits(),
+                    pixel[2].to_bits(),
+                    pixel[3].to_bits(),
+                ],
+            }));
+        }
 
         PackedTextures { segments }
     }

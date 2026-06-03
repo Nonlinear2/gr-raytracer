@@ -91,12 +91,9 @@ fn main() {
     let world = World {
         manifold: Box::new(Schwarzschild4Manifold::new(scene_center, 0.25)), // Box::new(EuclideanMetric {}),
         textures: {
-            let texture = Texture::from_file("assets/packed_texture.ppm").expect("failed to load texture");
-            let sky_texture = Texture::from_file("assets/space_sky.webp").expect("failed to load texture");
-            Textures {
-                accretion: texture,
-                background: sky_texture,
-            }
+            let accretion = Texture::from_file("assets/packed_texture.ppm").expect("failed to load texture");
+            let background = Texture::from_file("assets/space_sky.webp").expect("failed to load texture");
+            Textures::new(accretion, background)
         },
         objects: vec![
             // Box::new(Sphere {
