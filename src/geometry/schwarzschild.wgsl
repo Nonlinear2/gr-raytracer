@@ -307,17 +307,44 @@ fn disc_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>) -> Hi
     );
 }
 
+// if scattered is false, the other values dont have meaning
+struct ScatterData {
+    scattered: bool,
+    direction: vec3<f32>,
+}
+
 fn material_scatter(
     material: Material,
     hit_data: HitData,
     rng_seed: u32
-) -> vec4<f32> {
+) -> ScatterData {
 
     switch material.kind {
         case MATERIAL_DIFFUSE: { return diffuse_scatter(hit_data, rng_seed); }
         case MATERIAL_METAL: { return metal_scatter(hit_data, rng_seed, material.params); }
-        default: { return VEC4_ZERO; }
+        default: { return ScatterData(false, VEC3_ZERO); }
     }
+}
+
+fn diffuse_scatter(hit_data: HitData, rng_seed: u32) -> ScatterData {
+    let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
+
+    let scattered = normalize(hit_data.normal + (1.0 - EPS) * rand_dir);
+
+    return ScatterData(true, scattered);
+}
+
+fn metal_scatter(hit_data: HitData, rng_seed: u32, fuzz: f32) -> ScatterData {
+    let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
+
+    let f = clamp(fuzz, 0.0, 0.99);
+    var scattered_dir = normalize(reflect(hit_data.incoming_dir, hit_data.normal) + f * rand_dir);
+
+    if (dot(scattered_dir, hit_data.normal) <= 0.0) {
+        return ScatterData(false, VEC3_ZERO);
+    }
+
+    return ScatterData(true, scattered_dir);
 }
 
 // header: (size.x, size.y, pixel_offset, pad)
@@ -435,27 +462,6 @@ fn background_color(world_pos: vec3<f32>) -> vec3<f32> {
 //     }
 //     return vec3<f32>(235.0 / 255.0);
 // }
-
-fn diffuse_scatter(hit_data: HitData, rng_seed: u32) -> vec4<f32> {
-    let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
-
-    let scattered = normalize(hit_data.normal + 0.99 * rand_dir);
-
-    return vec4<f32>(scattered, 1.0);
-}
-
-fn metal_scatter(hit_data: HitData, rng_seed: u32, fuzz: f32) -> vec4<f32> {
-    let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
-
-    let f = clamp(fuzz, 0.0, 0.99);
-    var scattered_dir = normalize(reflect(hit_data.incoming_dir, hit_data.normal) + f * rand_dir);
-
-    if (dot(scattered_dir, hit_data.normal) <= 0.0) {
-        return VEC4_ZERO;
-    }
-
-    return vec4<f32>(scattered_dir, 1.0);
-}
 
 // euler.wgsl
 
@@ -989,13 +995,13 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
             state.radiance += state.throughput * object_emission(object, hit_data);
             state.throughput *= object_albedo(object, hit_data);
 
-            if (scatter_data.w < 0.5){ // no bounce
+            if (!scatter_data.scattered){ // no bounce
                 return packed_color_result(state.radiance);
             }
 
             let new_photon = Photon3(
                 Point3(hit_data.hit_point, CHART_CARTESIAN_WORLD),
-                ThreeVector(scatter_data.xyz, TANGENT_CARTESIAN_WORLD)
+                ThreeVector(scatter_data.direction, TANGENT_CARTESIAN_WORLD)
             );
 
             state = RayTraceState(
