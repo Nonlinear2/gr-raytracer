@@ -210,22 +210,12 @@ struct PackedObject {
     _pad0: vec2<u32>,
     material: Material,
     _pad1: array<u32, 4>,
-    center: vec3<f32>,
+    center: vec3<f32>, // in CARTESIAN_WORLD
     radius: f32,
-    normal: vec3<f32>,
+    normal: vec3<f32>, // in TANGENT_CARTESIAN_WORLD
     _pad2: u32,
     emission_params: vec4<f32>,
 }
-
-//          |               sphere              |        disc
-// data0.x: | center.x (chart: CARTESIAN_WORLD) | center.x (chart: CARTESIAN_WORLD)
-// data0.y: | center.y (chart: CARTESIAN_WORLD) | center.y (chart: CARTESIAN_WORLD)
-// data0.z: | center.z (chart: CARTESIAN_WORLD) | center.z (chart: CARTESIAN_WORLD)
-// data0.w: | radius                            | radius
-// data1.x: | None                              | normal.x (tangent space: CARTESIAN_WORLD)
-// data1.y: | None                              | normal.y (tangent space: CARTESIAN_WORLD)
-// data1.z: | None                              | normal.z (tangent space: CARTESIAN_WORLD)
-// data1.w: | None                              | None
 
 // if is_hit is false, the other values dont have meaning
 struct HitData {
@@ -277,7 +267,6 @@ fn disc_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>) -> Hi
     }
 
     // we are searching for t such that
-    // (X - center) . normal = 0
     // (prev_pos + t*segment - center) . normal = 0
     // (t*segment) . normal = (center - prev_pos) . normal
     // t = ((center - prev_pos) . normal) / (segment . normal)
@@ -345,7 +334,7 @@ fn metal_scatter(hit_data: HitData, rng_seed: u32, fuzz: f32) -> ScatterData {
 // pixel: vec4<f32> rgba
 
 struct TextureSegment {
-    data: vec4<u32>,
+    data: vec4<f32>,
 }
 
 struct PackedTextures {
@@ -363,7 +352,7 @@ fn sphere_uv(direction: vec3<f32>) -> vec2<f32> {
 
 fn disc_uv(object: PackedObject, hit_point: vec3<f32>) -> vec2<f32> {
     let normal = normalize(object.normal);
-    let reference_axis = select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), abs(normal.y) > 0.99);
+    let reference_axis = select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), abs(normal.y) > 0.5);
     let tangent = normalize(cross(reference_axis, normal));
     let bitangent = cross(normal, tangent);
     let local = hit_point - object.center;
@@ -373,21 +362,14 @@ fn disc_uv(object: PackedObject, hit_point: vec3<f32>) -> vec2<f32> {
     );
 }
 
-fn texture_header(texture: u32) -> vec4<u32> {
-    return all_textures.segments[texture].data;
-}
-
-fn texture_pixel(pixel_index: u32) -> vec4<f32> {
-    return bitcast<vec4<f32>>(all_textures.segments[pixel_index].data);
-}
-
 fn sample_texture(texture: u32, uv: vec2<f32>) -> vec3<f32> {
-    let header = texture_header(texture);
-    let size = vec2<f32>(f32(header.x), f32(header.y));
-    let clamped_uv = clamp(uv, vec2<f32>(0.0), vec2<f32>(0.999999));
-    let pixel_xy = vec2<u32>(clamped_uv * size);
-    let pixel_index = header.z + pixel_xy.y * u32(header.x) + pixel_xy.x;
-    return texture_pixel(pixel_index).xyz;
+    let header = all_textures.segments[texture].data;
+    let size = vec2<u32>(u32(header.x), u32(header.y));
+    let pixel_offset = u32(header.z);
+
+    let pixel_xy = vec2<u32>(uv * vec2<f32>(size));
+    let pixel_index = pixel_offset + pixel_xy.y * size.x + pixel_xy.x;
+    return all_textures.segments[pixel_index].data.xyz;
 }
 
 fn object_albedo(object: PackedObject, hit_data: HitData) -> vec3<f32> {

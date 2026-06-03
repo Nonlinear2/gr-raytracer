@@ -58,7 +58,7 @@ impl Texture {
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct TextureSegment {
-    data: [u32; 4],
+    data: [f32; 4],
 }
 
 pub struct PackedTextures {
@@ -105,20 +105,13 @@ impl Textures {
 
         for texture in &self.textures {
             segments.push(TextureSegment {
-                data: [texture.width, texture.height, pixel_offset, 0],
+                data: [texture.width as f32, texture.height as f32, pixel_offset as f32, 0.0],
             });
             pixel_offset += texture.pixels.len() as u32;
         }
 
         for texture in &self.textures {
-            segments.extend(texture.pixels.iter().map(|pixel| TextureSegment {
-                data: [
-                    pixel[0].to_bits(),
-                    pixel[1].to_bits(),
-                    pixel[2].to_bits(),
-                    pixel[3].to_bits(),
-                ],
-            }));
+            segments.extend(texture.pixels.iter().map(|pixel| TextureSegment {data: *pixel}));
         }
 
         PackedTextures { segments }
