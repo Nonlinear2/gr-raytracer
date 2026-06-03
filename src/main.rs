@@ -117,8 +117,8 @@ fn main() {
             }),
             Box::new(Disc {
                 center: Point3::new(0.0, 0.0, -1.0, CartesianWorld),
-                // normal: ThreeVector::new(0.2, 0.8, 0.3, geometry::vector::TangentSpace::CartesianWorld),
-                normal: ThreeVector::new(0.0, 0.0, 1., geometry::vector::TangentSpace::CartesianWorld),
+                normal: ThreeVector::new(0.2, 0.8, 0.3, geometry::vector::TangentSpace::CartesianWorld),
+                // normal: ThreeVector::new(0.0, 0.0, 1., geometry::vector::TangentSpace::CartesianWorld),
                 radius: 0.6,
                 material: Box::new(Diffuse {
                     // color: Color::new(128., 128., 128.),

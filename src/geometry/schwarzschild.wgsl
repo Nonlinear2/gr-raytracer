@@ -1004,6 +1004,8 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
                 state.radiance,
                 state.throughput,
             );
+
+            break;
         }
     }
 
