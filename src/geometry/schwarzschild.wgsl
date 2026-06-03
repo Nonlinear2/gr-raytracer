@@ -6,7 +6,7 @@ const PI: f32 = 3.141592653589793;
 const TAU: f32 = 6.283185307179586;
 
 const MAX_STEPS: u32 = 0u; // filled by get_shader
-const DEBUG_RAY_TRAJECTORY: u32 = 0u; // filled by get_shader
+const DEBUG_RAY_TRAJECTORY: bool = false; // filled by get_shader
 
 const EPS: f32 = 10e-10;
 
@@ -402,6 +402,16 @@ fn background_albedo(world_pos: vec3<f32>) -> vec3<f32> {
     return sample_texture(TEXTURE_BACKGROUND, sphere_uv(normalize(world_pos - SUBATLAS_CENTER)));
 }
 
+// fn background_albedo(world_pos: vec3<f32>) -> vec3<f32> {
+//     let tx = floor(world_pos.x * 2.0);
+//     let ty = floor(world_pos.y * 2.0);
+//     if (u32(abs(i32(tx + ty))) % 2u == 0u) {
+//         return vec3<f32>(35.0 / 255.0, 105.0 / 255.0, 105.0 / 255.0);
+//     }
+//     return vec3<f32>(235.0 / 255.0);
+// }
+
+
 fn object_emission(object: PackedObject, hit_data: HitData) -> vec3<f32> {
     switch object.material.kind {
         case MATERIAL_DIFFUSE: {
@@ -427,15 +437,6 @@ fn object_emission(object: PackedObject, hit_data: HitData) -> vec3<f32> {
         default: { return object.emission_params.xyz; }
     }
 }
-
-// fn background_color(world_pos: vec3<f32>) -> vec3<f32> {
-//     let tx = floor(world_pos.x * 2.0);
-//     let ty = floor(world_pos.y * 2.0);
-//     if (u32(abs(i32(tx + ty))) % 2u == 0u) {
-//         return vec3<f32>(35.0 / 255.0, 105.0 / 255.0, 105.0 / 255.0);
-//     }
-//     return vec3<f32>(235.0 / 255.0);
-// }
 
 // euler.wgsl
 
@@ -533,7 +534,7 @@ fn rk4_step(photon: Photon4) -> Photon4 {
 // schwarzschild.wgsl
 
 // CONSTS
-const SUBATLAS_CENTER: vec3<f32> = vec3<f32>(0.0, 0.0, -1.0);  // center is a point in world space
+const SUBATLAS_CENTER: vec3<f32> = vec3<f32>(0.0, 0.0, -1.0);  // center is in CARTESIAN_WORLD
 const R_S: f32 = 0.25;
 const SCENE_SIZE: f32 = 3.0;
 
@@ -654,10 +655,6 @@ fn transition_vector(point: Point3, v: ThreeVector, to: u32) -> ThreeVector {
         return v;
     }
 
-    let r = point.inner.x;
-    let theta = point.inner.y;
-    let phi = point.inner.z;
-
     switch (point.chart) {
         case CHART_CARTESIAN_WORLD: {
             let world_pos = point.inner;
@@ -710,6 +707,10 @@ fn transition_vector(point: Point3, v: ThreeVector, to: u32) -> ThreeVector {
             }
         }
         case CHART_SPHERICAL_Z: {
+            let r = point.inner.x;
+            let theta = point.inner.y;
+            let phi = point.inner.z;
+
             switch (to) {
                 case CHART_CARTESIAN_WORLD: {
                     let v_r = v.inner.x;
@@ -751,6 +752,10 @@ fn transition_vector(point: Point3, v: ThreeVector, to: u32) -> ThreeVector {
             }
         }
         case CHART_SPHERICAL_X: {
+            let r = point.inner.x;
+            let theta = point.inner.y;
+            let phi = point.inner.z;
+
             switch (to) {
                 case CHART_CARTESIAN_WORLD: {
                     let v_r = v.inner.x;
@@ -799,16 +804,17 @@ fn transition_vector(point: Point3, v: ThreeVector, to: u32) -> ThreeVector {
 
 // impl PseudoRiemanian4Manifold for Schwarzschild4Manifold
 
-fn photon3_to_photon4(photon: Photon3, chart: u32) -> Photon4 { // resets time component to 0, only works in static spacetime
+fn photon3_to_photon4(photon: Photon3, chart: u32) -> Photon4 { // sets time component to 0, only works in static spacetime
     let pos = transition_point(photon.pos, chart);
     let vel = transition_vector(photon.pos, photon.vel, chart);
 
     let photon_x = new_point4(0.0, pos.inner.x, pos.inner.y, pos.inner.z, chart);
 
     let g_mat = g(photon_x);
-        let b = 2.0 * (g_mat[0][1] * vel.inner.x + g_mat[0][2] * vel.inner.y + g_mat[0][3] * vel.inner.z);
-    let c =
-                    g_mat[1][1] * vel.inner.x * vel.inner.x
+
+    let b = 2.0 * (g_mat[0][1] * vel.inner.x + g_mat[0][2] * vel.inner.y + g_mat[0][3] * vel.inner.z);
+
+    let c = g_mat[1][1] * vel.inner.x * vel.inner.x
                 + 2.0 * g_mat[1][2] * vel.inner.x * vel.inner.y
                 + 2.0 * g_mat[1][3] * vel.inner.x * vel.inner.z
                 + g_mat[2][2] * vel.inner.y * vel.inner.y
@@ -925,7 +931,7 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
         let ray_pos3 = Point3(state.ray.pos.inner.yzw, state.ray.pos.chart);
         let world_pos = transition_point(ray_pos3, CHART_CARTESIAN_WORLD).inner;
 
-        if (DEBUG_RAY_TRAJECTORY == 1u) {
+        if (DEBUG_RAY_TRAJECTORY) {
             trace_results.positions[step] = TracePos(world_pos, 1.0);
         }
 
