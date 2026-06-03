@@ -92,9 +92,10 @@ fn main() {
         manifold: Box::new(Schwarzschild4Manifold::new(scene_center, 0.25)), // Box::new(EuclideanMetric {}),
         textures: {
             let texture = Texture::from_file("assets/packed_texture.ppm").expect("failed to load texture");
+            let sky_texture = Texture::from_file("assets/space_sky.webp").expect("failed to load texture");
             Textures {
-                accretion: texture.clone(),
-                background: texture,
+                accretion: texture,
+                background: sky_texture,
             }
         },
         objects: vec![
@@ -125,7 +126,7 @@ fn main() {
                     color: Color::new(128., 128., 128.),
                     emission: Color::new(237.0, 193.0, 154.0),
                 }),
-                texture: TextureId::ACCRETION,
+                texture: TextureId::NONE,
             })
         ],
     };

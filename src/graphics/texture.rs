@@ -57,8 +57,8 @@ impl PackedTextures {
 
 #[derive(Clone)]
 pub struct Textures {
-    accretion: Texture,
-    background: Texture,
+    pub accretion: Texture,
+    pub background: Texture,
 }
 
 impl Textures {
