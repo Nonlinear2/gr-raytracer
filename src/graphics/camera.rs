@@ -75,7 +75,7 @@ impl Camera {
     }
 
     pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
-        let integrator = GeodesicIntegrator::new(world, MAX_INTEGRATION_STEPS, false).unwrap();
+        let integrator = GeodesicIntegrator::new(world, MAX_INTEGRATION_STEPS, true).unwrap();
 
         let mut rays = Vec::with_capacity((self.img_width * self.img_height * self.samples_per_pixel) as usize);
 

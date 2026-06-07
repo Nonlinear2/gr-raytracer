@@ -3,9 +3,11 @@ mod geometry;
 mod integration;
 
 use winit::{
+    dpi::PhysicalSize,
     application::ApplicationHandler,
     event::WindowEvent,
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    keyboard::{Key, NamedKey},
     window::Window
 };
 use pixels::{Pixels, SurfaceTexture};
@@ -34,6 +36,7 @@ struct App {
     window: Option<&'static Window>,
     pixels: Option<Pixels<'static>>,
     frame: Vec<u8>,
+    cursor_position: Option<(f64, f64)>,
 }
 
 impl App {
@@ -42,6 +45,7 @@ impl App {
             window: None,
             pixels: None,
             frame,
+            cursor_position: None,
         }
     }
 }
@@ -50,7 +54,12 @@ impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
 
         let window = event_loop
-            .create_window(Window::default_attributes().with_title("simulation"))
+            .create_window(
+                Window::default_attributes()
+                    .with_title("")
+                    .with_inner_size(PhysicalSize::new(WIDTH, HEIGHT))
+                    .with_resizable(false)
+            )
             .unwrap();
 
         let size = window.inner_size();
@@ -70,6 +79,26 @@ impl ApplicationHandler for App {
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
+            }
+
+            WindowEvent::CursorMoved { position, .. } => {
+                self.cursor_position = Some((position.x, position.y));
+            }
+
+            WindowEvent::KeyboardInput { event, .. } => {
+                if event.state.is_pressed() && matches!(event.logical_key, Key::Named(NamedKey::Space)) {
+                    if let (Some((cursor_x, cursor_y)), Some(window)) = (self.cursor_position, self.window) {
+                        let pixel_x = cursor_x.floor() as u32;
+                        let pixel_y = cursor_y.floor() as u32;
+
+                        if pixel_x < WIDTH && pixel_y < HEIGHT {
+                            let pixel_number = pixel_y * WIDTH + pixel_x;
+
+                            println!("Hovered pixel: {} (x={}, y={})", pixel_number, pixel_x, pixel_y);
+                            window.set_title(&format!("simulation - pixel {}", pixel_number));
+                        }
+                    }
+                }
             }
 
             WindowEvent::RedrawRequested => {

@@ -8,7 +8,11 @@ const TAU: f32 = 6.283185307179586;
 const MAX_STEPS: u32 = 0u; // filled by get_shader
 const DEBUG_RAY_TRAJECTORY: bool = false; // filled by get_shader
 
-const EPS: f32 = 10e-10;
+const SAMPLES_PER_PIXEL: u32 = 2u;
+const DEBUG_PIXEL_INDEX: u32 = 99433 - 1;
+const DEBUG_RAY_INDEX: u32 = DEBUG_PIXEL_INDEX * SAMPLES_PER_PIXEL;
+
+const EPS: f32 = 10e-6;
 
 // StopReason
 const STOP_MAX_STEPS_REACHED: u32 = 0u;
@@ -272,7 +276,7 @@ fn disc_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>) -> Hi
     // t = ((center - prev_pos) . normal) / (segment . normal)
     let t = dot(object.center - prev_pos, normal) / segment_dot_normal;
 
-    if (t < 0.0 || t > 1.0) { // check if intersection with disc plane is between prev_pos and new_pos
+    if (t < -EPS || t > 1.0 + EPS) { // check if intersection with disc plane is outside of prev_pos and new_pos
         return NO_HIT;
     }
 
@@ -310,9 +314,10 @@ fn material_scatter(
 }
 
 fn diffuse_scatter(hit_data: HitData, rng_seed: u32) -> ScatterData {
-    let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
+    // let rand_dir = random_unit_vector(rng_seed ^ 0xA341316Cu, rng_seed ^ 0xC8013EA4u);
 
-    let scattered = normalize(hit_data.normal + (1.0 - EPS) * rand_dir);
+    // let scattered = normalize(hit_data.normal + (1.0 - EPS) * rand_dir);
+    let scattered = normalize(hit_data.normal);
 
     return ScatterData(true, scattered);
 }
@@ -931,7 +936,7 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
         let ray_pos3 = Point3(state.ray.pos.inner.yzw, state.ray.pos.chart);
         let world_pos = transition_point(ray_pos3, CHART_CARTESIAN_WORLD).inner;
 
-        if (DEBUG_RAY_TRAJECTORY) {
+        if (DEBUG_RAY_TRAJECTORY && ray_index == DEBUG_RAY_INDEX) {
             trace_results.positions[step] = TracePos(world_pos, 1.0);
         }
 
@@ -1026,6 +1031,11 @@ var<storage, read_write> trace_results: TraceResult;
 fn evolve_rays(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let ray_index = global_id.x;
     let ray_count = arrayLength(&input_photons.data);
+
+    if (DEBUG_RAY_TRAJECTORY && ray_index == DEBUG_RAY_INDEX - 1) {
+        output_results.data[ray_index] = ColorResult(vec3<f32>(1.0, 0.0, 0.0), 0);
+        return;
+    }
 
     if (ray_index >= ray_count) {
         return;

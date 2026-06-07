@@ -45,7 +45,7 @@ impl GeodesicIntegrator {
                 "const MAX_STEPS: u32 = 0u;", 
                 &format!("const MAX_STEPS: u32 = {};", max_steps)
             ).replace(
-                "DEBUG_RAY_TRAJECTORY: bool = false;", 
+                "const DEBUG_RAY_TRAJECTORY: bool = false;", 
                 &format!("const DEBUG_RAY_TRAJECTORY: bool = {};", debug_ray_trajectory
             )
         )
