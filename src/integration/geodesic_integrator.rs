@@ -12,6 +12,7 @@ use crate::graphics::camera::{Objects, World};
 use crate::graphics::color::{Color, PackedColorResult};
 
 const WORKGROUP_SIZE: u32 = 64;
+const DEBUG_RAY_TRAJECTORY: bool = cfg!(debug_assertions);
 
 pub struct GeodesicIntegrator {
     device: wgpu::Device,
@@ -19,18 +20,16 @@ pub struct GeodesicIntegrator {
     pipeline: wgpu::ComputePipeline,
     object_buffer: wgpu::Buffer,
     texture_buffer: wgpu::Buffer,
-
-    debug_ray_trajectory: bool,
 }
 
 impl GeodesicIntegrator {
-    pub fn new(world: &World, max_steps: u32, debug_ray_trajectory: bool) -> Option<Self> {
-        let shader_source = Self::get_shader(&*world.manifold, max_steps, debug_ray_trajectory);
+    pub fn new(world: &World, max_steps: u32) -> Option<Self> {
+        let shader_source = Self::get_shader(&*world.manifold, max_steps);
 
-        pollster::block_on(Self::new_async(shader_source, &world.objects, &world.textures, debug_ray_trajectory)).ok()
+        pollster::block_on(Self::new_async(shader_source, &world.objects, &world.textures)).ok()
     }
 
-    pub fn get_shader(_manifold: &dyn PseudoRiemanian4Manifold, max_steps: u32, debug_ray_trajectory: bool) -> String {
+    pub fn get_shader(_manifold: &dyn PseudoRiemanian4Manifold, max_steps: u32) -> String {
 
         // Concatenate shader
 
@@ -46,12 +45,11 @@ impl GeodesicIntegrator {
                 &format!("const MAX_STEPS: u32 = {};", max_steps)
             ).replace(
                 "const DEBUG_RAY_TRAJECTORY: bool = false;", 
-                &format!("const DEBUG_RAY_TRAJECTORY: bool = {};", debug_ray_trajectory
+                &format!("const DEBUG_RAY_TRAJECTORY: bool = {};", DEBUG_RAY_TRAJECTORY)
             )
-        )
     }
 
-    async fn new_async(shader_source: String, objects: &Objects, textures: &Textures, debug_ray_trajectory: bool) -> Result<Self, String> {
+    async fn new_async(shader_source: String, objects: &Objects, textures: &Textures) -> Result<Self, String> {
 
         let packed_objects: Vec<PackedObject> = objects.iter().filter_map(|obj| obj.as_packed_object()).collect();
         let packed_textures = textures.as_packed_texture();
@@ -163,7 +161,7 @@ impl GeodesicIntegrator {
             cache: None,
         });
 
-        Ok(Self { device, queue, pipeline, object_buffer, texture_buffer, debug_ray_trajectory })
+        Ok(Self { device, queue, pipeline, object_buffer, texture_buffer })
     }
 
     fn create_buffers(&self, packed_rays: &[PackedPhoton4], rays_byte_size: u64) -> (wgpu::Buffer, wgpu::Buffer, wgpu::Buffer, wgpu::Buffer, Option<wgpu::Buffer>) {
@@ -193,7 +191,7 @@ impl GeodesicIntegrator {
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
         });
     
-        let trace_readback = if self.debug_ray_trajectory {
+        let trace_readback = if DEBUG_RAY_TRAJECTORY {
             Some(self.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("trace-readback"),
                 size: std::mem::size_of::<PackedTraceResult>() as u64,
