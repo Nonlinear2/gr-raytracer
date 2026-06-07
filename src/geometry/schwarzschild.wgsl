@@ -8,9 +8,7 @@ const TAU: f32 = 6.283185307179586;
 const MAX_STEPS: u32 = 0u; // filled by get_shader
 const DEBUG_RAY_TRAJECTORY: bool = false; // filled by get_shader
 
-const SAMPLES_PER_PIXEL: u32 = 2u;
-const DEBUG_PIXEL_INDEX: u32 = 99433 - 1;
-const DEBUG_RAY_INDEX: u32 = DEBUG_PIXEL_INDEX * SAMPLES_PER_PIXEL;
+const DEBUG_RAY_INDEX: u32 = 99433 - 1;
 
 const EPS: f32 = 10e-6;
 

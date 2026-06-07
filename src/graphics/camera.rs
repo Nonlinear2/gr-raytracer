@@ -6,7 +6,7 @@ use crate::graphics::surface::Object;
 
 use rand::{rngs::StdRng, RngExt};
 
-const SAMPLES_PER_PIXEL: u32 = 2;
+const SAMPLES_PER_PIXEL: u32 = if cfg!(debug_assertions) { 1 } else { 2 };
 
 pub type Objects = Vec<Box<dyn Object>>;
 
