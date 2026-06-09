@@ -12,4 +12,5 @@ pub const MAX_INTEGRATION_STEPS: u32 = 1000;
 pub const INTEGRATION_STEP_SIZE: f32 = 0.005;
 
 // Debug
-pub const DEBUG_RAY_TRAJECTORY: bool = false;
+pub const DEBUG: bool = false;
+pub const DEBUG_RAY_INDEX: u32 = 99433;

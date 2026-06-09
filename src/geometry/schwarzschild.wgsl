@@ -5,11 +5,11 @@ const TAU: f32 = 6.283185307179586;
 
 const INTEGRATION_STEP_SIZE: f32 = 0.0; // filled by get_shader
 const MAX_STEPS: u32 = 0u; // filled by get_shader
-const DEBUG_RAY_TRAJECTORY: bool = false; // filled by get_shader
+const DEBUG: bool = false; // filled by get_shader
+const DEBUG_RAY_INDEX: u32 = 0; // filled by get_shader
 const MAX_BOUNCES: u32 = 0u; // filled by get_shader
 
 
-const DEBUG_RAY_INDEX: u32 = 99433 - 1;
 
 const EPS: f32 = 10e-6;
 
@@ -932,7 +932,7 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
         let ray_pos3 = Point3(state.ray.pos.inner.yzw, state.ray.pos.chart);
         let world_pos = transition_point(ray_pos3, CHART_CARTESIAN_WORLD).inner;
 
-        if (DEBUG_RAY_TRAJECTORY && ray_index == DEBUG_RAY_INDEX) {
+        if (DEBUG && ray_index == DEBUG_RAY_INDEX) {
             trace_results.positions[step] = TracePos(world_pos, 1.0);
         }
 
@@ -1028,7 +1028,7 @@ fn evolve_rays(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let ray_index = global_id.x;
     let ray_count = arrayLength(&input_photons.data);
 
-    if (DEBUG_RAY_TRAJECTORY && ray_index == DEBUG_RAY_INDEX - 1) {
+    if (DEBUG && ray_index == DEBUG_RAY_INDEX - 1) {
         output_results.data[ray_index] = ColorResult(vec3<f32>(1.0, 0.0, 0.0), 0);
         return;
     }

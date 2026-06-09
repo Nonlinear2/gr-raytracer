@@ -49,10 +49,13 @@ impl GeodesicIntegrator {
                 &format!("const MAX_STEPS: u32 = {};", config::MAX_INTEGRATION_STEPS)
             ).replace(
                 "const DEBUG_RAY_TRAJECTORY: bool = false;", 
-                &format!("const DEBUG_RAY_TRAJECTORY: bool = {};", config::DEBUG_RAY_TRAJECTORY)
+                &format!("const DEBUG_RAY_TRAJECTORY: bool = {};", config::DEBUG)
             ).replace(
                 "const MAX_BOUNCES: u32 = 0u;", 
                 &format!("const MAX_BOUNCES: u32 = {};", config::MAX_BOUNCES)
+            ).replace(
+                "const DEBUG_RAY_INDEX: u32 = 0;", 
+                &format!("const DEBUG_RAY_INDEX: u32 = {};", config::DEBUG_RAY_INDEX)
             )
     }
 
