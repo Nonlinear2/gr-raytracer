@@ -537,7 +537,7 @@ fn rk4_step(photon: Photon4) -> Photon4 {
 // CONSTS
 const SUBATLAS_CENTER: vec3<f32> = vec3<f32>(0.0, 0.0, -1.0);  // center is in CARTESIAN_WORLD
 const R_S: f32 = 0.25;
-const SCENE_SIZE: f32 = 3.0;
+const SCENE_SIZE: f32 = 0.0; // filled by get_shader
 
 
 // HasAtlas3 for Schwarzschild4Manifold

@@ -5,7 +5,6 @@ use bytemuck::Zeroable;
 use wgpu::util::DeviceExt;
 
 use crate::config;
-use crate::geometry::manifold::PseudoRiemanian4Manifold;
 use crate::geometry::photon::{PackedPhoton4, PackedTraceResult, Photon4};
 use crate::graphics::texture::Textures;
 use crate::graphics::surface::PackedObject;
@@ -25,12 +24,12 @@ pub struct GeodesicIntegrator {
 
 impl GeodesicIntegrator {
     pub fn new(world: &World) -> Option<Self> {
-        let shader_source = Self::get_shader(&*world.manifold);
+        let shader_source = Self::get_shader(world);
 
         pollster::block_on(Self::new_async(shader_source, &world.objects, &world.textures)).ok()
     }
 
-    pub fn get_shader(_manifold: &dyn PseudoRiemanian4Manifold) -> String {
+    pub fn get_shader(world: &World) -> String {
 
         // Concatenate shader
 
@@ -56,6 +55,9 @@ impl GeodesicIntegrator {
             ).replace(
                 "const DEBUG_RAY_INDEX: u32 = 0;", 
                 &format!("const DEBUG_RAY_INDEX: u32 = {};", config::DEBUG_RAY_INDEX)
+            ).replace(
+                "const SCENE_SIZE: f32 = 0.0;", 
+                &format!("const SCENE_SIZE: f32 = {};", world.scene_size)
             )
     }
 
