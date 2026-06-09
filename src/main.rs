@@ -22,12 +22,9 @@ use crate::graphics::color::Color;
 use crate::geometry::point::Point3;
 use crate::geometry::schwarzschild::Schwarzschild4Manifold;
 use crate::geometry::manifold::Chart::CartesianWorld;
-use crate::config::Config;
 
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Instant;
-
-const MAX_INTEGRATION_STEPS: u32 = 1000;
 
 #[derive(Default)]
 struct App {
@@ -116,16 +113,6 @@ impl ApplicationHandler for App {
 fn main() {
     env_logger::init();
 
-    let config = Config::load().expect("failed to load src/config.toml");
-    assert_eq!(
-        config.max_integration_steps,
-        MAX_INTEGRATION_STEPS,
-        "config.toml max_integration_steps must match MAX_INTEGRATION_STEPS for the current packed trace buffer"
-    );
-
-    let image_height = config.image_height;
-    let image_width = ((image_height as f32) * config.aspect_ratio).round() as u32;
-
     let world = World {
         scene_size: 3.0,
         manifold: Box::new(Schwarzschild4Manifold::new(
@@ -164,13 +151,13 @@ fn main() {
         ],
     };
 
-    let mut buffer = vec![0u8; (image_width * image_height * 4) as usize];
+    let mut buffer = vec![0u8; (config::IMAGE_WIDTH * config::IMAGE_HEIGHT * 4) as usize];
 
-    let mut camera: Camera = Camera::new(image_width, image_height);
-    camera.samples_per_pixel = config.samples_per_pixel;
+    let mut camera: Camera = Camera::new(config::IMAGE_WIDTH, config::IMAGE_HEIGHT);
+    camera.samples_per_pixel = config::SAMPLES_PER_PIXEL;
 
     let start = Instant::now();
-    let mut rng = StdRng::seed_from_u64(config.rng_seed);
+    let mut rng = StdRng::seed_from_u64(config::RNG_SEED);
 
     camera.render(buffer.as_mut_slice(), &world, &mut rng);
 
@@ -181,7 +168,7 @@ fn main() {
 
     event_loop.set_control_flow(ControlFlow::Wait);
 
-    let mut app = App::new(buffer, image_width, image_height);
+    let mut app = App::new(buffer, config::IMAGE_WIDTH, config::IMAGE_HEIGHT);
 
     event_loop.run_app(&mut app).unwrap();
 }

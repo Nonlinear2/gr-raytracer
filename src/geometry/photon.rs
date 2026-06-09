@@ -1,6 +1,6 @@
 use num_enum::TryFromPrimitive;
 
-use crate::MAX_INTEGRATION_STEPS;
+use crate::config;
 use crate::geometry::manifold::{Chart, tangent_space};
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
@@ -109,7 +109,7 @@ pub struct PackedRayResult {
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct PackedTraceResult {
-    pub positions: [PackedTracePoint; MAX_INTEGRATION_STEPS as usize],
+    pub positions: [PackedTracePoint; config::MAX_INTEGRATION_STEPS as usize],
 }
 
 #[repr(C)]

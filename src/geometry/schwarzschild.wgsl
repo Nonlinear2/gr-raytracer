@@ -1,12 +1,13 @@
 // common.wgsl
 
-const INTEGRATION_STEP_SIZE: f32 = 0.005;
-
 const PI: f32 = 3.141592653589793;
 const TAU: f32 = 6.283185307179586;
 
+const INTEGRATION_STEP_SIZE: f32 = 0.0; // filled by get_shader
 const MAX_STEPS: u32 = 0u; // filled by get_shader
 const DEBUG_RAY_TRAJECTORY: bool = false; // filled by get_shader
+const MAX_BOUNCES: u32 = 0u; // filled by get_shader
+
 
 const DEBUG_RAY_INDEX: u32 = 99433 - 1;
 
@@ -46,8 +47,6 @@ const MATERIAL_METAL: u32 = 1u;
 const TEXTURE_NONE: u32 = 0u;
 const TEXTURE_ACCRETION: u32 = 1u;
 const TEXTURE_BACKGROUND: u32 = 2u;
-
-const MAX_BOUNCES: u32 = 2u;
 
 const VEC3_ZERO: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0);
 const VEC4_ZERO: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);

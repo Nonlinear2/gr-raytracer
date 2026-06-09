@@ -4,6 +4,7 @@ use std::sync::mpsc;
 use bytemuck::Zeroable;
 use wgpu::util::DeviceExt;
 
+use crate::config;
 use crate::geometry::manifold::PseudoRiemanian4Manifold;
 use crate::geometry::photon::{PackedPhoton4, PackedTraceResult, Photon4};
 use crate::graphics::texture::Textures;
@@ -23,13 +24,13 @@ pub struct GeodesicIntegrator {
 }
 
 impl GeodesicIntegrator {
-    pub fn new(world: &World, max_steps: u32) -> Option<Self> {
-        let shader_source = Self::get_shader(&*world.manifold, max_steps);
+    pub fn new(world: &World) -> Option<Self> {
+        let shader_source = Self::get_shader(&*world.manifold);
 
         pollster::block_on(Self::new_async(shader_source, &world.objects, &world.textures)).ok()
     }
 
-    pub fn get_shader(_manifold: &dyn PseudoRiemanian4Manifold, max_steps: u32) -> String {
+    pub fn get_shader(_manifold: &dyn PseudoRiemanian4Manifold) -> String {
 
         // Concatenate shader
 
@@ -41,11 +42,17 @@ impl GeodesicIntegrator {
         // [common_source, packed_source, euler_source, &manifold_source].join("\n")
         include_str!("../geometry/schwarzschild.wgsl")
             .replace(
+                "const INTEGRATION_STEP_SIZE: f32 = 0.0;", 
+                &format!("const INTEGRATION_STEP_SIZE: f32 = {};", config::INTEGRATION_STEP_SIZE)
+            ).replace(
                 "const MAX_STEPS: u32 = 0u;", 
-                &format!("const MAX_STEPS: u32 = {};", max_steps)
+                &format!("const MAX_STEPS: u32 = {};", config::MAX_INTEGRATION_STEPS)
             ).replace(
                 "const DEBUG_RAY_TRAJECTORY: bool = false;", 
-                &format!("const DEBUG_RAY_TRAJECTORY: bool = {};", DEBUG_RAY_TRAJECTORY)
+                &format!("const DEBUG_RAY_TRAJECTORY: bool = {};", config::DEBUG_RAY_TRAJECTORY)
+            ).replace(
+                "const MAX_BOUNCES: u32 = 0u;", 
+                &format!("const MAX_BOUNCES: u32 = {};", config::MAX_BOUNCES)
             )
     }
 

@@ -1,9 +1,8 @@
-use crate::{MAX_INTEGRATION_STEPS, geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, vector::TangentSpace}, graphics::texture::Textures, integration::geodesic_integrator::GeodesicIntegrator};
+use crate::{geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, vector::TangentSpace}, graphics::texture::Textures, integration::geodesic_integrator::GeodesicIntegrator};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
 use crate::graphics::surface::Object;
-
 use rand::{rngs::StdRng, RngExt};
 
 const SAMPLES_PER_PIXEL: u32 = if cfg!(debug_assertions) { 1 } else { 2 };
@@ -76,7 +75,7 @@ impl Camera {
     }
 
     pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
-        let integrator = GeodesicIntegrator::new(world, MAX_INTEGRATION_STEPS).unwrap();
+        let integrator = GeodesicIntegrator::new(world).unwrap();
 
         let mut rays = Vec::with_capacity((self.img_width * self.img_height * self.samples_per_pixel) as usize);
 

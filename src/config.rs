@@ -1,20 +1,15 @@
-use serde::Deserialize;
-use std::{error::Error, fs};
+pub const RNG_SEED: u64 = 0;
 
-#[derive(Debug, Deserialize)]
-pub struct Config {
-	pub image_height: u32,
-	pub aspect_ratio: f32,
-	pub samples_per_pixel: u32,
-	pub rng_seed: u64,
-	pub max_integration_steps: u32,
-	pub max_bounces: u32,
-}
+// Image configuration
+pub const IMAGE_HEIGHT: u32 = 300;
+pub const IMAGE_WIDTH: u32 = ((IMAGE_HEIGHT as f32) * 16.0 / 9.0) as u32;
 
-impl Config {
-	pub fn load() -> Result<Self, Box<dyn Error>> {
-		let path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/config.toml");
-		let contents = fs::read_to_string(path)?;
-		Ok(toml::from_str(&contents)?)
-	}
-}
+pub const SAMPLES_PER_PIXEL: u32 = 2;
+
+pub const MAX_BOUNCES: u32 = 2;
+// Integration
+pub const MAX_INTEGRATION_STEPS: u32 = 1000;
+pub const INTEGRATION_STEP_SIZE: f32 = 0.005;
+
+// Debug
+pub const DEBUG_RAY_TRAJECTORY: bool = false;
