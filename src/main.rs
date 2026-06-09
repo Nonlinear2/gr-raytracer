@@ -1,6 +1,7 @@
 mod graphics;
 mod geometry;
 mod integration;
+mod config;
 
 use winit::{
     dpi::PhysicalSize,
@@ -21,18 +22,17 @@ use crate::graphics::color::Color;
 use crate::geometry::point::Point3;
 use crate::geometry::schwarzschild::Schwarzschild4Manifold;
 use crate::geometry::manifold::Chart::CartesianWorld;
+use crate::config::Config;
 
 use rand::{rngs::StdRng, SeedableRng};
 use std::time::Instant;
-
-const HEIGHT: u32 = 300;
-const WIDTH: u32 = ((HEIGHT as f32) * 16.0 / 9.0) as u32;
-const RNG_SEED: u64 = 0;
 
 const MAX_INTEGRATION_STEPS: u32 = 1000;
 
 #[derive(Default)]
 struct App {
+    image_width: u32,
+    image_height: u32,
     window: Option<&'static Window>,
     pixels: Option<Pixels<'static>>,
     frame: Vec<u8>,
@@ -40,8 +40,10 @@ struct App {
 }
 
 impl App {
-    fn new(frame: Vec<u8>) -> Self {
+    fn new(frame: Vec<u8>, image_width: u32, image_height: u32) -> Self {
         Self {
+            image_width,
+            image_height,
             window: None,
             pixels: None,
             frame,
@@ -57,7 +59,7 @@ impl ApplicationHandler for App {
             .create_window(
                 Window::default_attributes()
                     .with_title("")
-                    .with_inner_size(PhysicalSize::new(WIDTH, HEIGHT))
+                    .with_inner_size(PhysicalSize::new(self.image_width, self.image_height))
                     .with_resizable(false)
             )
             .unwrap();
@@ -66,7 +68,7 @@ impl ApplicationHandler for App {
         let window_ref: &'static Window = Box::leak(Box::new(window));
         let surface_texture = SurfaceTexture::new(size.width, size.height, window_ref);
 
-        let mut pixels = Pixels::new(WIDTH, HEIGHT, surface_texture).unwrap();
+        let mut pixels = Pixels::new(self.image_width, self.image_height, surface_texture).unwrap();
         
         pixels.frame_mut().copy_from_slice(&self.frame);
 
@@ -87,15 +89,14 @@ impl ApplicationHandler for App {
 
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.state.is_pressed() && matches!(event.logical_key, Key::Named(NamedKey::Space)) {
-                    if let (Some((cursor_x, cursor_y)), Some(window)) = (self.cursor_position, self.window) {
+                    if let (Some((cursor_x, cursor_y)), ..) = (self.cursor_position, self.window) {
                         let pixel_x = cursor_x.floor() as u32;
                         let pixel_y = cursor_y.floor() as u32;
 
-                        if pixel_x < WIDTH && pixel_y < HEIGHT {
-                            let pixel_number = pixel_y * WIDTH + pixel_x;
+                        if pixel_x < self.image_width && pixel_y < self.image_height {
+                            let pixel_number = pixel_y * self.image_width + pixel_x;
 
                             println!("Hovered pixel: {} (x={}, y={})", pixel_number, pixel_x, pixel_y);
-                            window.set_title(&format!("simulation - pixel {}", pixel_number));
                         }
                     }
                 }
@@ -115,25 +116,28 @@ impl ApplicationHandler for App {
 fn main() {
     env_logger::init();
 
-    let scene_center = Point3::new(0., 0., -1., CartesianWorld);
+    let config = Config::load().expect("failed to load src/config.toml");
+    assert_eq!(
+        config.max_integration_steps,
+        MAX_INTEGRATION_STEPS,
+        "config.toml max_integration_steps must match MAX_INTEGRATION_STEPS for the current packed trace buffer"
+    );
+
+    let image_height = config.image_height;
+    let image_width = ((image_height as f32) * config.aspect_ratio).round() as u32;
 
     let world = World {
-        manifold: Box::new(Schwarzschild4Manifold::new(scene_center, 0.25)), // Box::new(EuclideanMetric {}),
+        scene_size: 3.0,
+        manifold: Box::new(Schwarzschild4Manifold::new(
+            Point3::new(0., 0., -1., CartesianWorld),
+            0.25
+        )), // Box::new(EuclideanMetric {}),
         textures: {
             let accretion = Texture::from_file("assets/accretion.jpg").expect("failed to load texture");
             let background = Texture::from_file("assets/space_sky.webp").expect("failed to load texture");
             Textures::new(accretion, background)
         },
         objects: vec![
-            // Box::new(Sphere {
-            //     center: Point3::new_cartesian(0., 0., -1.),
-            //     radius: 0.27,
-            //     // material: Box::new(Diffuse {
-            //     //     color: Color { x: 128., y: 0., z: 0. },
-            //     //     emission: Vec3 { x: 0., y: 0., z: 0. },
-            //     // }),
-            //     material: Box::new( {}),
-            // }),
             Box::new(Sphere {
                 center: Point3::new(0.6, 0., -0.5, CartesianWorld),
                 radius: 0.08,
@@ -160,12 +164,13 @@ fn main() {
         ],
     };
 
-    let mut buffer = vec![0u8; (WIDTH * HEIGHT * 4) as usize];
+    let mut buffer = vec![0u8; (image_width * image_height * 4) as usize];
 
-    let camera: Camera = Camera::new(WIDTH, HEIGHT);
+    let mut camera: Camera = Camera::new(image_width, image_height);
+    camera.samples_per_pixel = config.samples_per_pixel;
 
     let start = Instant::now();
-    let mut rng = StdRng::seed_from_u64(RNG_SEED);
+    let mut rng = StdRng::seed_from_u64(config.rng_seed);
 
     camera.render(buffer.as_mut_slice(), &world, &mut rng);
 
@@ -176,7 +181,7 @@ fn main() {
 
     event_loop.set_control_flow(ControlFlow::Wait);
 
-    let mut app = App::new(buffer);
+    let mut app = App::new(buffer, image_width, image_height);
 
     event_loop.run_app(&mut app).unwrap();
 }

@@ -11,6 +11,7 @@ const SAMPLES_PER_PIXEL: u32 = if cfg!(debug_assertions) { 1 } else { 2 };
 pub type Objects = Vec<Box<dyn Object>>;
 
 pub struct World {
+    pub scene_size: f32,
     pub manifold: Box<dyn PseudoRiemanian4Manifold>,
     pub objects: Objects,
     pub textures: Textures,

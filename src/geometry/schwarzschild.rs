@@ -6,8 +6,6 @@ use crate::integration::euler;
 use crate::integration::solvers::positive_root;
 use glam::{Mat4, Vec4};
 
-const SCENE_SIZE: f32 = 3.0;
-
 pub struct Schwarzschild4Manifold {
     pub subatlas_center: Point3, // center of the atlas for fixed-time submanifolds expressed in Chart::CartesianWorld 
     pub r_s: f32,
@@ -386,20 +384,4 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
 
         euler::euler_step(x, k, k.as_point4(), del_k)
     }
-
-    fn get_shader(&self) -> String {
-        let base = include_str!("schwarzschild.wgsl");
-        let injected = base.replace(
-            "// CONSTS",
-            &format!("const SUBATLAS_CENTER: vec3<f32> = vec3<f32>({}, {}, {});\n const R_S: f32 = {};\nconst SCENE_SIZE: f32 = {};\n",
-                self.subatlas_center.x(),
-                self.subatlas_center.y(),
-                self.subatlas_center.z(),
-                self.r_s as f32,
-                SCENE_SIZE as f32
-            )
-        );
-        injected
-    }
-
 }

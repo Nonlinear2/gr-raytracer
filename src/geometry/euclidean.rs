@@ -83,9 +83,4 @@ impl PseudoRiemanian4Manifold for Euclidean4Manifold {
             s.pos, s.vel, s.vel.as_point4(), FourVector::zero(TangentSpace::Cartesian)
         )
     }
-
-    fn get_shader(&self) -> String {
-        let base = include_str!("euclidean.wgsl");
-        base.to_string()
-    }
 }

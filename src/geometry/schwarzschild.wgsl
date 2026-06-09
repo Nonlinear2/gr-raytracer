@@ -19,7 +19,6 @@ const STOP_OBJECT_HIT: u32 = 2u;
 const STOP_HORIZON_HIT: u32 = 3u;
 
 /// which global chart we use to describe points on the submanifolds of R^4 obtained by fixing the time coordinate.
-/// Important points: 
 /// These charts will designate the maps from coordinates to "manifold" and not the opposite. They are technically inverse charts
 
 // Chart
