@@ -27,7 +27,8 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn from_file(path: impl AsRef<Path>) -> Result<Self, String> {
+    /// brightness is on a scale of 0 to 1
+    pub fn from_file(path: impl AsRef<Path>, brightness: f32) -> Result<Self, String> {
         let image = image::open(path.as_ref())
             .map_err(|err| format!("failed to load texture {:?}: {err}", path.as_ref()))?
             .flipv()
@@ -36,9 +37,9 @@ impl Texture {
         let (width, height) = image.dimensions();
         let pixels = image.pixels().map(|pixel| {
             [
-                pixel[0] as f32 / 255.0,
-                pixel[1] as f32 / 255.0,
-                pixel[2] as f32 / 255.0,
+                pixel[0] as f32 * brightness / 255.0,
+                pixel[1] as f32 * brightness / 255.0,
+                pixel[2] as f32 * brightness / 255.0,
                 pixel[3] as f32 / 255.0,
             ]
         }).collect();

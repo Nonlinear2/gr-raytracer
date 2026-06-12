@@ -120,8 +120,8 @@ fn main() {
             0.25
         )),
         textures: {
-            let accretion = Texture::from_file("assets/accretion.jpg").expect("failed to load texture");
-            let background = Texture::from_file("assets/space_sky.webp").expect("failed to load texture");
+            let accretion = Texture::from_file("assets/accretion.jpg", 1.0).expect("failed to load texture");
+            let background = Texture::from_file("assets/space_sky.webp", 0.5).expect("failed to load texture");
             Textures::new(accretion, background)
         },
         objects: vec![
@@ -139,7 +139,7 @@ fn main() {
                 center: Point3::new(0.0, 0.0, -2.0, CartesianWorld),
                 normal: ThreeVector::new(0.1, 0.8, 0.2, geometry::vector::TangentSpace::CartesianWorld),
                 // normal: ThreeVector::new(0.0, 0.0, 1., geometry::vector::TangentSpace::CartesianWorld),
-                radius: 1.5,
+                radius: 1.0,
                 material: Box::new(Diffuse {
                     // color: Color::new(128., 128., 128.),
                     // emission: Color::new(237.0, 193.0, 154.0),
