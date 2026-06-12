@@ -225,7 +225,7 @@ struct PackedObject {
     center: vec3<f32>, // in CARTESIAN_WORLD
     radius: f32,
     normal: vec3<f32>, // in TANGENT_CARTESIAN_WORLD
-    _pad2: u32,
+    inner_radius: f32,
     emission_params: vec4<f32>,
 }
 
@@ -289,7 +289,8 @@ fn disc_hit(object: PackedObject, prev_pos: vec3<f32>, new_pos: vec3<f32>) -> Hi
     }
 
     let hit_point = prev_pos + t * segment;
-    if (length(hit_point - object.center) > object.radius) {
+    let distance_from_center = length(hit_point - object.center);
+    if (distance_from_center < object.inner_radius || distance_from_center > object.radius) {
         return NO_HIT;
     }
 
@@ -369,9 +370,10 @@ fn disc_uv(object: PackedObject, hit_point: vec3<f32>) -> vec2<f32> {
     let tangent = normalize(cross(reference_axis, normal));
     let bitangent = cross(normal, tangent);
     let local = hit_point - object.center;
+    let radial_uv = (length(local) - object.inner_radius) / max(EPS, object.radius - object.inner_radius);
     return vec2<f32>(
         atan2(dot(local, bitangent), dot(local, tangent)) / TAU + 0.5,
-        length(local) / object.radius,
+        radial_uv,
     );
 }
 

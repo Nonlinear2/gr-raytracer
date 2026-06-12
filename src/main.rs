@@ -140,6 +140,7 @@ fn main() {
                 normal: ThreeVector::new(0.1, 0.8, 0.2, geometry::vector::TangentSpace::CartesianWorld),
                 // normal: ThreeVector::new(0.0, 0.0, 1., geometry::vector::TangentSpace::CartesianWorld),
                 radius: 1.0,
+                inner_radius: 0.3,
                 material: Box::new(Diffuse {
                     // color: Color::new(128., 128., 128.),
                     // emission: Color::new(237.0, 193.0, 154.0),

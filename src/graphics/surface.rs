@@ -150,6 +150,7 @@ pub struct Disc {
     pub center: Point3,
     pub normal: crate::geometry::vector::ThreeVector,
     pub radius: f32,
+    pub inner_radius: f32,
     pub material: Box<dyn Material>,
     pub texture: TextureId,
 }
@@ -158,6 +159,9 @@ impl Object for Disc {
     fn as_packed_object(&self) -> Option<PackedObject> {
         assert!(self.center.chart == Chart::CartesianWorld);
         assert!(matches!(self.normal.vector_space, crate::geometry::vector::TangentSpace::CartesianWorld));
+        assert!(self.radius.is_finite() && self.radius >= 0.0);
+        assert!(self.inner_radius.is_finite() && self.inner_radius >= 0.0);
+        assert!(self.inner_radius <= self.radius);
 
         let normal = self.normal.normalize();
 
@@ -178,7 +182,7 @@ impl Object for Disc {
             },
             _pad1: [0u32; 4],
             data0: [self.center.x(), self.center.y(), self.center.z(), self.radius],
-            data1: [normal.x(), normal.y(), normal.z(), 0.0],
+            data1: [normal.x(), normal.y(), normal.z(), self.inner_radius],
             emission_params: self.material.packed_emission_params(),
         })
     }
