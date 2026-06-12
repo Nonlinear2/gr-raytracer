@@ -377,14 +377,28 @@ fn disc_uv(object: PackedObject, hit_point: vec3<f32>) -> vec2<f32> {
     );
 }
 
-fn sample_texture(texture: u32, uv: vec2<f32>) -> vec3<f32> {
+fn sample_texture(texture: u32, uv: vec2<f32>) -> vec4<f32> {
     let header = all_textures.segments[texture].data;
     let size = vec2<u32>(u32(header.x), u32(header.y));
     let pixel_offset = u32(header.z);
 
     let pixel_xy = vec2<u32>(uv * vec2<f32>(size));
     let pixel_index = pixel_offset + pixel_xy.y * size.x + pixel_xy.x;
-    return all_textures.segments[pixel_index].data.xyz;
+    return all_textures.segments[pixel_index].data;
+}
+
+fn object_alpha(object: PackedObject, hit_data: HitData) -> f32 {
+    switch object.kind {
+        case OBJECT_SPHERE: {
+            return sample_texture(object.texture, sphere_uv(normalize(hit_data.hit_point - object.center))).a;
+        }
+        case OBJECT_DISC: {
+            return sample_texture(object.texture, disc_uv(object, hit_data.hit_point)).a;
+        }
+        default: {
+            return 1.0;
+        }
+    }
 }
 
 fn object_albedo(object: PackedObject, hit_data: HitData) -> vec3<f32> {
@@ -397,10 +411,10 @@ fn object_albedo(object: PackedObject, hit_data: HitData) -> vec3<f32> {
                 default: {
                     switch object.kind {
                         case OBJECT_SPHERE: {
-                            return object.material.color * sample_texture(object.texture, sphere_uv(normalize(hit_data.hit_point - object.center)));
+                            return object.material.color * sample_texture(object.texture, sphere_uv(normalize(hit_data.hit_point - object.center))).xyz;
                         }
                         case OBJECT_DISC: {
-                            return object.material.color * sample_texture(object.texture, disc_uv(object, hit_data.hit_point));
+                            return object.material.color * sample_texture(object.texture, disc_uv(object, hit_data.hit_point)).xyz;
                         }
                         default: {
                             return object.material.color;
@@ -414,7 +428,7 @@ fn object_albedo(object: PackedObject, hit_data: HitData) -> vec3<f32> {
 }
 
 fn background_albedo(world_pos: vec3<f32>) -> vec3<f32> {
-    return sample_texture(TEXTURE_BACKGROUND, sphere_uv(normalize(world_pos - SUBATLAS_CENTER())));
+    return sample_texture(TEXTURE_BACKGROUND, sphere_uv(normalize(world_pos - SUBATLAS_CENTER()))).xyz;
 }
 
 // fn background_albedo(world_pos: vec3<f32>) -> vec3<f32> {
@@ -964,6 +978,15 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
 
             if (!hit_data.is_hit) {
                 continue;
+            }
+
+            if (object.texture != TEXTURE_NONE) {
+                let alpha_seed = ray_index * 73856093u + step * 19349663u
+                    + obj_idx * 83492791u + state.bounce_count * 2654435761u;
+                let hit_probability = clamp(object_alpha(object, hit_data), 0.0, 1.0);
+                if (hit_probability <= 0.0 || rand(alpha_seed) > hit_probability) {
+                    continue;
+                }
             }
 
             // // DEBUG: return magenta for sphere hits so we can detect them uniquely
