@@ -3,13 +3,25 @@
 const PI: f32 = 3.141592653589793;
 const TAU: f32 = 6.283185307179586;
 
-const INTEGRATION_STEP_SIZE: f32 = 0.0; // filled by get_shader
-const MAX_STEPS: u32 = 0u; // filled by get_shader
-const DEBUG: bool = false; // filled by get_shader
-const DEBUG_RAY_INDEX: u32 = 0; // filled by get_shader
-const MAX_BOUNCES: u32 = 0u; // filled by get_shader
+override INTEGRATION_STEP_SIZE: f32 = 0.0;
+override MAX_STEPS: u32 = 0u;
+override DEBUG: bool = false;
+override DEBUG_RAY_INDEX: u32 = 0u;
+override MAX_BOUNCES: u32 = 0u;
+override SCENE_SIZE: f32 = 0.0;
+override R_S: f32 = 0.25;
 
+override SUBATLAS_CENTER_X: f32 = 0.0;
+override SUBATLAS_CENTER_Y: f32 = 0.0;
+override SUBATLAS_CENTER_Z: f32 = 0.0;
 
+fn SUBATLAS_CENTER() -> vec3<f32> {
+    return vec3<f32>(
+        SUBATLAS_CENTER_X,
+        SUBATLAS_CENTER_Y,
+        SUBATLAS_CENTER_Z
+    );
+}
 
 const EPS: f32 = 10e-6;
 
@@ -400,7 +412,7 @@ fn object_albedo(object: PackedObject, hit_data: HitData) -> vec3<f32> {
 }
 
 fn background_albedo(world_pos: vec3<f32>) -> vec3<f32> {
-    return sample_texture(TEXTURE_BACKGROUND, sphere_uv(normalize(world_pos - SUBATLAS_CENTER)));
+    return sample_texture(TEXTURE_BACKGROUND, sphere_uv(normalize(world_pos - SUBATLAS_CENTER())));
 }
 
 // fn background_albedo(world_pos: vec3<f32>) -> vec3<f32> {
@@ -534,17 +546,11 @@ fn rk4_step(photon: Photon4) -> Photon4 {
 
 // schwarzschild.wgsl
 
-// CONSTS
-const SUBATLAS_CENTER: vec3<f32> = vec3<f32>(0.0, 0.0, -1.0);  // center is in CARTESIAN_WORLD
-const R_S: f32 = 0.25;
-const SCENE_SIZE: f32 = 0.0; // filled by get_shader
-
-
 // HasAtlas3 for Schwarzschild4Manifold
 // Atlas describing submanifolds of R^4 given by fixing the time coordinate (so this coordinate doesnt get converted).
 
 fn preferred_chart_for_point(world_pos: vec3<f32>) -> u32 { // world_pos must be in CARTESIAN_WORLD chart
-    let p_rel = world_pos - SUBATLAS_CENTER;
+    let p_rel = world_pos - SUBATLAS_CENTER();
     let dist_to_z_axis_sq = p_rel.x * p_rel.x + p_rel.y * p_rel.y;
     let dist_to_x_axis_sq = p_rel.y * p_rel.y + p_rel.z * p_rel.z;
 
@@ -562,7 +568,7 @@ fn transition_point(point: Point3, to: u32) -> Point3 {
     switch (point.chart) {
         case CHART_CARTESIAN_WORLD: {
             let world_pos = point.inner;
-            let p_rel = world_pos - SUBATLAS_CENTER;
+            let p_rel = world_pos - SUBATLAS_CENTER();
             let r = length(p_rel);
 
             switch (to) {
@@ -593,7 +599,7 @@ fn transition_point(point: Point3, to: u32) -> Point3 {
                     let x = r * sin(theta) * cos(phi);
                     let y = r * sin(theta) * sin(phi);
                     let z = r * cos(theta);
-                    return new_point3(x + SUBATLAS_CENTER.x, y + SUBATLAS_CENTER.y, z + SUBATLAS_CENTER.z, CHART_CARTESIAN_WORLD);
+                    return new_point3(x + SUBATLAS_CENTER_X, y + SUBATLAS_CENTER_Y, z + SUBATLAS_CENTER_Z, CHART_CARTESIAN_WORLD);
                 }
                 case CHART_SPHERICAL_X: {
                     let r = point.inner.x;
@@ -624,7 +630,7 @@ fn transition_point(point: Point3, to: u32) -> Point3 {
                     let x = r * cos(theta);
                     let y = r * sin(theta) * cos(phi);
                     let z = r * sin(theta) * sin(phi);
-                    return new_point3(x + SUBATLAS_CENTER.x, y + SUBATLAS_CENTER.y, z + SUBATLAS_CENTER.z, CHART_CARTESIAN_WORLD);
+                    return new_point3(x + SUBATLAS_CENTER_X, y + SUBATLAS_CENTER_Y, z + SUBATLAS_CENTER_Z, CHART_CARTESIAN_WORLD);
                 }
                 case CHART_SPHERICAL_Z: {
                     let r = point.inner.x;
@@ -659,7 +665,7 @@ fn transition_vector(point: Point3, v: ThreeVector, to: u32) -> ThreeVector {
     switch (point.chart) {
         case CHART_CARTESIAN_WORLD: {
             let world_pos = point.inner;
-            let p_rel = world_pos - SUBATLAS_CENTER;
+            let p_rel = world_pos - SUBATLAS_CENTER();
             let x = p_rel.x;
             let y = p_rel.y;
             let z = p_rel.z;
@@ -940,7 +946,7 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
             return packed_color_result(state.radiance);
         }
 
-        if (length(world_pos - SUBATLAS_CENTER) > SCENE_SIZE) { // background reached 
+        if (length(world_pos - SUBATLAS_CENTER()) > SCENE_SIZE) { // background reached 
             return packed_color_result(state.radiance + state.throughput * background_albedo(world_pos));
         }
 
@@ -996,7 +1002,7 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
         }
     }
 
-    return packed_color_result(state.radiance);
+    return packed_color_result(vec3<f32>(1.0, 0.0, 0.0)); // show rays that didnt hit anything in red for debugging
 }
 
 struct Input {

@@ -114,11 +114,11 @@ fn main() {
     env_logger::init();
 
     let world = World {
-        scene_size: 3.0,
+        scene_size: 6.0,
         manifold: Box::new(Schwarzschild4Manifold::new(
-            Point3::new(0., 0., -1., CartesianWorld),
+            Point3::new(0., 0., -2., CartesianWorld),
             0.25
-        )), // Box::new(EuclideanMetric {}),
+        )),
         textures: {
             let accretion = Texture::from_file("assets/accretion.jpg").expect("failed to load texture");
             let background = Texture::from_file("assets/space_sky.webp").expect("failed to load texture");
@@ -136,10 +136,10 @@ fn main() {
                 texture: TextureId::NONE,
             }),
             Box::new(Disc {
-                center: Point3::new(0.0, 0.0, -1.0, CartesianWorld),
-                normal: ThreeVector::new(0.2, 0.8, 0.3, geometry::vector::TangentSpace::CartesianWorld),
+                center: Point3::new(0.0, 0.0, -2.0, CartesianWorld),
+                normal: ThreeVector::new(0.1, 0.8, 0.2, geometry::vector::TangentSpace::CartesianWorld),
                 // normal: ThreeVector::new(0.0, 0.0, 1., geometry::vector::TangentSpace::CartesianWorld),
-                radius: 0.6,
+                radius: 1.5,
                 material: Box::new(Diffuse {
                     // color: Color::new(128., 128., 128.),
                     // emission: Color::new(237.0, 193.0, 154.0),

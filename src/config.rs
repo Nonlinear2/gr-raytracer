@@ -8,9 +8,9 @@ pub const SAMPLES_PER_PIXEL: u32 = 2;
 
 pub const MAX_BOUNCES: u32 = 2;
 // Integration
-pub const MAX_INTEGRATION_STEPS: u32 = 1000;
+pub const MAX_INTEGRATION_STEPS: u32 = 5000;
 pub const INTEGRATION_STEP_SIZE: f32 = 0.005;
 
 // Debug
-pub const DEBUG: bool = false;
-pub const DEBUG_RAY_INDEX: u32 = 99433;
+pub const DEBUG: bool = true;
+pub const DEBUG_RAY_INDEX: u32 = 82292;

@@ -6,9 +6,8 @@ use wgpu::util::DeviceExt;
 
 use crate::config;
 use crate::geometry::photon::{PackedPhoton4, PackedTraceResult, Photon4};
-use crate::graphics::texture::Textures;
 use crate::graphics::surface::PackedObject;
-use crate::graphics::camera::{Objects, World};
+use crate::graphics::camera::{World};
 use crate::graphics::color::{Color, PackedColorResult};
 
 const WORKGROUP_SIZE: u32 = 64;
@@ -24,12 +23,10 @@ pub struct GeodesicIntegrator {
 
 impl GeodesicIntegrator {
     pub fn new(world: &World) -> Option<Self> {
-        let shader_source = Self::get_shader(world);
-
-        pollster::block_on(Self::new_async(shader_source, &world.objects, &world.textures)).ok()
+        pollster::block_on(Self::new_async(world)).ok()
     }
 
-    pub fn get_shader(world: &World) -> String {
+    pub fn get_shader(_world: &World) -> String {
 
         // Concatenate shader
 
@@ -39,32 +36,29 @@ impl GeodesicIntegrator {
         // let manifold_source = manifold.get_shader();
 
         // [common_source, packed_source, euler_source, &manifold_source].join("\n")
-        include_str!("../geometry/schwarzschild.wgsl")
-            .replace(
-                "const INTEGRATION_STEP_SIZE: f32 = 0.0;", 
-                &format!("const INTEGRATION_STEP_SIZE: f32 = {};", config::INTEGRATION_STEP_SIZE)
-            ).replace(
-                "const MAX_STEPS: u32 = 0u;", 
-                &format!("const MAX_STEPS: u32 = {};", config::MAX_INTEGRATION_STEPS)
-            ).replace(
-                "const DEBUG_RAY_TRAJECTORY: bool = false;", 
-                &format!("const DEBUG_RAY_TRAJECTORY: bool = {};", config::DEBUG)
-            ).replace(
-                "const MAX_BOUNCES: u32 = 0u;", 
-                &format!("const MAX_BOUNCES: u32 = {};", config::MAX_BOUNCES)
-            ).replace(
-                "const DEBUG_RAY_INDEX: u32 = 0;", 
-                &format!("const DEBUG_RAY_INDEX: u32 = {};", config::DEBUG_RAY_INDEX)
-            ).replace(
-                "const SCENE_SIZE: f32 = 0.0;", 
-                &format!("const SCENE_SIZE: f32 = {};", world.scene_size)
-            )
+        include_str!("../geometry/schwarzschild.wgsl").to_string()
     }
 
-    async fn new_async(shader_source: String, objects: &Objects, textures: &Textures) -> Result<Self, String> {
+    pub fn get_constants(world: &World) -> Vec<(&'static str, f64)> {
+        let mut constants = vec![
+            ("INTEGRATION_STEP_SIZE", config::INTEGRATION_STEP_SIZE as f64),
+            ("MAX_STEPS", config::MAX_INTEGRATION_STEPS as f64),
+            ("DEBUG", if config::DEBUG { 1.0 } else { 0.0 }),
+            ("DEBUG_RAY_INDEX", config::DEBUG_RAY_INDEX as f64),
+            ("MAX_BOUNCES", config::MAX_BOUNCES as f64),
+            ("SCENE_SIZE", world.scene_size as f64),
+        ];
 
-        let packed_objects: Vec<PackedObject> = objects.iter().filter_map(|obj| obj.as_packed_object()).collect();
-        let packed_textures = textures.as_packed_texture();
+        constants.extend(world.manifold.geometry_parameters());
+        constants
+    }
+
+    async fn new_async(world: &World) -> Result<Self, String> {
+
+        let shader_source = Self::get_shader(world);
+    
+        let packed_objects: Vec<PackedObject> = world.objects.iter().filter_map(|obj| obj.as_packed_object()).collect();
+        let packed_textures = world.textures.as_packed_texture();
     
         let adapter = wgpu::Instance::default()
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -169,7 +163,10 @@ impl GeodesicIntegrator {
             layout: Some(&pipeline_layout),
             module: &shader,
             entry_point: Some("evolve_rays"),
-            compilation_options: Default::default(),
+            compilation_options: wgpu::PipelineCompilationOptions {
+                constants: &Self::get_constants(world),
+                ..Default::default()
+            },
             cache: None,
         });
 

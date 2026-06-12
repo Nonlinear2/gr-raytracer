@@ -384,4 +384,13 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
 
         euler::euler_step(x, k, k.as_point4(), del_k)
     }
+
+    fn geometry_parameters(&self) -> Vec<(&'static str, f64)> {
+        vec![
+            ("R_S", self.r_s as f64),
+            ("SUBATLAS_CENTER_X", self.subatlas_center.x() as f64),
+            ("SUBATLAS_CENTER_Y", self.subatlas_center.y() as f64),
+            ("SUBATLAS_CENTER_Z", self.subatlas_center.z() as f64),
+        ]
+    }
 }
