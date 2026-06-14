@@ -4,14 +4,11 @@ use std::sync::mpsc;
 use bytemuck::Zeroable;
 use wgpu::util::DeviceExt;
 
-use crate::config;
+use crate::config::{self, DEBUG, WORKGROUP_SIZE};
 use crate::geometry::photon::{PackedPhoton4, PackedTraceResult, Photon4};
 use crate::graphics::surface::PackedObject;
 use crate::graphics::camera::{World};
 use crate::graphics::color::{Color, PackedColorResult};
-
-const WORKGROUP_SIZE: u32 = 64;
-const DEBUG_RAY_TRAJECTORY: bool = cfg!(debug_assertions);
 
 pub struct GeodesicIntegrator {
     device: wgpu::Device,
@@ -199,8 +196,8 @@ impl GeodesicIntegrator {
             contents: bytemuck::bytes_of(&PackedTraceResult::zeroed()),
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
         });
-    
-        let trace_readback = if DEBUG_RAY_TRAJECTORY {
+
+        let trace_readback = if DEBUG {
             Some(self.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("trace-readback"),
                 size: std::mem::size_of::<PackedTraceResult>() as u64,
