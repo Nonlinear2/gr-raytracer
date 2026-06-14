@@ -1,11 +1,9 @@
-use crate::{geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, vector::TangentSpace}, graphics::texture::Textures, integration::geodesic_integrator::GeodesicIntegrator};
+use crate::{config::{IMAGE_HEIGHT, IMAGE_WIDTH, SAMPLES_PER_PIXEL}, geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, vector::TangentSpace}, graphics::texture::Textures, integration::geodesic_integrator::GeodesicIntegrator};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
 use crate::graphics::surface::Object;
 use rand::{rngs::StdRng, RngExt};
-
-const SAMPLES_PER_PIXEL: u32 = if cfg!(debug_assertions) { 1 } else { 2 };
 
 pub type Objects = Vec<Box<dyn Object>>;
 
@@ -18,12 +16,6 @@ pub struct World {
 
 pub struct Camera {
     pub center: Point3,
-    pub samples_per_pixel: u32,
-
-    #[allow(dead_code)]
-    pub img_width: u32,
-    #[allow(dead_code)]
-    pub img_height: u32,
 
     pub first_pixel_loc: Point3,
     pub pixel_delta_u: ThreeVector,
@@ -31,8 +23,8 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(img_width: u32, img_height: u32) -> Self {
-        let a_ratio = (img_width as f32) / (img_height as f32);
+    pub fn new() -> Self {
+        let a_ratio = (IMAGE_WIDTH as f32) / (IMAGE_HEIGHT as f32);
 
         let center: Point3 = Point3::new(0.,0.,0., CartesianWorld);
         const FOCAL_LENGTH: f32 = 1.0;
@@ -43,8 +35,8 @@ impl Camera {
         let viewport_u_vect = ThreeVector::new(viewport_width, 0., 0., TangentSpace::CartesianWorld);
         let viewport_v_vect = ThreeVector::new(0., -viewport_height, 0., TangentSpace::CartesianWorld);
 
-        let pixel_delta_u = viewport_u_vect * (1.0 / img_width as f32);
-        let pixel_delta_v = viewport_v_vect * (1.0 / img_height as f32);
+        let pixel_delta_u = viewport_u_vect * (1.0 / IMAGE_WIDTH as f32);
+        let pixel_delta_v = viewport_v_vect * (1.0 / IMAGE_HEIGHT as f32);
 
         let viewport_upper_left = center
             - Point3::new(0., 0., FOCAL_LENGTH, CartesianWorld)
@@ -54,10 +46,6 @@ impl Camera {
 
         Self {
             center: center,
-            samples_per_pixel: SAMPLES_PER_PIXEL,
-            img_width: img_width,
-            img_height: img_height,
-
             first_pixel_loc: first_pixel_loc,
             pixel_delta_u: pixel_delta_u,
             pixel_delta_v: pixel_delta_v,
@@ -77,11 +65,11 @@ impl Camera {
     pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
         let integrator = GeodesicIntegrator::new(world).unwrap();
 
-        let mut rays = Vec::with_capacity((self.img_width * self.img_height * self.samples_per_pixel) as usize);
+        let mut rays = Vec::with_capacity((IMAGE_WIDTH * IMAGE_HEIGHT * SAMPLES_PER_PIXEL) as usize);
 
-        for j in 0..self.img_height as usize {
-            for i in 0..self.img_width as usize {
-                for _ in 0..self.samples_per_pixel {
+        for j in 0..IMAGE_HEIGHT as usize {
+            for i in 0..IMAGE_WIDTH as usize {
+                for _ in 0..SAMPLES_PER_PIXEL {
                     let ray_direction = (self.get_pixel_position(i, j, true, rng) - self.center).as_threevector();
                     rays.push(Photon3::new(self.center, ray_direction));
                 }
@@ -100,14 +88,14 @@ impl Camera {
 
         for (pixel, samples) in frame
                 .chunks_exact_mut(4)
-                .zip(colors.chunks_exact(self.samples_per_pixel as usize)) {
+                .zip(colors.chunks_exact(SAMPLES_PER_PIXEL as usize)) {
 
             let mut color = Color::BLACK;
             for sample_color in samples {
                 color += *sample_color;
             }
 
-            color /= self.samples_per_pixel as f32;
+            color /= SAMPLES_PER_PIXEL as f32;
 
             pixel[0] = color.r as u8; // R
             pixel[1] = color.g as u8; // G

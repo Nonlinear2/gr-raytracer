@@ -1,10 +1,13 @@
 pub const RNG_SEED: u64 = 0;
 
 // Image configuration
-pub const IMAGE_HEIGHT: u32 = 300;
+pub const IMAGE_HEIGHT: u32 = 500;
 pub const IMAGE_WIDTH: u32 = ((IMAGE_HEIGHT as f32) * 16.0 / 9.0) as u32;
 
-pub const SAMPLES_PER_PIXEL: u32 = 2;
+pub const SAMPLES_PER_PIXEL: u32 = if cfg!(debug_assertions) { 1 } else {
+    2
+};
+
 
 pub const MAX_BOUNCES: u32 = 2;
 // Integration

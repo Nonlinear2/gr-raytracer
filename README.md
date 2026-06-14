@@ -44,3 +44,6 @@ R^4 as a semi riemannian manifold, which we will call "R^4"
 
 ### vector chart transitions:
 $$v^{(\mathrm{to})} \;=\; \left. D\!\left(\varphi_{\mathrm{to}} \circ \varphi_{\mathrm{from}}^{-1}\right)\right|_{p}\; v^{(\mathrm{from})}$$
+
+### Innermost Stable Circular Orbit:
+$$r_{ms} = 3R_s$$
