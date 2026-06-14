@@ -6,6 +6,7 @@ use crate::graphics::surface::Object;
 
 use rand::{rngs::StdRng, RngExt};
 use indicatif::ProgressBar;
+use indicatif::ProgressStyle;
 
 pub type Objects = Vec<Box<dyn Object>>;
 
@@ -72,6 +73,12 @@ impl Camera {
         let mut image = vec![Color::BLACK; img_size];
 
         let progress_bar = ProgressBar::new(SAMPLES_PER_PIXEL as u64);
+        progress_bar.set_style(
+            ProgressStyle::with_template(
+                "{bar:40.cyan/blue} {pos}/{len} ETA: {eta}"
+            )
+            .unwrap()
+        );
         progress_bar.tick();
     
         for sample_idx in 0..SAMPLES_PER_PIXEL {
