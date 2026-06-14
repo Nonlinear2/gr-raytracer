@@ -3,7 +3,9 @@ use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
 use crate::graphics::surface::Object;
+
 use rand::{rngs::StdRng, RngExt};
+use indicatif::ProgressBar;
 
 pub type Objects = Vec<Box<dyn Object>>;
 
@@ -65,42 +67,57 @@ impl Camera {
     pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
         let integrator = GeodesicIntegrator::new(world).unwrap();
 
-        let mut rays = Vec::with_capacity((IMAGE_WIDTH * IMAGE_HEIGHT * SAMPLES_PER_PIXEL) as usize);
+        let img_size = (IMAGE_WIDTH * IMAGE_HEIGHT) as usize;
 
-        for j in 0..IMAGE_HEIGHT as usize {
-            for i in 0..IMAGE_WIDTH as usize {
-                for _ in 0..SAMPLES_PER_PIXEL {
-                    let ray_direction = (self.get_pixel_position(i, j, true, rng) - self.center).as_threevector();
-                    rays.push(Photon3::new(self.center, ray_direction));
+        let mut image = vec![Color::BLACK; img_size];
+
+        let progress_bar = ProgressBar::new(SAMPLES_PER_PIXEL as u64);
+        progress_bar.tick();
+    
+        for sample_idx in 0..SAMPLES_PER_PIXEL {
+            let mut rays = Vec::with_capacity(img_size);
+
+            for j in 0..IMAGE_HEIGHT as usize {
+                for i in 0..IMAGE_WIDTH as usize {
+                    let ray_direction =
+                        (self.get_pixel_position(i, j, true, rng) - self.center).as_threevector();
+                    let world_photon = Photon3::new(self.center, ray_direction);
+
+                    rays.push(world.manifold.world_photon3_to_photon4(world_photon));
                 }
             }
-        }
 
-        let manifold_rays: Vec<_> = rays.into_iter().map(|ray| world.manifold.world_photon3_to_photon4(ray)).collect();
+            let (colors, trace) = integrator.run_kernel(rays);
 
-        let (colors, trace) = integrator.run_kernel(manifold_rays);
-
-        if let Some(trace_result) = trace.as_ref().and_then(|trace| trace.first()) {
-            for position in trace_result.positions.iter().copied().filter(|point| point.fill_flag > 0.5).map(|point| point.pos) {
-                println!("{:.6}, {:.6}, {:.6}", position[0], position[1], position[2]);
-            }
-        }
-
-        for (pixel, samples) in frame
-                .chunks_exact_mut(4)
-                .zip(colors.chunks_exact(SAMPLES_PER_PIXEL as usize)) {
-
-            let mut color = Color::BLACK;
-            for sample_color in samples {
-                color += *sample_color;
+            if sample_idx == 0 {
+                if let Some(trace_result) = trace.as_ref().and_then(|trace| trace.first()) {
+                    for position in trace_result
+                        .positions
+                        .iter()
+                        .copied()
+                        .filter(|point| point.fill_flag > 0.5)
+                        .map(|point| point.pos)
+                    {
+                        println!("{:.6}, {:.6}, {:.6}", position[0], position[1], position[2]);
+                    }
+                }
             }
 
-            color /= SAMPLES_PER_PIXEL as f32;
+            for (acc, sample_color) in image.iter_mut().zip(colors.iter()) {
+                *acc += *sample_color;
+            }
 
-            pixel[0] = color.r as u8; // R
-            pixel[1] = color.g as u8; // G
-            pixel[2] = color.b as u8; // B
-            pixel[3] = 0xff; // A
+            progress_bar.inc(1);
+        }
+        progress_bar.finish();
+
+        for (pixel, color) in frame.chunks_exact_mut(4).zip(image.iter()) {
+            let color = *color / SAMPLES_PER_PIXEL as f32;
+
+            pixel[0] = color.r as u8;
+            pixel[1] = color.g as u8;
+            pixel[2] = color.b as u8;
+            pixel[3] = 0xff;
         }
     }
 }
