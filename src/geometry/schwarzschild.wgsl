@@ -347,16 +347,17 @@ fn metal_scatter(hit_data: HitData, rng_seed: u32, fuzz: f32) -> ScatterData {
 // header: (size.x, size.y, pixel_offset, pad)
 // pixel: vec4<f32> rgba
 
-struct TextureSegment {
-    data: vec4<f32>,
-}
-
-struct PackedTextures {
-    segments: array<TextureSegment>,
-}
-
 @group(0) @binding(4)
-var<storage, read> all_textures: PackedTextures;
+var sky_texture: texture_2d<f32>;
+
+@group(0) @binding(5)
+var sky_sampler: sampler;
+
+@group(0) @binding(6)
+var accretion_texture: texture_2d<f32>;
+
+@group(0) @binding(7)
+var accretion_sampler: sampler;
 
 fn sphere_uv(direction: vec3<f32>) -> vec2<f32> {
     let u = atan2(direction.z, direction.x) / TAU + 0.5;
@@ -377,14 +378,18 @@ fn disc_uv(object: PackedObject, hit_point: vec3<f32>) -> vec2<f32> {
     );
 }
 
-fn sample_texture(texture: u32, uv: vec2<f32>) -> vec4<f32> {
-    let header = all_textures.segments[texture].data;
-    let size = vec2<u32>(u32(header.x), u32(header.y));
-    let pixel_offset = u32(header.z);
-
-    let pixel_xy = vec2<u32>(uv * vec2<f32>(size));
-    let pixel_index = pixel_offset + pixel_xy.y * size.x + pixel_xy.x;
-    return all_textures.segments[pixel_index].data;
+fn sample_texture(texture_id: u32, uv: vec2<f32>) -> vec4<f32> {
+    switch texture_id {
+        case TEXTURE_BACKGROUND: {
+            return textureSampleLevel(sky_texture, sky_sampler, uv, 0.0);
+        }
+        case TEXTURE_ACCRETION: {
+            return textureSampleLevel(accretion_texture, accretion_sampler, uv, 0.0);
+        }
+        default: {
+            return VEC4_ZERO;
+        }
+    }
 }
 
 fn object_alpha(object: PackedObject, hit_data: HitData) -> f32 {

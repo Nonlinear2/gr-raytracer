@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use bytemuck::{Pod, Zeroable};
+use wgpu::{Device, Queue, Sampler, TextureView};
 
 #[repr(u32)]
 #[allow(dead_code)]
@@ -44,31 +44,76 @@ impl Texture {
             ]
         }).collect();
 
-        Ok(Self { width, height, pixels })
+        Ok(Self { width, height, pixels})
     }
 
     fn solid_rgba(rgba: [f32; 4]) -> Self {
-        Self {
-            width: 1,
-            height: 1,
-            pixels: vec![rgba],
-        }
+        Self { width: 1, height: 1, pixels: vec![rgba] }
     }
-}
 
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-struct TextureSegment {
-    data: [f32; 4],
-}
+    pub fn to_wgpu_texture(&self, device: &Device) -> wgpu::Texture {
+        device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: wgpu::Extent3d {
+                width: self.width,
+                height: self.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba32Float,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        })
+    }
 
-pub struct PackedTextures {
-    segments: Vec<TextureSegment>,
-}
+    pub fn write_to_queue(&self, wgpu_texture: &wgpu::Texture, queue: &Queue) {
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &wgpu_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
 
-impl PackedTextures {
-    pub fn as_slice(&self) -> &[u8] {
-        bytemuck::cast_slice(&self.segments)
+            // Vec<[f32;4]> -> &[u8]
+            bytemuck::cast_slice(&self.pixels),
+
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+
+                // 4 floats * 4 bytes per float
+                bytes_per_row: Some(16 * self.width),
+
+                rows_per_image: Some(self.height),
+            },
+
+            wgpu::Extent3d {
+                width: self.width,
+                height: self.height,
+                depth_or_array_layers: 1,
+            },
+        );
+    }
+
+    pub fn get_view(&self, wgpu_texture: &wgpu::Texture) -> TextureView {
+        wgpu_texture.create_view(&wgpu::TextureViewDescriptor::default())
+    }
+
+    pub fn get_sampler(&self, device: &Device) -> Sampler {
+        device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("sampler"),
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
+
+            ..Default::default()
+        })
     }
 }
 
@@ -88,33 +133,7 @@ impl Textures {
         }
     }
 
-    #[allow(dead_code)]
     pub fn get(&self, id: TextureId) -> &Texture {
         &self.textures[id.as_index()]
-    }
-
-    pub fn as_packed_texture(&self) -> PackedTextures {
-        let header_count = TextureId::COUNT as u32;
-        let pixel_count = self
-            .textures
-            .iter()
-            .map(|texture| texture.pixels.len() as u32)
-            .sum::<u32>();
-
-        let mut segments = Vec::with_capacity((header_count + pixel_count) as usize);
-        let mut pixel_offset = header_count;
-
-        for texture in &self.textures {
-            segments.push(TextureSegment {
-                data: [texture.width as f32, texture.height as f32, pixel_offset as f32, 0.0],
-            });
-            pixel_offset += texture.pixels.len() as u32;
-        }
-
-        for texture in &self.textures {
-            segments.extend(texture.pixels.iter().map(|pixel| TextureSegment {data: *pixel}));
-        }
-
-        PackedTextures { segments }
     }
 }
