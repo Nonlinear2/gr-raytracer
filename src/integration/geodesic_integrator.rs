@@ -10,6 +10,7 @@ use crate::geometry::photon::{PackedPhoton4, PackedTraceResult, Photon4};
 use crate::graphics::camera::World;
 use crate::graphics::color::{Color, PackedColorResult};
 use crate::graphics::surface::PackedObject;
+use crate::graphics::wgpu_helpers::{BindEntry};
 
 pub struct GeodesicIntegrator {
     device: wgpu::Device,
@@ -111,85 +112,19 @@ impl GeodesicIntegrator {
         let accretion_view = accretion_texture.get_view(&wgpu_accretion_texture);
         let accretion_sampler = accretion_texture.get_sampler(&device);
 
-
         let bind_group_entries = vec![
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: false },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 2,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 3,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: false },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 4,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Float {
-                        filterable: true,
-                    },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    multisampled: false,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 5,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 6,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Float {
-                        filterable: true,
-                    },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    multisampled: false,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 7,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                count: None,
-            },
-        ];
+            BindEntry::StorageBuffer { binding: 0, read_only: true },
+            BindEntry::StorageBuffer { binding: 1, read_only: false },
+            BindEntry::StorageBuffer { binding: 2, read_only: true },
+            BindEntry::StorageBuffer { binding: 3, read_only: false },
+            BindEntry::Texture { binding: 4 },
+            BindEntry::Sampler { binding: 5 },
+            BindEntry::Texture { binding: 6 },
+            BindEntry::Sampler { binding: 7 },
+        ]
+        .into_iter()
+        .map(|e| e.build())
+        .collect::<Vec<_>>();
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("evolve-bind-group-layout"),
@@ -222,6 +157,7 @@ impl GeodesicIntegrator {
         packed_rays: &[PackedPhoton4],
         rays_byte_size: u64,
     ) -> (wgpu::Buffer, wgpu::Buffer, wgpu::Buffer, wgpu::Buffer, Option<wgpu::Buffer>) {
+
         let input_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("input"),
             contents: bytemuck::cast_slice(packed_rays),
