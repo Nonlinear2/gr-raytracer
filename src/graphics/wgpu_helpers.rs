@@ -7,6 +7,13 @@ pub struct Buffers {
     pub trace_readback: wgpu::Buffer,
 }
 
+pub struct WgpuTextures {
+    pub sky_view: wgpu::TextureView,
+    pub sky_sampler: wgpu::Sampler,
+    pub accretion_view: wgpu::TextureView,
+    pub accretion_sampler: wgpu::Sampler,
+}
+
 pub enum BindEntry {
     StorageBuffer { binding: u32, read_only: bool },
     Texture { binding: u32 },

@@ -4,25 +4,20 @@ use std::sync::mpsc;
 use bytemuck::Zeroable;
 use wgpu::util::DeviceExt;
 
-use crate::graphics::texture::TextureId;
+use crate::graphics::texture::{TextureId, Textures};
 use crate::config::{self, DEBUG, WORKGROUP_SIZE};
 use crate::geometry::photon::{PackedPhoton4, PackedTraceResult, Photon4};
 use crate::graphics::camera::World;
 use crate::graphics::color::{Color, PackedColorResult};
 use crate::graphics::surface::PackedObject;
-use crate::graphics::wgpu_helpers::{BindEntry, Buffers};
+use crate::graphics::wgpu_helpers::{BindEntry, Buffers, WgpuTextures};
 
 pub struct GeodesicIntegrator {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pipeline: wgpu::ComputePipeline,
     packed_objects: Vec<PackedObject>,
-
-    sky_view: wgpu::TextureView,
-    sky_sampler: wgpu::Sampler,
-
-    accretion_view: wgpu::TextureView,
-    accretion_sampler: wgpu::Sampler,
+    textures: WgpuTextures,
 }
 
 impl GeodesicIntegrator {
@@ -89,23 +84,6 @@ impl GeodesicIntegrator {
             source: wgpu::ShaderSource::Wgsl(Cow::Owned(shader_source.into())),
         });
 
-        let sky_texture: &crate::graphics::texture::Texture = world.textures.get(TextureId::BACKGROUND);
-        let wgpu_sky_texture = sky_texture.to_wgpu_texture(&device);
-
-        sky_texture.write_to_queue(&wgpu_sky_texture, &queue);
-    
-        let sky_view = sky_texture.get_view(&wgpu_sky_texture);
-        let sky_sampler = sky_texture.get_sampler(&device);
-
-
-        let accretion_texture = world.textures.get(TextureId::ACCRETION);
-        let wgpu_accretion_texture    = accretion_texture.to_wgpu_texture(&device);
-
-        accretion_texture.write_to_queue(&wgpu_accretion_texture, &queue);
-
-        let accretion_view = accretion_texture.get_view(&wgpu_accretion_texture);
-        let accretion_sampler = accretion_texture.get_sampler(&device);
-
         let bind_group_entries = vec![
             BindEntry::StorageBuffer { binding: 0, read_only: true },
             BindEntry::StorageBuffer { binding: 1, read_only: false },
@@ -143,7 +121,34 @@ impl GeodesicIntegrator {
             cache: None,
         });
 
-        Ok(Self { device, queue, pipeline, packed_objects, sky_view, sky_sampler, accretion_view, accretion_sampler })
+        let textures = Self::process_textures(&world.textures, &device, &queue);
+
+        Ok(Self { device, queue, pipeline, packed_objects, textures})
+    }
+
+    fn process_textures(world_textures: &Textures, device: &wgpu::Device, queue: &wgpu::Queue) -> WgpuTextures {
+        let sky_texture: &crate::graphics::texture::Texture = world_textures.get(TextureId::SKY);
+        let wgpu_sky_texture = sky_texture.to_wgpu_texture(&device);
+
+        sky_texture.write_to_queue(&wgpu_sky_texture, &queue);
+    
+        let sky_view = sky_texture.get_view(&wgpu_sky_texture);
+        let sky_sampler = sky_texture.get_sampler(&device);
+
+        let accretion_texture = world_textures.get(TextureId::ACCRETION);
+        let wgpu_accretion_texture = accretion_texture.to_wgpu_texture(&device);
+
+        accretion_texture.write_to_queue(&wgpu_accretion_texture, &queue);
+
+        let accretion_view = accretion_texture.get_view(&wgpu_accretion_texture);
+        let accretion_sampler = accretion_texture.get_sampler(&device);
+
+        WgpuTextures {
+            sky_view: sky_view,
+            sky_sampler: sky_sampler,
+            accretion_view: accretion_view,
+            accretion_sampler: accretion_sampler,
+        }
     }
 
     fn create_buffers(&self, packed_rays: &[PackedPhoton4], rays_byte_size: u64) -> Buffers {
@@ -203,10 +208,10 @@ impl GeodesicIntegrator {
             wgpu::BindGroupEntry { binding: 1, resource: buffers.output.as_entire_binding() },
             wgpu::BindGroupEntry { binding: 2, resource: buffers.objects.as_entire_binding() },
             wgpu::BindGroupEntry { binding: 3, resource: buffers.trace_output.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::TextureView(&self.sky_view) },
-            wgpu::BindGroupEntry { binding: 5, resource: wgpu::BindingResource::Sampler(&self.sky_sampler) },
-            wgpu::BindGroupEntry { binding: 6, resource: wgpu::BindingResource::TextureView(&self.accretion_view) },
-            wgpu::BindGroupEntry { binding: 7, resource: wgpu::BindingResource::Sampler(&self.accretion_sampler) },
+            wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::TextureView(&self.textures.sky_view) },
+            wgpu::BindGroupEntry { binding: 5, resource: wgpu::BindingResource::Sampler(&self.textures.sky_sampler) },
+            wgpu::BindGroupEntry { binding: 6, resource: wgpu::BindingResource::TextureView(&self.textures.accretion_view) },
+            wgpu::BindGroupEntry { binding: 7, resource: wgpu::BindingResource::Sampler(&self.textures.accretion_sampler) },
         ];
 
         self.device.create_bind_group(&wgpu::BindGroupDescriptor {

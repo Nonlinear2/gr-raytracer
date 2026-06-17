@@ -8,7 +8,7 @@ use wgpu::{Device, Queue, Sampler, TextureView};
 pub enum TextureId {
     NONE = 0,
     ACCRETION = 1,
-    BACKGROUND = 2,
+    SKY = 2,
 }
 
 impl TextureId {
@@ -123,12 +123,12 @@ pub struct Textures {
 }
 
 impl Textures {
-    pub fn new(accretion: Texture, background: Texture) -> Self {
+    pub fn new(accretion: Texture, sky: Texture) -> Self {
         Self {
             textures: [
                 Texture::solid_rgba([0.0, 0.0, 0.0, 0.0]),
                 accretion,
-                background,
+                sky,
             ],
         }
     }

@@ -25,12 +25,6 @@ fn SUBATLAS_CENTER() -> vec3<f32> {
 
 const EPS: f32 = 10e-6;
 
-// StopReason
-const STOP_MAX_STEPS_REACHED: u32 = 0u;
-const STOP_BACKGROUND_REACHED: u32 = 1u;
-const STOP_OBJECT_HIT: u32 = 2u;
-const STOP_HORIZON_HIT: u32 = 3u;
-
 /// which global chart we use to describe points on the submanifolds of R^4 obtained by fixing the time coordinate.
 /// These charts will designate the maps from coordinates to "manifold" and not the opposite. They are technically inverse charts
 
@@ -58,7 +52,7 @@ const MATERIAL_METAL: u32 = 1u;
 // textures
 const TEXTURE_NONE: u32 = 0u;
 const TEXTURE_ACCRETION: u32 = 1u;
-const TEXTURE_BACKGROUND: u32 = 2u;
+const TEXTURE_SKY: u32 = 2u;
 
 const VEC3_ZERO: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0);
 const VEC4_ZERO: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
@@ -380,7 +374,7 @@ fn disc_uv(object: PackedObject, hit_point: vec3<f32>) -> vec2<f32> {
 
 fn sample_texture(texture_id: u32, uv: vec2<f32>) -> vec4<f32> {
     switch texture_id {
-        case TEXTURE_BACKGROUND: {
+        case TEXTURE_SKY: {
             return textureSampleLevel(sky_texture, sky_sampler, uv, 0.0);
         }
         case TEXTURE_ACCRETION: {
@@ -432,11 +426,11 @@ fn object_albedo(object: PackedObject, hit_data: HitData) -> vec3<f32> {
     }
 }
 
-fn background_albedo(world_pos: vec3<f32>) -> vec3<f32> {
-    return sample_texture(TEXTURE_BACKGROUND, sphere_uv(normalize(world_pos - SUBATLAS_CENTER()))).xyz;
+fn sky_albedo(world_pos: vec3<f32>) -> vec3<f32> {
+    return sample_texture(TEXTURE_SKY, sphere_uv(normalize(world_pos - SUBATLAS_CENTER()))).xyz;
 }
 
-// fn background_albedo(world_pos: vec3<f32>) -> vec3<f32> {
+// fn sky_albedo(world_pos: vec3<f32>) -> vec3<f32> {
 //     let tx = floor(world_pos.x * 2.0);
 //     let ty = floor(world_pos.y * 2.0);
 //     if (u32(abs(i32(tx + ty))) % 2u == 0u) {
@@ -967,8 +961,8 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
             return packed_color_result(state.radiance);
         }
 
-        if (length(world_pos - SUBATLAS_CENTER()) > SCENE_SIZE) { // background reached 
-            return packed_color_result(state.radiance + state.throughput * background_albedo(world_pos));
+        if (length(world_pos - SUBATLAS_CENTER()) > SCENE_SIZE) { // sky reached 
+            return packed_color_result(state.radiance + state.throughput * sky_albedo(world_pos));
         }
 
         let preferred_chart = preferred_chart_for_point(world_pos);
