@@ -1,3 +1,12 @@
+pub struct Buffers {
+    pub input: wgpu::Buffer,
+    pub output: wgpu::Buffer,
+    pub objects: wgpu::Buffer,
+    pub readback: wgpu::Buffer,
+    pub trace_output: wgpu::Buffer,
+    pub trace_readback: wgpu::Buffer,
+}
+
 pub enum BindEntry {
     StorageBuffer { binding: u32, read_only: bool },
     Texture { binding: u32 },

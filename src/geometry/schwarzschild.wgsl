@@ -154,7 +154,7 @@ struct TracePos {
 }
 
 struct TraceResult {
-    positions: array<TracePos, 1000u>,
+    positions: array<TracePos>,
 }
 
 fn new_point3(r: f32, theta: f32, phi: f32, chart: u32) -> Point3 {
