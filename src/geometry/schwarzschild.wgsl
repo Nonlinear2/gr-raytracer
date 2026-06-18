@@ -832,6 +832,9 @@ fn photon3_to_photon4(photon: Photon3, chart: u32) -> Photon4 { // sets time com
 
     let photon_x = new_point4(0.0, pos.inner.x, pos.inner.y, pos.inner.z, chart);
 
+    // compute k^0 such that <k, k> = 0 so that the photon's trajectory be lightlike.
+    // we need to solve g_mu_nu k^mu k^nu = 0 for k^0 which is a quadratic equation
+
     let g_mat = g(photon_x);
 
     let b = 2.0 * (g_mat[0][1] * vel.inner.x + g_mat[0][2] * vel.inner.y + g_mat[0][3] * vel.inner.z);
@@ -1030,7 +1033,7 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
 }
 
 struct Input {
-    data: array<Photon4>,
+    data: array<Photon3>,
 }
 
 struct Output {
@@ -1067,5 +1070,7 @@ fn evolve_rays(@builtin(global_invocation_id) global_id: vec3<u32>) {
         return;
     }
 
-    output_results.data[ray_index] = evolve_ray(input_photons.data[ray_index], ray_index);
+    let chart = preferred_chart_for_point(input_photons.data[ray_index].pos.inner);
+    let ray = photon3_to_photon4(input_photons.data[ray_index], chart);
+    output_results.data[ray_index] = evolve_ray(ray, ray_index);
 }

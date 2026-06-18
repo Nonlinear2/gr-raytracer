@@ -90,7 +90,7 @@ impl Camera {
                         (self.get_pixel_position(i, j, true, rng) - self.center).as_threevector();
                     let world_photon = Photon3::new(self.center, ray_direction);
 
-                    rays.push(world.manifold.world_photon3_to_photon4(world_photon));
+                    rays.push(world_photon);
                 }
             }
 

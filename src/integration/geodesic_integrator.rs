@@ -6,7 +6,7 @@ use wgpu::util::DeviceExt;
 
 use crate::graphics::texture::{TextureId, Textures};
 use crate::config::{self, DEBUG, WORKGROUP_SIZE};
-use crate::geometry::photon::{PackedPhoton4, PackedTraceResult, Photon4};
+use crate::geometry::photon::{PackedPhoton3, PackedTraceResult, Photon3};
 use crate::graphics::camera::World;
 use crate::graphics::color::{Color, PackedColorResult};
 use crate::graphics::surface::PackedObject;
@@ -151,7 +151,7 @@ impl GeodesicIntegrator {
         }
     }
 
-    fn create_buffers(&self, packed_rays: &[PackedPhoton4], rays_byte_size: u64) -> Buffers {
+    fn create_buffers(&self, packed_rays: &[PackedPhoton3], rays_byte_size: u64) -> Buffers {
 
         let input_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("input"),
@@ -307,8 +307,8 @@ impl GeodesicIntegrator {
         (output, trace_results)
     }
 
-    pub fn run_kernel(&self, rays: Vec<Photon4>) -> (Vec<Color>, Option<Vec<PackedTraceResult>>) {
-        let packed_rays: Vec<PackedPhoton4> = rays.iter().copied().map(PackedPhoton4::from).collect();
+    pub fn run_kernel(&self, rays: Vec<Photon3>) -> (Vec<Color>, Option<Vec<PackedTraceResult>>) {
+        let packed_rays: Vec<PackedPhoton3> = rays.iter().copied().map(PackedPhoton3::from).collect();
         let rays_byte_size = std::mem::size_of::<PackedColorResult>() as u64 * packed_rays.len() as u64;
 
         let buffers = self.create_buffers(&packed_rays, rays_byte_size);
