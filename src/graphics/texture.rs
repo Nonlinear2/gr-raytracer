@@ -3,7 +3,6 @@ use std::path::Path;
 use wgpu::{Device, Queue, Sampler, TextureView};
 
 #[repr(u32)]
-#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TextureId {
     NONE = 0,

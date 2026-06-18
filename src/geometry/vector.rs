@@ -1,5 +1,4 @@
 ﻿use num_enum::TryFromPrimitive;
-use rand::{rngs::StdRng, RngExt};
 use glam::{Vec3, Vec4};
 
 use crate::geometry::manifold::Chart;
@@ -380,23 +379,3 @@ impl std::ops::Mul<FourVector> for f32 {
         rhs * self
     }
 }
-
-#[allow(dead_code)]
-pub fn random_on_sphere(vector_space: TangentSpace, rng: &mut StdRng) -> ThreeVector {
-    let costheta: f32 = rng.random_range((-1.)..(1.));
-    let theta = costheta.acos();
-    let phi = rng.random_range(0.0..std::f32::consts::TAU);
-
-    ThreeVector::new(
-        theta.sin() * phi.cos(),
-        theta.sin() * phi.sin(),
-        costheta,
-        vector_space
-    )
-}
-
-// // returns a random vector in the hemisphere aligned with v
-// pub fn random_on_hemisphere(v: Vec3) -> Vec3 {
-//     let vec = random_on_sphere();
-//     if vec.dot(v) > 0.0 { vec } else { -vec }
-// }

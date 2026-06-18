@@ -8,7 +8,6 @@ use bytemuck::{Pod, Zeroable};
 pub const GPU_OBJECT_SPHERE: u32 = 1;
 pub const GPU_OBJECT_DISC: u32 = 2;
 
-#[allow(dead_code)]
 pub const GPU_MATERIAL_DIFFUSE: u32 = 0;
 pub const GPU_MATERIAL_METAL: u32 = 1;
 

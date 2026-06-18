@@ -1,20 +1,9 @@
-use num_enum::TryFromPrimitive;
-
 use crate::config;
 use crate::geometry::manifold::{Chart, tangent_space};
 use crate::geometry::point::{Point3};
 use crate::geometry::vector::{TangentSpace, ThreeVector};
 
 use bytemuck::{Pod, Zeroable};
-
-#[repr(u32)]
-#[derive(Clone, Copy, TryFromPrimitive)]
-pub enum StopReason {
-    MaxStepsReached,
-    BackgroundReached,
-    ObjectHit,
-    HorizonHit,
-}
 
 #[derive(Clone, Copy)]
 pub struct Photon3 {
