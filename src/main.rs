@@ -34,21 +34,21 @@ fn main() {
             Textures::new(accretion, sky)
         },
         objects: vec![
-            Box::new(Sphere {
-                center: Point3::new(0.6, 0., -0.5, CartesianWorld),
-                radius: 0.08,
-                material: Box::new(Metal {
-                    color: Color::new(128., 128., 128.),
-                    emission: Color::new(0., 0., 0.),
-                    fuzz: 0.0,
-                }),
-                texture: TextureId::NONE,
-            }),
+            // Box::new(Sphere {
+            //     center: Point3::new(0.6, 0., -0.5, CartesianWorld),
+            //     radius: 0.08,
+            //     material: Box::new(Metal {
+            //         color: Color::new(128., 128., 128.),
+            //         emission: Color::new(0., 0., 0.),
+            //         fuzz: 0.0,
+            //     }),
+            //     texture: TextureId::NONE,
+            // }),
             Box::new(Disc {
                 center: Point3::new(0.0, 0.0, -2.0, CartesianWorld),
-                normal: ThreeVector::new(0.1, 0.8, 0.2, geometry::vector::TangentSpace::CartesianWorld),
+                normal: ThreeVector::new(0.09, 0.8, 0.1, geometry::vector::TangentSpace::CartesianWorld),
                 // normal: ThreeVector::new(0.0, 0.0, 1., geometry::vector::TangentSpace::CartesianWorld),
-                radius: 1.3,
+                radius: 1.5,
                 inner_radius: 0.75,
                 material: Box::new(Diffuse { 
                     // color: Color::new(128., 128., 128.),

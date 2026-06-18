@@ -975,57 +975,66 @@ fn evolve_ray(input_ray: Photon4, ray_index: u32) -> ColorResult {
 
         for (var obj_idx: u32 = 0u; obj_idx < arrayLength(&objects.data); obj_idx = obj_idx + 1u) {
             let object = objects.data[obj_idx];
-
             let hit_data = object_hit(object, prev_world_pos, world_pos);
 
             if (!hit_data.is_hit) {
                 continue;
             }
 
+            var alpha = 1.0;
             if (object.texture != TEXTURE_NONE) {
-                let alpha_seed = ray_index * 73856093u + step * 19349663u
-                    + obj_idx * 83492791u + state.bounce_count * 2654435761u;
-                let hit_probability = clamp(object_alpha(object, hit_data), 0.0, 1.0);
-                if (hit_probability <= 0.0 || rand(alpha_seed) > hit_probability) {
-                    continue;
-                }
+                alpha = clamp(object_alpha(object, hit_data), 0.0, 1.0);
             }
 
-            // // DEBUG: return magenta for sphere hits so we can detect them uniquely
-            // if (object.kind == OBJECT_DISC) {
-            //     return packed_color_result(vec3<f32>(1.0, 0.0, 1.0));
-            // }
+            if (alpha <= 0.0) { // transparent material
+                continue;
+            }
 
             if (state.bounce_count >= MAX_BOUNCES) {
                 return packed_color_result(state.radiance);
             }
 
-            let rng_seed = ray_index * 73856093u + step * 19349663u 
+            let rng_seed = ray_index * 73856093u + step * 19349663u
                 + obj_idx * 83492791u + state.bounce_count * 2654435761u;
 
             let scatter_data = material_scatter(object.material, hit_data, rng_seed);
 
-            // update state
-            state.radiance += state.throughput * object_emission(object, hit_data);
-            state.throughput *= object_albedo(object, hit_data);
+            if (alpha >= 1.0) { // opaque material
+                state.radiance += state.throughput * object_emission(object, hit_data);
+                state.throughput *= object_albedo(object, hit_data);
 
-            if (!scatter_data.scattered){ // no bounce
-                return packed_color_result(state.radiance);
+                if (!scatter_data.scattered) {  // no bounce
+                    return packed_color_result(state.radiance);
+                }
+
+                let new_photon = Photon3(
+                    Point3(hit_data.hit_point, CHART_CARTESIAN_WORLD),
+                    ThreeVector(scatter_data.direction, TANGENT_CARTESIAN_WORLD)
+                );
+                state = RayTraceState(
+                    photon3_to_photon4(new_photon, preferred_chart_for_point(hit_data.hit_point)),
+                    state.bounce_count + 1u,
+                    state.radiance,
+                    state.throughput,
+                );
+                break;
+
+            } else { // semi transparent
+                // the ray continues with throughput scaled by (1 - alpha) representing the transmitted fraction.
+
+                if (scatter_data.scattered) {
+                    let bounce_emission = object_emission(object, hit_data);
+
+                    // use emission instead of a real bounce
+                    state.radiance   += state.throughput * alpha * bounce_emission;
+                    state.throughput *= (1.0 - alpha); // transmitted fraction continues
+                    state.bounce_count += 1u;
+                } else { // surface absorbs and doesn't scatter
+                    state.radiance   += state.throughput * alpha * object_emission(object, hit_data);
+                    state.throughput *= (1.0 - alpha);
+                    state.bounce_count += 1u;
+                }
             }
-
-            let new_photon = Photon3(
-                Point3(hit_data.hit_point, CHART_CARTESIAN_WORLD),
-                ThreeVector(scatter_data.direction, TANGENT_CARTESIAN_WORLD)
-            );
-
-            state = RayTraceState(
-                photon3_to_photon4(new_photon, preferred_chart_for_point(hit_data.hit_point)),
-                state.bounce_count + 1u,
-                state.radiance,
-                state.throughput,
-            );
-
-            break;
         }
     }
 
