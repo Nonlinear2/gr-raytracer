@@ -1,13 +1,16 @@
-# black-hole-simulation
-A simple black hole simulation in rust and wgsl.
+# GR Ray tracer
+A general relativity ray tracer written in Rust and WGSL.
 
 # Usage
+Make sure you have cargo and the rust compiler installed, then run 
+```
+cargo run --release
+```
+You can modify rendering parameters in `config.rs`, and change the scene in `main.rs`. 
 
-
+Note that for now the pipeline only supports time independant geometries.
 
 # Notes on general relativity and implementation details
-
-For now the pipeline is built in a way that only supports time independant geometry. 
 
 ## Code conventions
 - The code studies the following manifolds:
