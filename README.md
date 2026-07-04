@@ -6,18 +6,20 @@ Make sure you have cargo and the rust compiler installed, then run
 ```
 cargo run --release
 ```
-You can modify rendering parameters in `config.rs`, and change the scene in `main.rs`. 
+You can modify rendering parameters in `config.rs`, and change the scene in `main.rs`. If you want to render a custom spacetime geometry, you can specify the metric in a dedicated wgsl file as described later in this document.
 
 Note that for now the pipeline only supports time independant geometries.
+
+## Defining a custom spacetime geometry
 
 # Notes on general relativity and implementation details
 
 ## Code conventions
-- The code studies the following manifolds:
-R^4 as a semi riemannian manifold, which we will call "R^4"
-3D submanifolds of R^4 obtained by chosing a time coodinate t, which we will call "R^3_t"
+- The code implements the following manifolds:
+- R^4 as a semi riemannian manifold, which we will call "R^4"
+- 3D submanifolds of R^4 obtained by chosing a time coodinate t, which we will call "R^3_t"
 - charts designate maps from coordinates to manifolds and not the opposite.
-- world designate the manifold "R^3_t" together with the atlas containing a single chart: cartesian coordinates centered on the camera.
+- world designates the manifold "R^3_t" together with the atlas containing a single chart: cartesian coordinates centered on the camera.
 
 - photon objects belong to R^4, and worldphoton objects will be photons at a point in time in world.
 - we always write vector_space when talking about a vector space to avoid confusion with "space" meaning the ThreeVector representing space in a FourVector
