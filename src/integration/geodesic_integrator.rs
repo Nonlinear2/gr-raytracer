@@ -25,17 +25,27 @@ impl GeodesicIntegrator {
         pollster::block_on(Self::new_async(world)).ok()
     }
 
-    pub fn get_shader(_world: &World) -> String {
+    pub fn get_shader(world: &World) -> String {
+        let geometry_source = world.manifold.get_geometry_source();
+        let main_source = include_str!("../geometry/main.wgsl");
 
-        // Concatenate shader
+        const START_MARKER: &str = "/// <START GEOMETRY>";
+        const END_MARKER: &str = "/// <END GEOMETRY>";
 
-        // let common_source = include_str!("../geometry/common.wgsl");
-        // let packed_source = include_str!("../geometry/packed_types.wgsl");
-        // let euler_source = include_str!("../integration/euler.wgsl");
-        // let manifold_source = manifold.get_shader();
+        let start = main_source
+            .find(START_MARKER)
+            .unwrap()
+            + START_MARKER.len();
+        let end = main_source
+            .find(END_MARKER)
+            .unwrap();
 
-        // [common_source, packed_source, euler_source, &manifold_source].join("\n")
-        include_str!("../geometry/schwarzschild.wgsl").to_string()
+        format!(
+            "{}\n{}\n{}",
+            &main_source[..start],
+            geometry_source,
+            &main_source[end..]
+        )
     }
 
     pub fn get_constants(world: &World) -> Vec<(&'static str, f64)> {
@@ -48,7 +58,7 @@ impl GeodesicIntegrator {
             ("SCENE_SIZE", world.scene_size as f64),
         ];
 
-        constants.extend(world.manifold.geometry_parameters());
+        constants.extend(world.manifold.get_subatlas_center());
         constants
     }
 

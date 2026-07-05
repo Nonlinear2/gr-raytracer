@@ -5,6 +5,7 @@ mod config;
 
 use crate::graphics::window::App;
 use crate::graphics::texture::{Textures, Texture, TextureId};
+#[allow(unused_imports)]
 use crate::graphics::surface::{Diffuse, Disc, Metal, Sphere};
 use crate::graphics::camera::{Camera, World};
 use crate::graphics::color::Color;
@@ -12,6 +13,7 @@ use crate::graphics::color::Color;
 use crate::geometry::vector::ThreeVector;
 use crate::geometry::point::Point3;
 use crate::geometry::schwarzschild::Schwarzschild4Manifold;
+use crate::geometry::euclidean::Euclidean4Manifold;
 use crate::geometry::manifold::Chart::CartesianWorld;
 
 use rand::{rngs::StdRng, SeedableRng};
