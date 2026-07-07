@@ -9,7 +9,6 @@ override DEBUG: bool = false;
 override DEBUG_RAY_INDEX: u32 = 0u;
 override MAX_BOUNCES: u32 = 0u;
 override SCENE_SIZE: f32 = 0.0;
-override R_S: f32 = 0.25;
 
 override SUBATLAS_CENTER_X: f32 = 0.0;
 override SUBATLAS_CENTER_Y: f32 = 0.0;

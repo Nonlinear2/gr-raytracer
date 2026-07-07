@@ -12,7 +12,9 @@ use crate::graphics::color::Color;
 
 use crate::geometry::vector::ThreeVector;
 use crate::geometry::point::Point3;
+#[allow(unused_imports)]
 use crate::geometry::schwarzschild::Schwarzschild4Manifold;
+#[allow(unused_imports)]
 use crate::geometry::euclidean::Euclidean4Manifold;
 use crate::geometry::manifold::Chart::CartesianWorld;
 

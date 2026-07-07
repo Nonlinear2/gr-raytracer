@@ -1,3 +1,5 @@
+override R_S: f32 = 0.0;
+
 fn g(pos: Point4) -> mat4x4<f32> {
     let r = pos.inner.y;
     let theta = pos.inner.z;

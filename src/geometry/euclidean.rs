@@ -16,7 +16,7 @@ impl Euclidean4Manifold {
 }
 
 impl PseudoRiemanian4Manifold for Euclidean4Manifold {
-    fn get_subatlas_center(&self) -> Vec<(&'static str, f64)> {
+    fn get_constants(&self) -> Vec<(&'static str, f64)> {
         vec![
             ("SUBATLAS_CENTER_X", self.subatlas_center.x() as f64),
             ("SUBATLAS_CENTER_Y", self.subatlas_center.y() as f64),

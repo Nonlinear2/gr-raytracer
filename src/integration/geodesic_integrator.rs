@@ -58,7 +58,7 @@ impl GeodesicIntegrator {
             ("SCENE_SIZE", world.scene_size as f64),
         ];
 
-        constants.extend(world.manifold.get_subatlas_center());
+        constants.extend(world.manifold.get_constants());
         constants
     }
 

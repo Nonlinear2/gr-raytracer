@@ -23,6 +23,6 @@ pub fn tangent_space(chart: Chart) -> TangentSpace {
 }
 
 pub trait PseudoRiemanian4Manifold {
-    fn get_subatlas_center(&self) -> Vec<(&'static str, f64)>;
+    fn get_constants(&self) -> Vec<(&'static str, f64)>;
     fn get_geometry_source(&self) -> String;
 }

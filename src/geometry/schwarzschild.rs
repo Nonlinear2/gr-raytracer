@@ -18,7 +18,7 @@ impl Schwarzschild4Manifold {
 }
 
 impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
-    fn get_subatlas_center(&self) -> Vec<(&'static str, f64)> {
+    fn get_constants(&self) -> Vec<(&'static str, f64)> {
         vec![
             ("R_S", self.r_s as f64),
             ("SUBATLAS_CENTER_X", self.subatlas_center.x() as f64),
