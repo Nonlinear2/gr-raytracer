@@ -1,1 +1,2 @@
-pub mod geodesic_integrator;
+pub mod euler;
+pub mod rk4;

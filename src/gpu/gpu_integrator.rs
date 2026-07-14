@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::sync::mpsc;
 
-use bytemuck::Zeroable;
 use wgpu::util::DeviceExt;
 
 use crate::graphics::texture::{TextureId, Textures};
@@ -208,8 +207,8 @@ impl GeodesicIntegrator {
             objects: objects_buffer,
             readback: readback_buffer,
             trace_output: trace_output_buffer,
-            trace_readback: trace_readback}
-
+            trace_readback: trace_readback
+        }
     }
 
     fn create_bind_group(&self, buffers: &Buffers) -> wgpu::BindGroup {
@@ -317,7 +316,7 @@ impl GeodesicIntegrator {
         (output, trace_results)
     }
 
-    pub fn run_kernel(&self, rays: Vec<Photon3>) -> (Vec<Color>, Option<Vec<PackedTraceResult>>) {
+    pub fn run(&self, rays: Vec<Photon3>) -> (Vec<Color>, Option<Vec<PackedTraceResult>>) {
         let packed_rays: Vec<PackedPhoton3> = rays.iter().copied().map(PackedPhoton3::from).collect();
         let rays_byte_size = std::mem::size_of::<PackedColorResult>() as u64 * packed_rays.len() as u64;
 

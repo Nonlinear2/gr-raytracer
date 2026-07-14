@@ -1,16 +1,14 @@
-# GR Ray tracer
-A general relativity ray tracer written in Rust and WGSL.
+# GR-Raytracer
+A GPU accelerated general relativity ray tracer written in Rust and WGSL.
 
 # Usage
-Make sure you have cargo and the rust compiler installed, then run 
+Make sure you have cargo and the Rust compiler installed, then run 
 ```
 cargo run --release
 ```
-You can modify rendering parameters in `config.rs`, and change the scene in `main.rs`. If you want to render a custom spacetime geometry, you can specify the metric in a dedicated wgsl file as described later in this document.
+You can modify rendering parameters in `config.rs`, and change the scene in `main.rs`.
 
 Note that for now the pipeline only supports time independant geometries.
-
-## Defining a custom spacetime geometry
 
 # Notes on general relativity and implementation details
 

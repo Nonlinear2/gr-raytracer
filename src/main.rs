@@ -1,7 +1,10 @@
 mod graphics;
 mod geometry;
-mod integration;
+mod cpu_integrator;
+mod math;
 mod config;
+mod constants;
+mod gpu;
 
 use crate::graphics::window::App;
 use crate::graphics::texture::{Textures, Texture, TextureId};

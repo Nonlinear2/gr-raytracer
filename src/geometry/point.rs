@@ -3,9 +3,6 @@ use glam::{Vec3, Vec4};
 use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
 use crate::geometry::manifold::Chart;
 
-// this file describes points on manifolds
-
-
 // Point3 is a point on the manifold R^3
 #[derive(Clone, Copy, PartialEq)]
 pub struct Point3 {

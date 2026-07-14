@@ -1,4 +1,8 @@
-use crate::{config::{IMAGE_HEIGHT, IMAGE_WIDTH, SAMPLES_PER_PIXEL}, geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, vector::TangentSpace}, graphics::texture::Textures, integration::geodesic_integrator::GeodesicIntegrator};
+use crate::{
+    config::{IMAGE_HEIGHT, IMAGE_WIDTH, SAMPLES_PER_PIXEL}, 
+    geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, vector::TangentSpace},
+    graphics::texture::Textures, cpu_integrator::GeodesicIntegrator
+};
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
