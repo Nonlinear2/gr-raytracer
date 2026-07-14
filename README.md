@@ -1,5 +1,7 @@
 # GR-Raytracer
-A GPU accelerated general relativity ray tracer written in Rust and WGSL.
+A dual CPU / GPU general relativity ray tracer written in Rust and WGSL.
+
+The pipeline was CPU only at first, until I re-wrote most of the code in WGSL. Unfortunately, using WGSL has not been a pleasant experience, mainly because of the lack of a proper module system and debugging tools. My motivation in the project suffered accordingly. I also felt that the nature of manifolds better suits an object oriented language. I thus decided to bring back the CPU code, and write a dual pipeline. New features will not be added to the GPU pipeline but I hope to keep it functional.
 
 # Usage
 Make sure you have cargo and the Rust compiler installed, then run 
