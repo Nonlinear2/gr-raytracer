@@ -1,9 +1,10 @@
-use glam::Mat4;
-
 use crate::geometry::manifold::{Chart, HasAtlas3, PseudoRiemanian4Manifold};
 use crate::geometry::photon::{Photon3, Photon4};
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
+use crate::integration::euler;
+use glam::Mat4;
+
 #[allow(dead_code)]
 pub struct Euclidean4Manifold {
     pub subatlas_center: Point3 // center of the atlas for fixed-time submanifolds expressed in Chart::CartesianWorld 
@@ -88,7 +89,7 @@ impl PseudoRiemanian4Manifold for Euclidean4Manifold {
     }
 
     fn step_along_null_geodesic(&self, s: Photon4) -> Photon4 {
-        euler_step(
+        euler::euler_step(
             s.pos, s.vel, s.vel.as_point4(), FourVector::zero(TangentSpace::Cartesian)
         )
     }

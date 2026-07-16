@@ -1,5 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 
+use crate::{geometry::manifold::Chart, graphics::surface::{Diffuse, Disc, Metal, Sphere}};
+
 pub const GPU_OBJECT_SPHERE: u32 = 1;
 pub const GPU_OBJECT_DISC: u32 = 2;
 
@@ -25,7 +27,7 @@ pub trait GpuMaterial {
 }
 
 
-impl Material for Diffuse {
+impl GpuMaterial for Diffuse {
 
     fn packed_material_kind(&self) -> u32 {
         GPU_MATERIAL_DIFFUSE
@@ -50,7 +52,7 @@ impl Material for Diffuse {
     }
 }
 
-impl Material for Metal {
+impl GpuMaterial for Metal {
 
     fn packed_material_kind(&self) -> u32 {
         GPU_MATERIAL_METAL

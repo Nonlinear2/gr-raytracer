@@ -3,15 +3,14 @@ use std::sync::mpsc;
 
 use wgpu::util::DeviceExt;
 
+use crate::cpu_integrator::GeodesicIntegrator;
 use crate::graphics::texture::{TextureId, Textures};
 use crate::config::{self, DEBUG, WORKGROUP_SIZE};
-use crate::geometry::photon::{PackedPhoton3, PackedTraceResult, Photon3};
+use crate::geometry::photon::Photon3;
 use crate::graphics::camera::World;
 use crate::graphics::color::{Color, PackedColorResult};
-use crate::graphics::surface::PackedObject;
-use crate::graphics::wgpu_helpers::{BindEntry, Buffers, WgpuTextures};
 
-pub struct GeodesicIntegrator {
+pub struct GpuIntegrator {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pipeline: wgpu::ComputePipeline,
@@ -19,14 +18,10 @@ pub struct GeodesicIntegrator {
     textures: WgpuTextures,
 }
 
-impl GeodesicIntegrator {
-    pub fn new(world: &World) -> Option<Self> {
-        pollster::block_on(Self::new_async(world)).ok()
-    }
-
-    pub fn get_shader(world: &World) -> String {
+impl GpuIntegrator {
+    fn get_shader(world: &World) -> String {
         let geometry_source = world.manifold.get_geometry_source();
-        let main_source = include_str!("../geometry/main.wgsl");
+        let main_source = include_str!("geometry/main.wgsl");
 
         const START_MARKER: &str = "/// <START GEOMETRY>";
         const END_MARKER: &str = "/// <END GEOMETRY>";
@@ -47,7 +42,7 @@ impl GeodesicIntegrator {
         )
     }
 
-    pub fn get_constants(world: &World) -> Vec<(&'static str, f64)> {
+    fn get_constants(world: &World) -> Vec<(&'static str, f64)> {
         let mut constants = vec![
             ("INTEGRATION_STEP_SIZE", config::INTEGRATION_STEP_SIZE as f64),
             ("MAX_STEPS", config::MAX_INTEGRATION_STEPS as f64),
@@ -315,8 +310,15 @@ impl GeodesicIntegrator {
 
         (output, trace_results)
     }
+}
 
-    pub fn run(&self, rays: Vec<Photon3>) -> (Vec<Color>, Option<Vec<PackedTraceResult>>) {
+
+impl GeodesicIntegrator for GpuIntegrator {
+    fn new(world: &World) -> Option<Self> {
+        pollster::block_on(Self::new_async(world)).ok()
+    }
+
+    fn run(&self, rays: Vec<Photon3>) -> (Vec<Color>, Option<Vec<PackedTraceResult>>) {
         let packed_rays: Vec<PackedPhoton3> = rays.iter().copied().map(PackedPhoton3::from).collect();
         let rays_byte_size = std::mem::size_of::<PackedColorResult>() as u64 * packed_rays.len() as u64;
 

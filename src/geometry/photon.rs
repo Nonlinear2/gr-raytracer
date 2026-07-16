@@ -1,7 +1,6 @@
-use crate::config;
-use crate::geometry::manifold::{Chart, tangent_space};
+use crate::geometry::manifold::{tangent_space};
 use crate::geometry::point::{Point3, Point4};
-use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
+use crate::geometry::vector::{FourVector, ThreeVector};
 
 
 // photon in spacetime with manifold coordinate system

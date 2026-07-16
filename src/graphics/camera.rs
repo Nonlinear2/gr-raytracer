@@ -1,7 +1,5 @@
 use crate::{
-    config::{IMAGE_HEIGHT, IMAGE_WIDTH, SAMPLES_PER_PIXEL}, 
-    geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, vector::TangentSpace},
-    graphics::texture::Textures, cpu_integrator::GeodesicIntegrator
+    config::{self, IMAGE_HEIGHT, IMAGE_WIDTH, SAMPLES_PER_PIXEL}, constants::Pipeline::CPU, cpu_integrator::{CpuIntegrator, GeodesicIntegrator}, geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, vector::TangentSpace}, gpu::{geometry::manifold::GpuManifold, gpu_integrator::GpuIntegrator}, graphics::texture::Textures
 };
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
@@ -16,7 +14,7 @@ pub type Objects = Vec<Box<dyn Object>>;
 
 pub struct World {
     pub scene_size: f32,
-    pub manifold: Box<dyn PseudoRiemanian4Manifold>,
+    pub manifold: Box<dyn Manifold>,
     pub objects: Objects,
     pub textures: Textures,
 }
@@ -70,7 +68,11 @@ impl Camera {
     }
 
     pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
-        let integrator = GeodesicIntegrator::new(world).unwrap();
+        let integrator = if config::PIPELINE == CPU {
+            GpuIntegrator::new(world).unwrap()
+        } else {
+            CpuIntegrator::new(world).unwrap()
+        };
 
         let img_size = (IMAGE_WIDTH * IMAGE_HEIGHT) as usize;
 

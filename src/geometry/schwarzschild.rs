@@ -4,6 +4,7 @@ use crate::geometry::manifold::{Chart, HasAtlas3, PseudoRiemanian4Manifold};
 use crate::geometry::photon::{Photon3, Photon4};
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
+use crate::integration::euler;
 use crate::math::positive_root;
 
 pub struct Schwarzschild4Manifold {
@@ -382,6 +383,6 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
             }
         }
 
-        euler_step(x, k, k.as_point4(), del_k)
+        euler::euler_step(x, k, k.as_point4(), del_k)
     }
 }

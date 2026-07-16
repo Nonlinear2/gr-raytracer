@@ -1,9 +1,9 @@
-use crate::geometry::manifold::Chart;
 use crate::geometry::point::Point3;
+use crate::gpu::surface::GpuMaterial;
 use crate::graphics::color::Color;
 use crate::graphics::texture::TextureId;
 
-pub trait Material {
+pub trait CpuMaterial {
 }
 
 #[allow(dead_code)]
@@ -12,7 +12,7 @@ pub struct Diffuse {
     pub emission: Color,
 }
 
-impl Material for Diffuse {
+impl CpuMaterial for Diffuse {
 
 }
 
@@ -23,9 +23,11 @@ pub struct Metal {
     pub fuzz: f32,
 }
 
-impl Material for Metal {
+impl CpuMaterial for Metal {
 
 }
+
+pub trait Material: CpuMaterial + GpuMaterial {}
 
 pub trait Object {
 }

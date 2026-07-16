@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 
-use crate::geometry::{manifold::Chart, photon::Photon3};
+use crate::{config, geometry::{manifold::Chart, photon::Photon3, vector::{TangentSpace, ThreeVector}}};
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
