@@ -1,6 +1,10 @@
 use bytemuck::{Pod, Zeroable};
 
-use crate::geometry::{manifold::Chart, photon::Photon3, vector::{TangentSpace, ThreeVector}};
+use crate::geometry::{manifold::{ChartWorld, TangentWorld}, photon::Photon3, point::Point3, vector::ThreeVector};
+
+// gpu tags of the CartesianWorld chart and tangent space (see main.wgsl)
+pub const CHART_CARTESIAN_WORLD: u32 = 0;
+pub const TANGENT_CARTESIAN_WORLD: u32 = 0;
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -16,27 +20,30 @@ impl From<Photon3> for PackedPhoton3 {
     fn from(photon: Photon3) -> Self {
         Self {
             pos: [photon.pos.x(), photon.pos.y(), photon.pos.z()],
-            pos_chart: photon.pos.chart as u32,
+            pos_chart: CHART_CARTESIAN_WORLD,
             vel: [photon.vel.x(), photon.vel.y(), photon.vel.z()],
-            vel_space: photon.vel.vector_space as u32,
+            vel_space: TANGENT_CARTESIAN_WORLD,
         }
     }
 }
 
 impl From<PackedPhoton3> for Photon3 {
     fn from(photon: PackedPhoton3) -> Self {
+        assert!(photon.pos_chart == CHART_CARTESIAN_WORLD);
+        assert!(photon.vel_space == TANGENT_CARTESIAN_WORLD);
+
         Photon3::new(
-            crate::geometry::point::Point3::new(
+            Point3::new(
                 photon.pos[0],
                 photon.pos[1],
                 photon.pos[2],
-                Chart::try_from(photon.pos_chart).unwrap(),
+                ChartWorld,
             ),
             ThreeVector::new(
                 photon.vel[0],
                 photon.vel[1],
                 photon.vel[2],
-                TangentSpace::try_from(photon.vel_space).unwrap(),
+                TangentWorld,
             ),
         )
     }

@@ -2,44 +2,44 @@ use crate::{
     config::{self, IMAGE_HEIGHT, IMAGE_WIDTH, SAMPLES_PER_PIXEL},
     constants::Pipeline::CPU,
     integrator::{cpu::CpuIntegrator, gpu::GpuIntegrator, GeodesicIntegrator},
-    geometry::{photon::Photon3, vector::TangentSpace},
+    geometry::photon::Photon3,
     scene::World,
 };
 
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
-use crate::geometry::manifold::Chart::CartesianWorld;
+use crate::geometry::manifold::{ChartWorld, TangentWorld};
 
 use rand::{rngs::StdRng, RngExt};
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
 
 pub struct Camera {
-    pub center: Point3,
+    pub center: Point3<ChartWorld>,
 
-    pub first_pixel_loc: Point3,
-    pub pixel_delta_u: ThreeVector,
-    pub pixel_delta_v: ThreeVector,
+    pub first_pixel_loc: Point3<ChartWorld>,
+    pub pixel_delta_u: ThreeVector<TangentWorld>,
+    pub pixel_delta_v: ThreeVector<TangentWorld>,
 }
 
 impl Camera {
     pub fn new() -> Self {
         let a_ratio = (IMAGE_WIDTH as f32) / (IMAGE_HEIGHT as f32);
 
-        let center: Point3 = Point3::new(0.,0.,0., CartesianWorld);
+        let center: Point3<ChartWorld> = Point3::new(0.,0.,0., ChartWorld);
         const FOCAL_LENGTH: f32 = 1.0;
 
         let viewport_height = 2.0;
         let viewport_width = viewport_height * a_ratio;
-    
-        let viewport_u_vect = ThreeVector::new(viewport_width, 0., 0., TangentSpace::CartesianWorld);
-        let viewport_v_vect = ThreeVector::new(0., -viewport_height, 0., TangentSpace::CartesianWorld);
+
+        let viewport_u_vect = ThreeVector::new(viewport_width, 0., 0., TangentWorld);
+        let viewport_v_vect = ThreeVector::new(0., -viewport_height, 0., TangentWorld);
 
         let pixel_delta_u = viewport_u_vect * (1.0 / IMAGE_WIDTH as f32);
         let pixel_delta_v = viewport_v_vect * (1.0 / IMAGE_HEIGHT as f32);
 
         let viewport_upper_left = center
-            - Point3::new(0., 0., FOCAL_LENGTH, CartesianWorld)
+            - Point3::new(0., 0., FOCAL_LENGTH, ChartWorld)
             - viewport_u_vect.as_point3() * 0.5
             - viewport_v_vect.as_point3() * 0.5;
         let first_pixel_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v).as_point3();
@@ -52,7 +52,7 @@ impl Camera {
         }
     }
 
-    pub fn get_pixel_position(&self, i: usize, j: usize, offset: bool, rng: &mut StdRng) -> Point3 {
+    pub fn get_pixel_position(&self, i: usize, j: usize, offset: bool, rng: &mut StdRng) -> Point3<ChartWorld> {
         let mut pos = self.first_pixel_loc + (self.pixel_delta_u * (i as f32) + self.pixel_delta_v * (j as f32)).as_point3();
         if offset {
             pos = pos

@@ -4,7 +4,7 @@ use bytemuck::Zeroable;
 use rand::{rngs::StdRng, SeedableRng};
 
 use crate::config;
-use crate::geometry::manifold::Chart;
+use crate::geometry::manifold::ChartWorld;
 use crate::geometry::photon::Photon3;
 use crate::geometry::point::Point3;
 use crate::graphics::color::Color;
@@ -26,7 +26,7 @@ impl<'a> CpuIntegrator<'a> {
         }
     }
 
-    fn sky_albedo(&self, world_pos: Point3) -> Color {
+    fn sky_albedo(&self, world_pos: Point3<ChartWorld>) -> Color {
         let direction = (world_pos - self.world.manifold.subatlas_center()).as_threevector().normalize();
         let (u, v) = sphere_uv(direction);
         let rgba = self.world.textures.get(TextureId::SKY).sample(u, v);
@@ -50,8 +50,8 @@ impl<'a> CpuIntegrator<'a> {
             let prev_ray = ray;
             ray = manifold.step_along_null_geodesic(ray);
 
-            let prev_world_pos = manifold.transition_point(prev_ray.pos.space(), Chart::CartesianWorld);
-            let world_pos = manifold.transition_point(ray.pos.space(), Chart::CartesianWorld);
+            let prev_world_pos = manifold.point_to_world(prev_ray.pos.space());
+            let world_pos = manifold.point_to_world(ray.pos.space());
 
             if let Some(trace) = trace.as_deref_mut() {
                 trace.positions[step as usize] = PackedTracePoint {

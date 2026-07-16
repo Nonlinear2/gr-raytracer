@@ -1,4 +1,4 @@
-use crate::geometry::manifold::{Chart, GpuManifold, HasAtlas3, Manifold, PseudoRiemanian4Manifold};
+use crate::geometry::manifold::{tangent_space, ChartWorld, Chart, GpuManifold, HasAtlas3, PseudoRiemanian4Manifold, TangentWorld};
 use crate::geometry::photon::{Photon3, Photon4};
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
@@ -7,13 +7,11 @@ use glam::Mat4;
 
 #[allow(dead_code)]
 pub struct Euclidean4Manifold {
-    pub subatlas_center: Point3 // center of the atlas for fixed-time submanifolds expressed in Chart::CartesianWorld 
+    pub subatlas_center: Point3<ChartWorld> // center of the atlas for fixed-time submanifolds
 }
 
 impl Euclidean4Manifold {
-    // center is a Point in world space
-    pub fn new(center: Point3) -> Self {
-        assert!(center.chart == Chart::CartesianWorld);
+    pub fn new(center: Point3<ChartWorld>) -> Self {
         Self {
             subatlas_center: center,
         }
@@ -22,27 +20,35 @@ impl Euclidean4Manifold {
 
 impl HasAtlas3 for Euclidean4Manifold {
     fn has_chart(&self, chart: Chart) -> bool {
-        chart == Chart::Cartesian || chart == Chart::CartesianWorld
+        chart == Chart::Cartesian
     }
 
-    fn subatlas_center(&self) -> Point3 {
+    fn subatlas_center(&self) -> Point3<ChartWorld> {
         self.subatlas_center
     }
 
-    fn preferred_chart_for_point(&self, _point: Point3) -> Chart {
+    fn preferred_chart_for_point(&self, _point: Point3<ChartWorld>) -> Chart {
         Chart::Cartesian
     }
 
-    fn transition_point(&self, p: Point3, to: Chart) -> Point3 {
-        match (p.chart, to) {
-            (Chart::Cartesian, Chart::CartesianWorld) => p.as_chart(Chart::CartesianWorld) + self.subatlas_center,
-            (Chart::CartesianWorld, Chart::Cartesian) => (p - self.subatlas_center).as_chart(Chart::Cartesian),
-            _ => panic!()
-        }
+    fn point_to_world(&self, p: Point3) -> Point3<ChartWorld> {
+        assert!(p.chart == Chart::Cartesian);
+        Point3::new(p[0], p[1], p[2], ChartWorld) + self.subatlas_center
     }
 
-    fn transition_vector(&self, _p: Point3, v: ThreeVector, _to: Chart) -> ThreeVector {
-        v
+    fn point_from_world(&self, p: Point3<ChartWorld>, to: Chart) -> Point3 {
+        assert!(to == Chart::Cartesian);
+        let rel = p - self.subatlas_center;
+        Point3::new(rel.x(), rel.y(), rel.z(), Chart::Cartesian)
+    }
+
+    fn vector_to_world(&self, _p: Point3, v: ThreeVector) -> ThreeVector<TangentWorld> {
+        assert!(v.vector_space == TangentSpace::Cartesian);
+        ThreeVector::new(v[0], v[1], v[2], TangentWorld)
+    }
+
+    fn vector_from_world(&self, _p: Point3<ChartWorld>, v: ThreeVector<TangentWorld>, to: Chart) -> ThreeVector {
+        ThreeVector::new(v.x(), v.y(), v.z(), tangent_space(to))
     }
 }
 
@@ -54,25 +60,15 @@ impl PseudoRiemanian4Manifold for Euclidean4Manifold {
 
     fn world_photon3_to_photon4(&self, world_photon: Photon3) -> Photon4 {
         Photon4::new(
-            Point4::from_space_time(0., world_photon.pos),
-            FourVector::from_space_time(0., world_photon.vel)
+            Point4::from_space_time(0., self.point_from_world(world_photon.pos, Chart::Cartesian)),
+            FourVector::from_space_time(0., self.vector_from_world(world_photon.pos, world_photon.vel, Chart::Cartesian))
         )
     }
 
     fn to_world_photon3(&self, photon: Photon4) -> Photon3 {
-        assert!(photon.pos.chart == Chart::Cartesian);
-        assert!(photon.vel.vector_space == TangentSpace::Cartesian);
-
         Photon3::new(
-            self.transition_point(
-                photon.pos.space(),
-                Chart::CartesianWorld
-            ),
-            self.transition_vector(
-                Point3::ZERO_CART, // unused
-                photon.vel.space(),
-                Chart::CartesianWorld
-            )
+            self.point_to_world(photon.pos.space()),
+            self.vector_to_world(photon.pos.space(), photon.vel.space())
         )
     }
 
@@ -98,6 +94,7 @@ impl PseudoRiemanian4Manifold for Euclidean4Manifold {
         )
     }
 }
+
 impl GpuManifold for Euclidean4Manifold {
     fn get_constants(&self) -> Vec<(&'static str, f64)> {
         vec![

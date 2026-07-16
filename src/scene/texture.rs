@@ -1,9 +1,6 @@
-use std::f32::consts::{PI, TAU};
 use std::path::Path;
 
 use wgpu::{Device, Queue, Sampler, TextureView};
-
-use crate::geometry::vector::ThreeVector;
 
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

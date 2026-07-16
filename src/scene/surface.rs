@@ -2,7 +2,7 @@ use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 use rand::rngs::StdRng;
 
-use crate::geometry::manifold::Chart;
+use crate::geometry::manifold::{ChartWorld, TangentWorld};
 use crate::geometry::point::Point3;
 use crate::geometry::vector::ThreeVector;
 use crate::graphics::color::Color;
@@ -11,18 +11,17 @@ use crate::scene::texture::TextureId;
 
 const EPS: f32 = 10e-6;
 
-/// hit point, incoming direction and normal are expressed in the CartesianWorld chart
 pub struct HitData {
-    pub hit_point: Point3,
-    pub incoming_dir: ThreeVector,
-    pub normal: ThreeVector,
+    pub hit_point: Point3<ChartWorld>,
+    pub incoming_dir: ThreeVector<TangentWorld>,
+    pub normal: ThreeVector<TangentWorld>,
 }
 
 pub trait CpuMaterial {
     /// texture_rgb is the sampled texture color if the object has one
     fn albedo(&self, texture_rgb: Option<Color>) -> Color;
     fn emission(&self, texture_rgb: Option<Color>) -> Color;
-    fn scatter(&self, hit_data: &HitData, rng: &mut StdRng) -> Option<ThreeVector>;
+    fn scatter(&self, hit_data: &HitData, rng: &mut StdRng) -> Option<ThreeVector<TangentWorld>>;
 }
 
 #[allow(dead_code)]
@@ -46,7 +45,7 @@ impl CpuMaterial for Diffuse {
         }
     }
 
-    fn scatter(&self, hit_data: &HitData, _rng: &mut StdRng) -> Option<ThreeVector> {
+    fn scatter(&self, hit_data: &HitData, _rng: &mut StdRng) -> Option<ThreeVector<TangentWorld>> {
         Some(hit_data.normal.normalize())
     }
 }
@@ -67,7 +66,7 @@ impl CpuMaterial for Metal {
         self.emission
     }
 
-    fn scatter(&self, hit_data: &HitData, rng: &mut StdRng) -> Option<ThreeVector> {
+    fn scatter(&self, hit_data: &HitData, rng: &mut StdRng) -> Option<ThreeVector<TangentWorld>> {
         let rand_dir = ThreeVector::random_unit(rng, hit_data.normal.vector_space);
         let fuzz = self.fuzz.clamp(0.0, 0.99);
 
@@ -86,23 +85,22 @@ pub trait Material: CpuMaterial + GpuMaterial {}
 impl<T: CpuMaterial + GpuMaterial> Material for T {}
 
 pub trait CpuObject {
-    /// prev_pos and new_pos are expressed in the CartesianWorld chart
-    fn hit(&self, prev_pos: Point3, new_pos: Point3) -> Option<HitData>;
-    fn uv(&self, hit_point: Point3) -> (f32, f32);
+    fn hit(&self, prev_pos: Point3<ChartWorld>, new_pos: Point3<ChartWorld>) -> Option<HitData>;
+    fn uv(&self, hit_point: Point3<ChartWorld>) -> (f32, f32);
     fn texture(&self) -> TextureId;
     fn material(&self) -> &dyn Material;
 }
 
 #[allow(dead_code)]
 pub struct Sphere {
-    pub center: Point3,
+    pub center: Point3<ChartWorld>,
     pub radius: f32,
     pub material: Box<dyn Material>,
     pub texture: TextureId,
 }
 
 impl CpuObject for Sphere {
-    fn hit(&self, prev_pos: Point3, new_pos: Point3) -> Option<HitData> {
+    fn hit(&self, prev_pos: Point3<ChartWorld>, new_pos: Point3<ChartWorld>) -> Option<HitData> {
         let offset = (new_pos - self.center).as_threevector();
         if offset.length() > self.radius {
             return None;
@@ -117,7 +115,7 @@ impl CpuObject for Sphere {
         })
     }
 
-    fn uv(&self, hit_point: Point3) -> (f32, f32) {
+    fn uv(&self, hit_point: Point3<ChartWorld>) -> (f32, f32) {
         sphere_uv((hit_point - self.center).as_threevector().normalize())
     }
 
@@ -132,8 +130,8 @@ impl CpuObject for Sphere {
 
 #[allow(dead_code)]
 pub struct Disc {
-    pub center: Point3,
-    pub normal: crate::geometry::vector::ThreeVector,
+    pub center: Point3<ChartWorld>,
+    pub normal: ThreeVector<TangentWorld>,
     pub radius: f32,
     pub inner_radius: f32,
     pub material: Box<dyn Material>,
@@ -141,10 +139,7 @@ pub struct Disc {
 }
 
 impl CpuObject for Disc {
-    fn hit(&self, prev_pos: Point3, new_pos: Point3) -> Option<HitData> {
-        assert!(prev_pos.chart == Chart::CartesianWorld);
-        assert!(new_pos.chart == Chart::CartesianWorld);
-
+    fn hit(&self, prev_pos: Point3<ChartWorld>, new_pos: Point3<ChartWorld>) -> Option<HitData> {
         let normal = self.normal.normalize();
         let segment = (new_pos - prev_pos).as_threevector();
         let segment_dot_normal = segment.dot(normal);
@@ -178,7 +173,7 @@ impl CpuObject for Disc {
         })
     }
 
-    fn uv(&self, hit_point: Point3) -> (f32, f32) {
+    fn uv(&self, hit_point: Point3<ChartWorld>) -> (f32, f32) {
         let normal = self.normal.normalize().as_vec3();
         let reference_axis = if normal.y.abs() > 0.5 { Vec3::new(1.0, 0.0, 0.0) } else { Vec3::new(0.0, 1.0, 0.0) };
         let tangent = reference_axis.cross(normal).normalize();
@@ -297,8 +292,6 @@ pub trait GpuObject {
 
 impl GpuObject for Sphere {
     fn as_packed_object(&self) -> Option<PackedObject> {
-        assert!(self.center.chart == Chart::CartesianWorld);
-
         Some(PackedObject {
             kind: GPU_OBJECT_SPHERE,
             texture: self.texture as u32,
@@ -324,8 +317,6 @@ impl GpuObject for Sphere {
 
 impl GpuObject for Disc {
     fn as_packed_object(&self) -> Option<PackedObject> {
-        assert!(self.center.chart == Chart::CartesianWorld);
-        assert!(matches!(self.normal.vector_space, crate::geometry::vector::TangentSpace::CartesianWorld));
         assert!(self.radius.is_finite() && self.radius >= 0.0);
         assert!(self.inner_radius.is_finite() && self.inner_radius >= 0.0);
         assert!(self.inner_radius <= self.radius);

@@ -6,33 +6,44 @@ use glam::Mat4;
 use num_enum::{TryFromPrimitive};
 
 /// which global chart we use to describe points on the submanifolds of R^4 obtained by fixing the time coordinate.
-/// NOTE: 
+/// NOTE:
 /// These charts will designate the maps from coordinates to "manifold" and not the opposite. They are technically inverse charts
 #[repr(u32)]
 #[derive(Clone, Copy, PartialEq, TryFromPrimitive)]
 pub enum Chart {
-    CartesianWorld,
-    Cartesian, // cartesian with center point
-    SphericalZ, // spherical coordinates with center and (r: 1, theta: 0, phi: ...) pointing towards positive Z 
-    SphericalX, // spherical coordinates with center and (r: 1, theta: 0, phi: ...) pointing towards positive X 
+    Cartesian = 1, // cartesian with center point
+    SphericalZ = 2, // spherical coordinates with center and (r: 1, theta: 0, phi: ...) pointing towards positive Z
+    SphericalX = 3, // spherical coordinates with center and (r: 1, theta: 0, phi: ...) pointing towards positive X
 }
+
+/// the background cartesian chart of the fixed time submanifolds, in which the scene is described
+/// it is tracked at the type level (Point3<ChartWorld>) rather than in the Chart enum
+#[derive(Clone, Copy, PartialEq)]
+pub struct ChartWorld;
+
+/// basis of the tangent space corresponding to the ChartWorld chart,
+/// tracked at the type level (ThreeVector<TangentWorld>) rather than in the TangentSpace enum
+#[derive(Clone, Copy, PartialEq)]
+pub struct TangentWorld;
 
 pub fn tangent_space(chart: Chart) -> TangentSpace {
     match chart {
         Chart::Cartesian => TangentSpace::Cartesian,
-        Chart::CartesianWorld => TangentSpace::CartesianWorld,
         Chart::SphericalZ => TangentSpace::SphericalZ,
         Chart::SphericalX => TangentSpace::SphericalX,
     }
 }
 
-// Atlas describing submanifolds of R^4 given by fixing the time coordinate (so this coordinate doesnt get converted).
+// Atlas describing submanifolds of R^4 given by fixing the time coordinate (so this coordinate doesnt get converted)
+// The CartesianWorld chart is always part of the atlas and is not listed in Chart
 pub trait HasAtlas3 {
-    fn has_chart(&self, chart: Chart) -> bool; // should always have CartesianWorld
-    fn subatlas_center(&self) -> Point3;
-    fn preferred_chart_for_point(&self, point: Point3) -> Chart;
-    fn transition_point(&self, p: Point3, to: Chart) -> Point3;
-    fn transition_vector(&self, p: Point3, v: ThreeVector, to: Chart) -> ThreeVector;
+    fn has_chart(&self, chart: Chart) -> bool;
+    fn subatlas_center(&self) -> Point3<ChartWorld>;
+    fn preferred_chart_for_point(&self, point: Point3<ChartWorld>) -> Chart;
+    fn point_to_world(&self, p: Point3) -> Point3<ChartWorld>;
+    fn point_from_world(&self, p: Point3<ChartWorld>, to: Chart) -> Point3;
+    fn vector_to_world(&self, p: Point3, v: ThreeVector) -> ThreeVector<TangentWorld>;
+    fn vector_from_world(&self, p: Point3<ChartWorld>, v: ThreeVector<TangentWorld>, to: Chart) -> ThreeVector;
 }
 
 pub trait PseudoRiemanian4Manifold: HasAtlas3 {

@@ -1,5 +1,6 @@
 use std::f32::consts::{PI, TAU};
 
+use crate::geometry::manifold::TangentWorld;
 use crate::geometry::vector::ThreeVector;
 
 pub fn positive_root(a: f32, b: f32, c: f32) -> f32 {
@@ -23,7 +24,7 @@ pub fn positive_root(a: f32, b: f32, c: f32) -> f32 {
     return ((-b + delta.sqrt()) / (2.0*a)).clamp(0., 1e6);
 }
 
-pub fn sphere_uv(direction: ThreeVector) -> (f32, f32) {
+pub fn sphere_uv(direction: ThreeVector<TangentWorld>) -> (f32, f32) {
     let u = direction.z().atan2(direction.x()) / TAU + 0.5;
     let v = direction.y().clamp(-1.0, 1.0).acos() / PI;
     (u, v)

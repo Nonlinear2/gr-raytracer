@@ -48,8 +48,5 @@ pub fn euler_step(x: Point4, k: FourVector, del_x: Point4, del_k: FourVector) ->
 
             Photon4::new(new_x, new_k)
         }
-        Chart::CartesianWorld => {
-            panic!();
-        }
     }
 }
