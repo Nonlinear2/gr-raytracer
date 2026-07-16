@@ -6,13 +6,8 @@ use bytemuck::{Pod, Zeroable};
 use crate::config;
 use crate::geometry::photon::Photon3;
 use crate::graphics::color::Color;
-use crate::scene::World;
 
 pub trait GeodesicIntegrator {
-    fn new(world: &World) -> Self
-    where
-        Self: Sized;
-
     fn run(&self, rays: Vec<Photon3>) -> (Vec<Color>, Option<Vec<PackedTraceResult>>);
 }
 

@@ -87,6 +87,7 @@ impl Point3 {
         self.inner[2]
     }
 
+    // only for cartesian charts, there is a natural identification of points with vectors.
     pub fn as_threevector(self) -> ThreeVector {
         match self.chart {
             Chart::Cartesian => ThreeVector::new(
@@ -95,12 +96,7 @@ impl Point3 {
             Chart::CartesianWorld => ThreeVector::new(
                 self.inner[0], self.inner[1], self.inner[2], TangentSpace::CartesianWorld
             ),
-            Chart::SphericalZ => ThreeVector::new(
-                self.inner[0], self.inner[1], self.inner[2], TangentSpace::SphericalZ
-            ),
-            Chart::SphericalX => ThreeVector::new(
-                self.inner[0], self.inner[1], self.inner[2], TangentSpace::SphericalX
-            )
+            _ => panic!(),
         }
     }
 

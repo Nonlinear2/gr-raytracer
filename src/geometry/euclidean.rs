@@ -1,4 +1,4 @@
-use crate::geometry::manifold::{Chart, GpuManifold, HasAtlas3, PseudoRiemanian4Manifold};
+use crate::geometry::manifold::{Chart, GpuManifold, HasAtlas3, Manifold, PseudoRiemanian4Manifold};
 use crate::geometry::photon::{Photon3, Photon4};
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
@@ -23,6 +23,10 @@ impl Euclidean4Manifold {
 impl HasAtlas3 for Euclidean4Manifold {
     fn has_chart(&self, chart: Chart) -> bool {
         chart == Chart::Cartesian || chart == Chart::CartesianWorld
+    }
+
+    fn subatlas_center(&self) -> Point3 {
+        self.subatlas_center
     }
 
     fn preferred_chart_for_point(&self, _point: Point3) -> Chart {

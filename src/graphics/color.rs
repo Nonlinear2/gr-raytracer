@@ -10,7 +10,7 @@ pub struct Color {
 
 impl Color {
     pub const BLACK: Self = Self { r: 0.0, g: 0.0, b: 0.0 };
-    pub const WHITE: Self = Self { r: 255.0, g: 255.0, b: 255.0 };
+    pub const WHITE: Self = Self { r: 1.0, g: 1.0, b: 1.0 };
 
     pub fn new(r: f32, g: f32, b: f32) -> Self { Self { r, g, b } }
 
@@ -35,6 +35,19 @@ impl std::ops::Sub for Color {
 impl std::ops::Mul<f32> for Color {
     type Output = Color;
     fn mul(self, rhs: f32) -> Color { Color::new(self.r * rhs, self.g * rhs, self.b * rhs) }
+}
+
+impl std::ops::MulAssign<f32> for Color {
+    fn mul_assign(&mut self, rhs: f32) { self.r *= rhs; self.g *= rhs; self.b *= rhs; }
+}
+
+impl std::ops::Mul<Color> for Color {
+    type Output = Color;
+    fn mul(self, rhs: Color) -> Color { Color::new(self.r * rhs.r, self.g * rhs.g, self.b * rhs.b) }
+}
+
+impl std::ops::MulAssign<Color> for Color {
+    fn mul_assign(&mut self, rhs: Color) { self.r *= rhs.r; self.g *= rhs.g; self.b *= rhs.b; }
 }
 
 impl std::ops::Mul<Color> for f32 {

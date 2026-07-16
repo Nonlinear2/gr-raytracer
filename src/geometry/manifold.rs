@@ -29,6 +29,7 @@ pub fn tangent_space(chart: Chart) -> TangentSpace {
 // Atlas describing submanifolds of R^4 given by fixing the time coordinate (so this coordinate doesnt get converted).
 pub trait HasAtlas3 {
     fn has_chart(&self, chart: Chart) -> bool; // should always have CartesianWorld
+    fn subatlas_center(&self) -> Point3;
     fn preferred_chart_for_point(&self, point: Point3) -> Chart;
     fn transition_point(&self, p: Point3, to: Chart) -> Point3;
     fn transition_vector(&self, p: Point3, v: ThreeVector, to: Chart) -> ThreeVector;
@@ -59,3 +60,5 @@ pub trait GpuManifold {
 }
 
 pub trait Manifold: PseudoRiemanian4Manifold + GpuManifold {}
+
+impl<T: PseudoRiemanian4Manifold + GpuManifold> Manifold for T {}

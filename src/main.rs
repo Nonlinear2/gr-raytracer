@@ -47,7 +47,7 @@ fn main() {
                 center: Point3::new(-0.6, 0.14, -0.7, CartesianWorld),
                 radius: 0.02,
                 material: Box::new(Diffuse {
-                    color: Color::new(61.0, 34.0, 17.0),
+                    color: Color::new(61.0 / 255.0, 34.0 / 255.0, 17.0 / 255.0),
                     emission: Color::new(0., 0., 0.),
                 }),
                 texture: TextureId::NONE,
@@ -61,8 +61,8 @@ fn main() {
                 material: Box::new(Diffuse { 
                     // color: Color::new(128., 128., 128.),
                     // emission: Color::new(237.0, 193.0, 154.0),
-                    color: Color::new(255., 255., 255.),
-                    emission: Color::new(255., 255., 255.),
+                    color: Color::WHITE,
+                    emission: Color::WHITE,
                 }),
                 texture: TextureId::ACCRETION,
             })

@@ -4,6 +4,7 @@ pub mod wgpu_helpers;
 use std::borrow::Cow;
 use std::sync::mpsc;
 
+use bytemuck::Zeroable;
 use wgpu::util::DeviceExt;
 
 use crate::integrator::{GeodesicIntegrator, PackedTraceResult};
@@ -294,7 +295,7 @@ impl GpuIntegrator {
         let mapped = slice.get_mapped_range();
         let packed_output: &[PackedColorResult] = bytemuck::cast_slice(&mapped);
         let output: Vec<Color> = packed_output.iter().copied().map(|result| {
-            Color::new(result.color[0] * 255.0, result.color[1] * 255.0, result.color[2] * 255.0)
+            Color::new(result.color[0], result.color[1], result.color[2])
         }).collect();
 
         let trace_results = 
@@ -319,11 +320,13 @@ impl GpuIntegrator {
 }
 
 
-impl GeodesicIntegrator for GpuIntegrator {
-    fn new(world: &World) -> Option<Self> {
-        pollster::block_on(Self::new_async(world)).ok()
+impl GpuIntegrator {
+    pub fn new(world: &World) -> Self {
+        pollster::block_on(Self::new_async(world)).unwrap()
     }
+}
 
+impl GeodesicIntegrator for GpuIntegrator {
     fn run(&self, rays: Vec<Photon3>) -> (Vec<Color>, Option<Vec<PackedTraceResult>>) {
         let packed_rays: Vec<PackedPhoton3> = rays.iter().copied().map(PackedPhoton3::from).collect();
         let rays_byte_size = std::mem::size_of::<PackedColorResult>() as u64 * packed_rays.len() as u64;

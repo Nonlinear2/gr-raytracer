@@ -63,7 +63,7 @@ impl Camera {
     }
 
     pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
-        let integrator: Box<dyn GeodesicIntegrator> = if config::PIPELINE == CPU {
+        let integrator: Box<dyn GeodesicIntegrator + '_> = if config::PIPELINE == CPU {
             Box::new(CpuIntegrator::new(world))
         } else {
             Box::new(GpuIntegrator::new(world))
@@ -122,9 +122,9 @@ impl Camera {
         for (pixel, color) in frame.chunks_exact_mut(4).zip(image.iter()) {
             let color = *color / SAMPLES_PER_PIXEL as f32;
 
-            pixel[0] = color.r as u8;
-            pixel[1] = color.g as u8;
-            pixel[2] = color.b as u8;
+            pixel[0] = (color.r * 255.0) as u8;
+            pixel[1] = (color.g * 255.0) as u8;
+            pixel[2] = (color.b * 255.0) as u8;
             pixel[3] = 0xff;
         }
     }

@@ -1,5 +1,6 @@
 ﻿use num_enum::TryFromPrimitive;
 use glam::{Vec3, Vec4};
+use rand::{rngs::StdRng, RngExt};
 
 use crate::geometry::manifold::Chart;
 use crate::geometry::point::{Point3, Point4};
@@ -55,6 +56,14 @@ impl ThreeVector {
             inner: Vec3::new(r, theta, phi),
             vector_space: TangentSpace::SphericalX,
         }
+    }
+
+    /// uniformly distributed unit vector, expressed in an orthonormal tangent space basis
+    pub fn random_unit(rng: &mut StdRng, space: TangentSpace) -> Self {
+        let z: f32 = rng.random_range(-1.0..=1.0);
+        let phi: f32 = rng.random_range(0.0..std::f32::consts::TAU);
+        let r_xy = (1.0 - z * z).max(0.0).sqrt();
+        Self::new(r_xy * phi.cos(), r_xy * phi.sin(), z, space)
     }
 
     pub fn length(&self) -> f32 {

@@ -1,109 +1,155 @@
-use crate::integrator::{GeodesicIntegrator, PackedTraceResult};
+use std::cell::RefCell;
+
+use bytemuck::Zeroable;
+use rand::{rngs::StdRng, SeedableRng};
+
+use crate::config;
+use crate::geometry::manifold::Chart;
 use crate::geometry::photon::Photon3;
+use crate::geometry::point::Point3;
 use crate::graphics::color::Color;
+use crate::integrator::{GeodesicIntegrator, PackedTracePoint, PackedTraceResult};
+use crate::math::sphere_uv;
+use crate::scene::texture::TextureId;
 use crate::scene::World;
 
-pub struct CpuIntegrator {
-    world: &World,
+pub struct CpuIntegrator<'a> {
+    world: &'a World,
+    rng: RefCell<StdRng>,
 }
 
-impl CpuIntegrator {
-    pub fn evolve_until_stop(&self, initial_ray: Photon3, debug: bool) -> (WorldPhoton3State<'_>, StopReason) {
-        let mut ray = self.manifold.world_photon3_to_photon4(initial_ray);
+impl<'a> CpuIntegrator<'a> {
+    pub fn new(world: &'a World) -> Self {
+        Self {
+            world,
+            rng: RefCell::new(StdRng::seed_from_u64(config::RNG_SEED)),
+        }
+    }
 
-        for _ in 0..MAX_STEPS {
-            ray = self.manifold.step_along_null_geodesic(ray);
+    fn sky_albedo(&self, world_pos: Point3) -> Color {
+        let direction = (world_pos - self.world.manifold.subatlas_center()).as_threevector().normalize();
+        let (u, v) = sphere_uv(direction);
+        let rgba = self.world.textures.get(TextureId::SKY).sample(u, v);
+        Color::new(rgba[0], rgba[1], rgba[2])
+    }
 
-            if debug {
-                let world_ray = self.manifold.to_world_photon3(ray);
-                println!("vel sph: {:.6}, {:.6}, {:.6}", ray.vel.r(), ray.vel.theta(), ray.vel.phi());
-                println!("vel: {:.6}, {:.6}, {:.6}", world_ray.vel.x(), world_ray.vel.y(), world_ray.vel.z());
-                println!("{:.6}, {:.6}, {:.6}", world_ray.pos.x(), world_ray.pos.y(), world_ray.pos.z());
+    fn evolve_ray(
+        &self,
+        input_ray: Photon3,
+        rng: &mut StdRng,
+        mut trace: Option<&mut PackedTraceResult>,
+    ) -> Color {
+        let manifold = self.world.manifold.as_ref();
+
+        let mut ray = manifold.world_photon3_to_photon4(input_ray);
+        let mut bounce_count = 0u32;
+        let mut radiance = Color::BLACK;
+        let mut throughput = Color::WHITE;
+
+        for step in 0..config::MAX_INTEGRATION_STEPS {
+            let prev_ray = ray;
+            ray = manifold.step_along_null_geodesic(ray);
+
+            let prev_world_pos = manifold.transition_point(prev_ray.pos.space(), Chart::CartesianWorld);
+            let world_pos = manifold.transition_point(ray.pos.space(), Chart::CartesianWorld);
+
+            if let Some(trace) = trace.as_deref_mut() {
+                trace.positions[step as usize] = PackedTracePoint {
+                    pos: [world_pos.x(), world_pos.y(), world_pos.z()],
+                    fill_flag: 1.0,
+                };
             }
 
-            if self.manifold.is_singular(ray.pos) {
-                return (
-                    WorldPhoton3State {
-                        photon3: self.manifold.to_world_photon3(ray),
-                        normal: None,
-                        material: None,
-                    },
-                    StopReason::HorizonHit
-                );
+            if manifold.is_singular(ray.pos) {
+                return radiance;
             }
 
-            if ray.pos.space().distance_to_zero() > config:: {
-                return (
-                    WorldPhoton3State {
-                        photon3: self.manifold.to_world_photon3(ray),
-                        normal: None,
-                        material: None,
-                    },
-                    StopReason::BackgroundReached,
-                );
+            if (world_pos - manifold.subatlas_center()).as_threevector().length() > self.world.scene_size { // sky reached
+                return radiance + throughput * self.sky_albedo(world_pos);
             }
 
-            let world_pos = self.manifold.transition_point(ray.pos.space(), Chart::CartesianWorld);
-            for obj in &self.objects {
-                if obj.hit(world_pos) {
-                    let world_vel = self.manifold.transition_vector(
-                        ray.pos.space(),
-                        ray.vel.space(),
-                        Chart::CartesianWorld,
-                    );
-                    return (obj.get_hit_data(&Photon3::new(world_pos, world_vel)), StopReason::ObjectHit);
+            let preferred_chart = manifold.preferred_chart_for_point(world_pos);
+            if preferred_chart != ray.pos.chart {
+                ray = manifold.world_photon3_to_photon4(manifold.to_world_photon3(ray));
+            }
+
+            for object in &self.world.objects {
+                let Some(hit_data) = object.hit(prev_world_pos, world_pos) else {
+                    continue;
+                };
+
+                let texture_rgba = if object.texture() != TextureId::NONE {
+                    let (u, v) = object.uv(hit_data.hit_point);
+                    Some(self.world.textures.get(object.texture()).sample(u, v))
+                } else {
+                    None
+                };
+
+                let alpha = match texture_rgba {
+                    Some(rgba) => rgba[3].clamp(0.0, 1.0),
+                    None => 1.0,
+                };
+
+                if alpha <= 0.0 { // transparent material
+                    continue;
+                }
+
+                if bounce_count >= config::MAX_BOUNCES {
+                    return radiance;
+                }
+
+                let texture_rgb = texture_rgba.map(|rgba| Color::new(rgba[0], rgba[1], rgba[2]));
+                let material = object.material();
+                let scatter_direction = material.scatter(&hit_data, rng);
+
+                if alpha >= 1.0 { // opaque material
+                    radiance += throughput * material.emission(texture_rgb);
+                    throughput *= material.albedo(texture_rgb);
+
+                    let Some(direction) = scatter_direction else { // no bounce
+                        return radiance;
+                    };
+
+                    ray = manifold.world_photon3_to_photon4(Photon3::new(hit_data.hit_point, direction));
+                    bounce_count += 1;
+                    break;
+
+                } else { // semi transparent
+                    // the ray continues with throughput scaled by (1 - alpha) representing the transmitted fraction.
+                    radiance += throughput * alpha * material.emission(texture_rgb);
+                    throughput *= 1.0 - alpha;
+                    bounce_count += 1;
                 }
             }
-
-            // check if we need to switch charts
-            if self.manifold.preferred_chart_for_point(ray.pos.space()) != ray.pos.chart {
-                // change photon chart
-                let world_photon = self.manifold.to_world_photon3(ray);
-                ray = self.manifold.world_photon3_to_photon4(world_photon);
-            }
         }
 
-        return (
-            WorldPhoton3State {
-                photon3: self.manifold.to_world_photon3(ray),
-                normal: None,
-                material: None,
-            },
-            StopReason::MaxStepsReached
-        );
+        Color::new(1.0, 0.0, 0.0) // show rays that didnt hit anything in red for debugging
     }
-
 }
 
-impl GeodesicIntegrator for CpuIntegrator {
-    fn new(world: &World) -> Option<Self> {
-        Ok(Self { world })
-    }
-
+impl GeodesicIntegrator for CpuIntegrator<'_> {
     fn run(&self, rays: Vec<Photon3>) -> (Vec<Color>, Option<Vec<PackedTraceResult>>) {
-        for (idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            if idx % 100 == 0 {
-                println!("pixels computed: {}", idx);
-            }
+        let mut rng_guard = self.rng.borrow_mut();
+        let rng = &mut *rng_guard;
 
-            let i = idx % self.img_width as usize;
-            let j = idx / self.img_width as usize;
+        let mut trace_results = if config::DEBUG {
+            Some(vec![PackedTraceResult::zeroed()])
+        } else {
+            None
+        };
 
-            let mut color = Color::BLACK;
-            for _ in 0..self.samples_per_pixel {
-                let ray_direction = (self.get_pixel_position(i, j, true, rng) - self.center).as_threevector();
+        let colors = rays
+            .iter()
+            .enumerate()
+            .map(|(ray_index, ray)| {
+                let trace = trace_results
+                    .as_mut()
+                    .filter(|_| ray_index as u32 == config::DEBUG_RAY_INDEX)
+                    .and_then(|traces| traces.first_mut());
+                self.evolve_ray(*ray, rng, trace)
+            })
+            .collect();
 
-                let ray = Photon3::new(self.center, ray_direction);
-
-                color += self.ray_color(ray, MAX_LIGHT_BOUNCES, &world, false, rng);
-            }
-
-            color /= self.samples_per_pixel as f32;
-
-            pixel[0] = color.r as u8; // R
-            pixel[1] = color.g as u8; // G
-            pixel[2] = color.b as u8; // B
-            pixel[3] = 0xff; // A
-        }
+        (colors, trace_results)
     }
 }

@@ -1,6 +1,9 @@
+use std::f32::consts::{PI, TAU};
 use std::path::Path;
 
 use wgpu::{Device, Queue, Sampler, TextureView};
+
+use crate::geometry::vector::ThreeVector;
 
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -48,6 +51,35 @@ impl Texture {
 
     fn solid_rgba(rgba: [f32; 4]) -> Self {
         Self { width: 1, height: 1, pixels: vec![rgba] }
+    }
+
+    /// bilinear sampling, with u repeating and v clamped to the edge
+    pub fn sample(&self, u: f32, v: f32) -> [f32; 4] {
+        let x = u * self.width as f32 - 0.5;
+        let y = v * self.height as f32 - 0.5;
+        let x0 = x.floor() as i32;
+        let y0 = y.floor() as i32;
+        let fx = x - x0 as f32;
+        let fy = y - y0 as f32;
+
+        let texel = |xi: i32, yi: i32| -> [f32; 4] {
+            let xi = xi.rem_euclid(self.width as i32) as u32;
+            let yi = yi.clamp(0, self.height as i32 - 1) as u32;
+            self.pixels[(yi * self.width + xi) as usize]
+        };
+
+        let p00 = texel(x0, y0);
+        let p10 = texel(x0 + 1, y0);
+        let p01 = texel(x0, y0 + 1);
+        let p11 = texel(x0 + 1, y0 + 1);
+
+        let mut result = [0.0f32; 4];
+        for i in 0..4 {
+            let top = p00[i] * (1.0 - fx) + p10[i] * fx;
+            let bottom = p01[i] * (1.0 - fx) + p11[i] * fx;
+            result[i] = top * (1.0 - fy) + bottom * fy;
+        }
+        result
     }
 }
 

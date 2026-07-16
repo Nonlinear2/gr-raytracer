@@ -1,6 +1,6 @@
 use glam::{Mat4, Vec4};
 
-use crate::geometry::manifold::{Chart, GpuManifold, HasAtlas3, PseudoRiemanian4Manifold};
+use crate::geometry::manifold::{Chart, GpuManifold, HasAtlas3, Manifold, PseudoRiemanian4Manifold};
 use crate::geometry::photon::{Photon3, Photon4};
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
@@ -26,6 +26,10 @@ impl Schwarzschild4Manifold {
 impl HasAtlas3 for Schwarzschild4Manifold {
     fn has_chart(&self, chart: Chart) -> bool {
         chart == Chart::SphericalX || chart == Chart::SphericalZ || chart == Chart::CartesianWorld
+    }
+
+    fn subatlas_center(&self) -> Point3 {
+        self.subatlas_center
     }
 
     fn preferred_chart_for_point(&self, point: Point3) -> Chart {
@@ -295,10 +299,8 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
             w_axis: Vec4::new(0., 0., 0., -r*r*theta.sin()*theta.sin()),
         };
         
-        if !g.determinant().is_finite() {
-            eprintln!("[g_sph] Degenerate metric: r={}, theta={}, det={}", r, theta, g.determinant());
-        }
-        
+        assert!(g.determinant().is_finite());
+
         g
     }
 
@@ -362,10 +364,8 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
               - d_alpha_g.col(mu)[nu]
             )
         }
-        if !gamma.is_finite() {
-            eprintln!("[christoffel] NaN detected: mu={}, nu={}, lambda={}, pos=({},{},{}), gamma={}", mu, nu, lambda, pos.r(), pos.theta(), pos.phi(), gamma);
-            eprintln!("[christoffel] g_inv determinant={:?}", g_inv.determinant());
-        }
+        assert!(gamma.is_finite());
+
         gamma
     }
 
