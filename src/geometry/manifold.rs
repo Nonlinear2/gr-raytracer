@@ -1,7 +1,6 @@
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{TangentSpace, ThreeVector};
 use crate::geometry::photon::{Photon4, Photon3};
-use crate::gpu::geometry::manifold::GpuManifold;
 
 use glam::Mat4;
 use num_enum::{TryFromPrimitive};
@@ -52,6 +51,11 @@ pub trait PseudoRiemanian4Manifold: HasAtlas3 {
     fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32;
 
     fn step_along_null_geodesic(&self, s: Photon4) -> Photon4;
+}
+
+pub trait GpuManifold {
+    fn get_constants(&self) -> Vec<(&'static str, f64)>;
+    fn get_geometry_source(&self) -> String;
 }
 
 pub trait Manifold: PseudoRiemanian4Manifold + GpuManifold {}

@@ -1,23 +1,18 @@
 use crate::{
-    config::{self, IMAGE_HEIGHT, IMAGE_WIDTH, SAMPLES_PER_PIXEL}, constants::Pipeline::CPU, cpu_integrator::{CpuIntegrator, GeodesicIntegrator}, geometry::{manifold::PseudoRiemanian4Manifold, photon::Photon3, vector::TangentSpace}, gpu::{geometry::manifold::GpuManifold, gpu_integrator::GpuIntegrator}, graphics::texture::Textures
+    config::{self, IMAGE_HEIGHT, IMAGE_WIDTH, SAMPLES_PER_PIXEL},
+    constants::Pipeline::CPU,
+    integrator::{cpu::CpuIntegrator, gpu::GpuIntegrator, GeodesicIntegrator},
+    geometry::{photon::Photon3, vector::TangentSpace},
+    scene::World,
 };
+
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
 use crate::geometry::manifold::Chart::CartesianWorld;
-use crate::graphics::surface::Object;
 
 use rand::{rngs::StdRng, RngExt};
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
-
-pub type Objects = Vec<Box<dyn Object>>;
-
-pub struct World {
-    pub scene_size: f32,
-    pub manifold: Box<dyn Manifold>,
-    pub objects: Objects,
-    pub textures: Textures,
-}
 
 pub struct Camera {
     pub center: Point3,
@@ -68,10 +63,10 @@ impl Camera {
     }
 
     pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
-        let integrator = if config::PIPELINE == CPU {
-            GpuIntegrator::new(world).unwrap()
+        let integrator: Box<dyn GeodesicIntegrator> = if config::PIPELINE == CPU {
+            Box::new(CpuIntegrator::new(world))
         } else {
-            CpuIntegrator::new(world).unwrap()
+            Box::new(GpuIntegrator::new(world))
         };
 
         let img_size = (IMAGE_WIDTH * IMAGE_HEIGHT) as usize;
@@ -100,7 +95,7 @@ impl Camera {
                 }
             }
 
-            let (colors, trace) = integrator.run_kernel(rays);
+            let (colors, trace) = integrator.run(rays);
 
             if sample_idx == 0 {
                 if let Some(trace_result) = trace.as_ref().and_then(|trace| trace.first()) {

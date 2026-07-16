@@ -1,13 +1,19 @@
+pub mod packed_types;
+pub mod wgpu_helpers;
+
 use std::borrow::Cow;
 use std::sync::mpsc;
 
 use wgpu::util::DeviceExt;
 
-use crate::cpu_integrator::GeodesicIntegrator;
-use crate::graphics::texture::{TextureId, Textures};
+use crate::integrator::{GeodesicIntegrator, PackedTraceResult};
+use crate::integrator::gpu::packed_types::PackedPhoton3;
+use crate::integrator::gpu::wgpu_helpers::{BindEntry, Buffers, WgpuTextures};
+use crate::scene::surface::PackedObject;
+use crate::scene::texture::{GpuTexture, TextureId, Textures};
 use crate::config::{self, DEBUG, WORKGROUP_SIZE};
 use crate::geometry::photon::Photon3;
-use crate::graphics::camera::World;
+use crate::scene::World;
 use crate::graphics::color::{Color, PackedColorResult};
 
 pub struct GpuIntegrator {
@@ -21,7 +27,7 @@ pub struct GpuIntegrator {
 impl GpuIntegrator {
     fn get_shader(world: &World) -> String {
         let geometry_source = world.manifold.get_geometry_source();
-        let main_source = include_str!("geometry/main.wgsl");
+        let main_source = include_str!("main.wgsl");
 
         const START_MARKER: &str = "/// <START GEOMETRY>";
         const END_MARKER: &str = "/// <END GEOMETRY>";
@@ -131,7 +137,7 @@ impl GpuIntegrator {
     }
 
     fn process_textures(world_textures: &Textures, device: &wgpu::Device, queue: &wgpu::Queue) -> WgpuTextures {
-        let sky_texture: &crate::graphics::texture::Texture = world_textures.get(TextureId::SKY);
+        let sky_texture: &crate::scene::texture::Texture = world_textures.get(TextureId::SKY);
         let wgpu_sky_texture = sky_texture.to_wgpu_texture(&device);
 
         sky_texture.write_to_queue(&wgpu_sky_texture, &queue);

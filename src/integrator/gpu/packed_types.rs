@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 
-use crate::{config, geometry::{manifold::Chart, photon::Photon3, vector::{TangentSpace, ThreeVector}}};
+use crate::geometry::{manifold::Chart, photon::Photon3, vector::{TangentSpace, ThreeVector}};
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -48,17 +48,4 @@ pub struct PackedRayResult {
     pub photon: PackedPhoton3,
     pub stop_reason: u32,
     pub padding: [u32; 7],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-pub struct PackedTraceResult {
-    pub positions: [PackedTracePoint; config::MAX_INTEGRATION_STEPS as usize],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-pub struct PackedTracePoint {
-    pub pos: [f32; 3],
-    pub fill_flag: f32,
 }

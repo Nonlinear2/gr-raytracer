@@ -1,6 +1,6 @@
 use glam::{Mat4, Vec4};
 
-use crate::geometry::manifold::{Chart, HasAtlas3, PseudoRiemanian4Manifold};
+use crate::geometry::manifold::{Chart, GpuManifold, HasAtlas3, PseudoRiemanian4Manifold};
 use crate::geometry::photon::{Photon3, Photon4};
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
@@ -384,5 +384,20 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
         }
 
         euler::euler_step(x, k, k.as_point4(), del_k)
+    }
+}
+
+impl GpuManifold for Schwarzschild4Manifold {
+    fn get_constants(&self) -> Vec<(&'static str, f64)> {
+        vec![
+            ("R_S", self.r_s as f64),
+            ("SUBATLAS_CENTER_X", self.subatlas_center.x() as f64),
+            ("SUBATLAS_CENTER_Y", self.subatlas_center.y() as f64),
+            ("SUBATLAS_CENTER_Z", self.subatlas_center.z() as f64),
+        ]
+    }
+
+    fn get_geometry_source(&self) -> String {
+        include_str!("schwarzschild.wgsl").to_string()
     }
 }

@@ -1,17 +1,18 @@
 mod graphics;
 mod geometry;
 mod integration;
-mod cpu_integrator;
+mod integrator;
 mod math;
 mod config;
 mod constants;
-mod gpu;
+mod scene;
 
 use crate::graphics::window::App;
-use crate::graphics::texture::{Textures, Texture, TextureId};
+use crate::scene::texture::{Textures, Texture, TextureId};
 #[allow(unused_imports)]
-use crate::graphics::surface::{Diffuse, Disc, Metal, Sphere};
-use crate::graphics::camera::{Camera, World};
+use crate::scene::surface::{Diffuse, Disc, Metal, Sphere};
+use crate::scene::World;
+use crate::graphics::camera::Camera;
 use crate::graphics::color::Color;
 
 use crate::geometry::vector::ThreeVector;

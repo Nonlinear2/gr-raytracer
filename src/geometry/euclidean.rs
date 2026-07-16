@@ -1,4 +1,4 @@
-use crate::geometry::manifold::{Chart, HasAtlas3, PseudoRiemanian4Manifold};
+use crate::geometry::manifold::{Chart, GpuManifold, HasAtlas3, PseudoRiemanian4Manifold};
 use crate::geometry::photon::{Photon3, Photon4};
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
@@ -92,5 +92,18 @@ impl PseudoRiemanian4Manifold for Euclidean4Manifold {
         euler::euler_step(
             s.pos, s.vel, s.vel.as_point4(), FourVector::zero(TangentSpace::Cartesian)
         )
+    }
+}
+impl GpuManifold for Euclidean4Manifold {
+    fn get_constants(&self) -> Vec<(&'static str, f64)> {
+        vec![
+            ("SUBATLAS_CENTER_X", self.subatlas_center.x() as f64),
+            ("SUBATLAS_CENTER_Y", self.subatlas_center.y() as f64),
+            ("SUBATLAS_CENTER_Z", self.subatlas_center.z() as f64),
+        ]
+    }
+
+    fn get_geometry_source(&self) -> String {
+        include_str!("euclidean.wgsl").to_string()
     }
 }

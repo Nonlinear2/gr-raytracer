@@ -1,9 +1,7 @@
-use crate::{geometry::photon::{PackedTraceResult, Photon3}, graphics::{camera::World, color::Color}};
-
-pub trait GeodesicIntegrator {
-    fn new(world: &World) -> Self;
-    fn run(&self, rays: Vec<Photon3>) -> (Vec<Color>, Option<Vec<PackedTraceResult>>);
-}
+use crate::integrator::{GeodesicIntegrator, PackedTraceResult};
+use crate::geometry::photon::Photon3;
+use crate::graphics::color::Color;
+use crate::scene::World;
 
 pub struct CpuIntegrator {
     world: &World,
