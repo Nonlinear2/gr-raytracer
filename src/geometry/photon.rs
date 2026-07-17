@@ -12,7 +12,7 @@ pub struct Photon4 {
 
 impl Photon4 {
     pub fn new(pos: Point4, vel: FourVector) -> Self {
-        assert!(tangent_space(pos.chart) ==  vel.vector_space);
+        debug_assert!(tangent_space(pos.chart) ==  vel.vector_space);
 
         Self {
             pos: pos,

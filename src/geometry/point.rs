@@ -30,17 +30,17 @@ impl Point3<ChartWorld> {
     }
 
     pub fn x(&self) -> f32 {
-        assert!(self.inner[0].is_finite());
+        debug_assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn y(&self) -> f32 {
-        assert!(self.inner[1].is_finite());
+        debug_assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn z(&self) -> f32 {
-        assert!(self.inner[2].is_finite());
+        debug_assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
@@ -55,8 +55,8 @@ impl Point3 {
     pub const ZERO_SPHX: Self = Self {inner: Vec3::new(0., 0., 0.), chart: Chart::SphericalX};
 
     pub fn new_spherical_z(r: f32, theta: f32, phi: f32) -> Self {
-        assert!(r >= 0.0);
-        assert!((0.0..=std::f32::consts::PI).contains(&theta));
+        debug_assert!(r >= 0.0);
+        debug_assert!((0.0..=std::f32::consts::PI).contains(&theta));
         Self {
             inner: Vec3::new(r, theta, phi),
             chart: Chart::SphericalZ,
@@ -64,8 +64,8 @@ impl Point3 {
     }
 
     pub fn new_spherical_x(r: f32, theta: f32, phi: f32) -> Self {
-        assert!(r >= 0.0);
-        assert!((0.0..=std::f32::consts::PI).contains(&theta));
+        debug_assert!(r >= 0.0);
+        debug_assert!((0.0..=std::f32::consts::PI).contains(&theta));
         Self {
             inner: Vec3::new(r, theta, phi),
             chart: Chart::SphericalX,
@@ -80,41 +80,41 @@ impl Point3 {
     }
 
     pub fn x(&self) -> f32{
-        assert!(self.chart == Chart::Cartesian);
-        assert!(self.inner[0].is_finite());
+        debug_assert!(self.chart == Chart::Cartesian);
+        debug_assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn y(&self) -> f32{
-        assert!(self.chart == Chart::Cartesian);
-        assert!(self.inner[1].is_finite());
+        debug_assert!(self.chart == Chart::Cartesian);
+        debug_assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn z(&self) -> f32{
-        assert!(self.chart == Chart::Cartesian);
-        assert!(self.inner[2].is_finite());
+        debug_assert!(self.chart == Chart::Cartesian);
+        debug_assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn r(&self) -> f32{
-        assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
-        assert!(self.inner[0] >= 0.);
-        assert!(self.inner[0].is_finite());
+        debug_assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
+        debug_assert!(self.inner[0] >= 0.);
+        debug_assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn theta(&self) -> f32{
-        assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
-        assert!((0.0..=std::f32::consts::PI).contains(&self.inner[1]));
-        assert!(self.inner[1].is_finite());
+        debug_assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
+        debug_assert!((0.0..=std::f32::consts::PI).contains(&self.inner[1]));
+        debug_assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn phi(&self) -> f32{
-        assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
-        assert!((0.0..=std::f32::consts::TAU).contains(&self.inner[2]));
-        assert!(self.inner[2].is_finite());
+        debug_assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
+        debug_assert!((0.0..=std::f32::consts::TAU).contains(&self.inner[2]));
+        debug_assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
@@ -216,7 +216,7 @@ impl std::ops::Neg for Point3 {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        assert!(self.chart == Chart::Cartesian);
+        debug_assert!(self.chart == Chart::Cartesian);
         Self::new(-self.inner.x, -self.inner.y, -self.inner.z, self.chart)
     }
 }
@@ -225,8 +225,8 @@ impl std::ops::Add for Point3 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        assert!(self.chart == Chart::Cartesian);
-        assert!(self.chart == rhs.chart);
+        debug_assert!(self.chart == Chart::Cartesian);
+        debug_assert!(self.chart == rhs.chart);
         Self::new(
             self.inner.x + rhs.inner.x,
             self.inner.y + rhs.inner.y,
@@ -240,8 +240,8 @@ impl std::ops::Sub for Point3 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        assert!(self.chart == Chart::Cartesian);
-        assert!(self.chart == rhs.chart);
+        debug_assert!(self.chart == Chart::Cartesian);
+        debug_assert!(self.chart == rhs.chart);
         Self::new(
             self.inner.x - rhs.inner.x,
             self.inner.y - rhs.inner.y,
@@ -255,7 +255,7 @@ impl std::ops::Mul<f32> for Point3 {
     type Output = Self;
 
     fn mul(self, rhs: f32) -> Self::Output {
-        assert!(self.chart == Chart::Cartesian);
+        debug_assert!(self.chart == Chart::Cartesian);
         Self::new(
             self.inner.x * rhs,
             self.inner.y * rhs,
@@ -295,8 +295,8 @@ impl Point4 {
     }
 
     pub fn new_spherical_z(t: f32, r: f32, theta: f32, phi: f32) -> Self {
-        assert!(r >= 0.0);
-        assert!((0.0..=std::f32::consts::PI).contains(&theta));
+        debug_assert!(r >= 0.0);
+        debug_assert!((0.0..=std::f32::consts::PI).contains(&theta));
         Self {
             inner: Vec4::new(t, r, theta, phi),
             chart: Chart::SphericalZ,
@@ -304,8 +304,8 @@ impl Point4 {
     }
 
     pub fn new_spherical_x(t: f32, r: f32, theta: f32, phi: f32) -> Self {
-        assert!(r >= 0.0);
-        assert!((0.0..=std::f32::consts::PI).contains(&theta));
+        debug_assert!(r >= 0.0);
+        debug_assert!((0.0..=std::f32::consts::PI).contains(&theta));
         Self {
             inner: Vec4::new(t, r, theta, phi),
             chart: Chart::SphericalX,
@@ -320,46 +320,46 @@ impl Point4 {
     }
 
     pub fn t(&self) -> f32 {
-        assert!(self.inner[0].is_finite());
+        debug_assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn x(&self) -> f32 {
-        assert!(self.chart == Chart::Cartesian);
-        assert!(self.inner[1].is_finite());
+        debug_assert!(self.chart == Chart::Cartesian);
+        debug_assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn y(&self) -> f32 {
-        assert!(self.chart == Chart::Cartesian);
-        assert!(self.inner[2].is_finite());
+        debug_assert!(self.chart == Chart::Cartesian);
+        debug_assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn z(&self) -> f32 {
-        assert!(self.chart == Chart::Cartesian);
-        assert!(self.inner[3].is_finite());
+        debug_assert!(self.chart == Chart::Cartesian);
+        debug_assert!(self.inner[3].is_finite());
         self.inner[3]
     }
 
     pub fn r(&self) -> f32 {
-        assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
-        assert!(self.inner[1] >= 0.);
-        assert!(self.inner[1].is_finite());
+        debug_assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
+        debug_assert!(self.inner[1] >= 0.);
+        debug_assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn theta(&self) -> f32 {
-        assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
-        assert!((0.0..=std::f32::consts::PI).contains(&self.inner[2]));
-        assert!(self.inner[2].is_finite());
+        debug_assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
+        debug_assert!((0.0..=std::f32::consts::PI).contains(&self.inner[2]));
+        debug_assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn phi(&self) -> f32 {
-        assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
-        assert!((0.0..=std::f32::consts::TAU).contains(&self.inner[3]));
-        assert!(self.inner[3].is_finite());
+        debug_assert!(matches!(self.chart, Chart::SphericalZ | Chart::SphericalX));
+        debug_assert!((0.0..=std::f32::consts::TAU).contains(&self.inner[3]));
+        debug_assert!(self.inner[3].is_finite());
         self.inner[3]
     }
 
@@ -414,8 +414,8 @@ impl std::ops::Add for Point4 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        assert!(self.chart == Chart::Cartesian);
-        assert!(self.chart == rhs.chart);
+        debug_assert!(self.chart == Chart::Cartesian);
+        debug_assert!(self.chart == rhs.chart);
         Self {
             inner: self.inner + rhs.inner,
             chart: self.chart,
@@ -427,7 +427,7 @@ impl std::ops::Mul<f32> for Point4 {
     type Output = Self;
 
     fn mul(self, rhs: f32) -> Self::Output {
-        assert!(self.chart == Chart::Cartesian);
+        debug_assert!(self.chart == Chart::Cartesian);
         Self {
             inner: self.inner * rhs,
             chart: self.chart,

@@ -317,9 +317,9 @@ impl GpuObject for Sphere {
 
 impl GpuObject for Disc {
     fn as_packed_object(&self) -> Option<PackedObject> {
-        assert!(self.radius.is_finite() && self.radius >= 0.0);
-        assert!(self.inner_radius.is_finite() && self.inner_radius >= 0.0);
-        assert!(self.inner_radius <= self.radius);
+        debug_assert!(self.radius.is_finite() && self.radius >= 0.0);
+        debug_assert!(self.inner_radius.is_finite() && self.inner_radius >= 0.0);
+        debug_assert!(self.inner_radius <= self.radius);
 
         let normal = self.normal.normalize();
 

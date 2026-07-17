@@ -29,8 +29,8 @@ impl From<Photon3> for PackedPhoton3 {
 
 impl From<PackedPhoton3> for Photon3 {
     fn from(photon: PackedPhoton3) -> Self {
-        assert!(photon.pos_chart == CHART_CARTESIAN_WORLD);
-        assert!(photon.vel_space == TANGENT_CARTESIAN_WORLD);
+        debug_assert!(photon.pos_chart == CHART_CARTESIAN_WORLD);
+        debug_assert!(photon.vel_space == TANGENT_CARTESIAN_WORLD);
 
         Photon3::new(
             Point3::new(
