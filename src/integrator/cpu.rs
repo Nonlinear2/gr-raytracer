@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 
 use bytemuck::Zeroable;
+use indicatif::{ProgressBar, ProgressStyle};
 use rand::{rngs::StdRng, SeedableRng};
 
 use crate::config;
@@ -138,6 +139,15 @@ impl GeodesicIntegrator for CpuIntegrator<'_> {
             None
         };
 
+        let progress_bar = ProgressBar::new(rays.len() as u64);
+        progress_bar.set_style(
+            ProgressStyle::with_template(
+                "{bar:40.green/blue} {pos}/{len} ETA: {eta}"
+            )
+            .unwrap()
+        );
+        progress_bar.tick();
+
         let colors = rays
             .iter()
             .enumerate()
@@ -146,9 +156,13 @@ impl GeodesicIntegrator for CpuIntegrator<'_> {
                     .as_mut()
                     .filter(|_| ray_index as u32 == config::DEBUG_RAY_INDEX)
                     .and_then(|traces| traces.first_mut());
-                self.evolve_ray(*ray, rng, trace)
+                let color = self.evolve_ray(*ray, rng, trace);
+                progress_bar.inc(1);
+                color
             })
             .collect();
+
+        progress_bar.finish_and_clear();
 
         (colors, trace_results)
     }
