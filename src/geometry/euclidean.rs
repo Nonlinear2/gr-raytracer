@@ -1,7 +1,7 @@
-use crate::geometry::manifold::{tangent_space, ChartWorld, Chart, GpuManifold, HasAtlas3, PseudoRiemanian4Manifold, TangentWorld};
+use crate::geometry::manifold::{ChartWorld, Chart, GpuManifold, HasAtlas3, PseudoRiemanian4Manifold};
 use crate::geometry::photon::{Photon3, Photon4};
 use crate::geometry::point::{Point3, Point4};
-use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
+use crate::geometry::vector::{FourVector, TangentSpace};
 use crate::integration::euler;
 use glam::Mat4;
 
@@ -29,26 +29,6 @@ impl HasAtlas3 for Euclidean4Manifold {
 
     fn preferred_chart_for_point(&self, _point: Point3<ChartWorld>) -> Chart {
         Chart::Cartesian
-    }
-
-    fn point_to_world(&self, p: Point3) -> Point3<ChartWorld> {
-        assert!(p.chart == Chart::Cartesian);
-        Point3::new(p[0], p[1], p[2], ChartWorld) + self.subatlas_center
-    }
-
-    fn point_from_world(&self, p: Point3<ChartWorld>, to: Chart) -> Point3 {
-        assert!(to == Chart::Cartesian);
-        let rel = p - self.subatlas_center;
-        Point3::new(rel.x(), rel.y(), rel.z(), Chart::Cartesian)
-    }
-
-    fn vector_to_world(&self, _p: Point3, v: ThreeVector) -> ThreeVector<TangentWorld> {
-        assert!(v.vector_space == TangentSpace::Cartesian);
-        ThreeVector::new(v[0], v[1], v[2], TangentWorld)
-    }
-
-    fn vector_from_world(&self, _p: Point3<ChartWorld>, v: ThreeVector<TangentWorld>, to: Chart) -> ThreeVector {
-        ThreeVector::new(v.x(), v.y(), v.z(), tangent_space(to))
     }
 }
 

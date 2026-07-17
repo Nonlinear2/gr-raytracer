@@ -40,10 +40,161 @@ pub trait HasAtlas3 {
     fn has_chart(&self, chart: Chart) -> bool;
     fn subatlas_center(&self) -> Point3<ChartWorld>;
     fn preferred_chart_for_point(&self, point: Point3<ChartWorld>) -> Chart;
-    fn point_to_world(&self, p: Point3) -> Point3<ChartWorld>;
-    fn point_from_world(&self, p: Point3<ChartWorld>, to: Chart) -> Point3;
-    fn vector_to_world(&self, p: Point3, v: ThreeVector) -> ThreeVector<TangentWorld>;
-    fn vector_from_world(&self, p: Point3<ChartWorld>, v: ThreeVector<TangentWorld>, to: Chart) -> ThreeVector;
+
+    // the transition maps do not depend on the metric, so they are shared between manifolds
+
+    fn point_to_world(&self, p: Point3) -> Point3<ChartWorld> {
+        debug_assert!(self.has_chart(p.chart));
+        match p.chart {
+        Chart::Cartesian => {
+            Point3::new(p.x(), p.y(), p.z(), ChartWorld) + self.subatlas_center()
+        },
+        Chart::SphericalZ => {
+            let x = p.r() * p.theta().sin() * p.phi().cos();
+            let y = p.r() * p.theta().sin() * p.phi().sin();
+            let z = p.r() * p.theta().cos();
+
+            Point3::new(x, y, z, ChartWorld) + self.subatlas_center()
+        },
+        Chart::SphericalX => {
+            let x = p.r() * p.theta().cos();
+            let y = p.r() * p.theta().sin() * p.phi().cos();
+            let z = p.r() * p.theta().sin() * p.phi().sin();
+
+            Point3::new(x, y, z, ChartWorld) + self.subatlas_center()
+        },
+        }
+    }
+
+    fn point_from_world(&self, p: Point3<ChartWorld>, to: Chart) -> Point3 {
+        debug_assert!(self.has_chart(to));
+        let p_rel = p - self.subatlas_center();
+        match to {
+        Chart::Cartesian => {
+            Point3::new(p_rel.x(), p_rel.y(), p_rel.z(), Chart::Cartesian)
+        },
+        Chart::SphericalZ => {
+            let r = p_rel.distance_to_zero();
+            let theta = (p_rel.z() / r).acos();
+            let phi = p_rel.y().atan2(p_rel.x()).rem_euclid(2.0 * std::f32::consts::PI);
+
+            Point3::new_spherical_z(r, theta, phi)
+        },
+        Chart::SphericalX => {
+            let r = p_rel.distance_to_zero();
+            let theta = (p_rel.x() / r).acos();
+            let phi = p_rel.z().atan2(p_rel.y()).rem_euclid(2.0 * std::f32::consts::PI);
+
+            Point3::new_spherical_x(r, theta, phi)
+        },
+        }
+    }
+
+    fn vector_to_world(&self, p: Point3, v: ThreeVector) -> ThreeVector<TangentWorld> {
+        debug_assert!(self.has_chart(p.chart));
+        match p.chart {
+        Chart::Cartesian => {
+            ThreeVector::new(v.x(), v.y(), v.z(), TangentWorld)
+        },
+        Chart::SphericalZ => {
+            let r = p.r();
+            let theta = p.theta();
+            let phi = p.phi();
+            let v_r = v.r();
+            let v_theta = v.theta();
+            let v_phi = v.phi();
+
+            let sin_theta = theta.sin();
+            let cos_theta = theta.cos();
+            let sin_phi = phi.sin();
+            let cos_phi = phi.cos();
+
+            ThreeVector::new(
+                sin_theta * cos_phi * v_r + r * cos_theta * cos_phi * v_theta - r * sin_theta * sin_phi * v_phi,
+                sin_theta * sin_phi * v_r + r * cos_theta * sin_phi * v_theta + r * sin_theta * cos_phi * v_phi,
+                cos_theta * v_r - r * sin_theta * v_theta,
+                TangentWorld,
+            )
+        },
+        Chart::SphericalX => {
+            let r = p.r();
+            let theta = p.theta();
+            let phi = p.phi();
+            let v_r = v.r();
+            let v_theta = v.theta();
+            let v_phi = v.phi();
+
+            let sin_theta = theta.sin();
+            let cos_theta = theta.cos();
+            let sin_phi = phi.sin();
+            let cos_phi = phi.cos();
+
+            ThreeVector::new(
+                cos_theta * v_r - r * sin_theta * v_theta,
+                sin_theta * cos_phi * v_r + r * cos_theta * cos_phi * v_theta - r * sin_theta * sin_phi * v_phi,
+                sin_theta * sin_phi * v_r + r * cos_theta * sin_phi * v_theta + r * sin_theta * cos_phi * v_phi,
+                TangentWorld,
+            )
+        },
+        }
+    }
+
+    fn vector_from_world(&self, p: Point3<ChartWorld>, v: ThreeVector<TangentWorld>, to: Chart) -> ThreeVector {
+        debug_assert!(self.has_chart(to));
+        match to {
+        Chart::Cartesian => {
+            ThreeVector::new(v.x(), v.y(), v.z(), TangentSpace::Cartesian)
+        },
+        Chart::SphericalZ => {
+            let rel = p - self.subatlas_center();
+            let x = rel.x();
+            let y = rel.y();
+            let z = rel.z();
+            let rho = (x * x + y * y).sqrt(); // distance to the z axis
+            let r = (x * x + y * y + z * z).sqrt();
+
+            let dr_dx = x / r;
+            let dr_dy = y / r;
+            let dr_dz = z / r;
+            let dth_dx = x * z / (r * r * rho);
+            let dth_dy = y * z / (r * r * rho);
+            let dth_dz = -rho / (r * r);
+            let dph_dx = -y / (rho * rho);
+            let dph_dy = x / (rho * rho);
+
+            ThreeVector::new(
+                dr_dx * v.x() + dr_dy * v.y() + dr_dz * v.z(),
+                dth_dx * v.x() + dth_dy * v.y() + dth_dz * v.z(),
+                dph_dx * v.x() + dph_dy * v.y(),
+                TangentSpace::SphericalZ
+            )
+        },
+        Chart::SphericalX => {
+            let rel = p - self.subatlas_center();
+            let x = rel.x();
+            let y = rel.y();
+            let z = rel.z();
+            let rho = (y * y + z * z).sqrt(); // distance to the x axis
+            let r = (x * x + y * y + z * z).sqrt();
+
+            let dr_dx = x / r;
+            let dr_dy = y / r;
+            let dr_dz = z / r;
+            let dth_dx = -rho / (r * r);
+            let dth_dy = x * y / (r * r * rho);
+            let dth_dz = x * z / (r * r * rho);
+            let dph_dy = -z / (rho * rho);
+            let dph_dz = y / (rho * rho);
+
+            ThreeVector::new(
+                dr_dx * v.x() + dr_dy * v.y() + dr_dz * v.z(),
+                dth_dx * v.x() + dth_dy * v.y() + dth_dz * v.z(),
+                dph_dy * v.y() + dph_dz * v.z(),
+                TangentSpace::SphericalX,
+            )
+        },
+        }
+    }
 }
 
 pub trait PseudoRiemanian4Manifold: HasAtlas3 {
