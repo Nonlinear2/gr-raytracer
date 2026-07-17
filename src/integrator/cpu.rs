@@ -61,7 +61,7 @@ impl<'a> CpuIntegrator<'a> {
                 };
             }
 
-            if manifold.is_singular(ray.pos) {
+            if manifold.is_close_to_singular(ray.pos) {
                 return radiance;
             }
 

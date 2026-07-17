@@ -33,7 +33,7 @@ impl HasAtlas3 for Euclidean4Manifold {
 
 impl PseudoRiemanian4Manifold for Euclidean4Manifold {
 
-    fn is_singular(&self, _x: Point4) -> bool {
+    fn is_close_to_singular(&self, _x: Point4) -> bool {
         false
     }
 

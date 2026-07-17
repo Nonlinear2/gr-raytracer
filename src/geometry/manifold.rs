@@ -200,7 +200,7 @@ pub trait HasAtlas3 {
 
 pub trait PseudoRiemanian4Manifold: HasAtlas3 {
 
-    fn is_singular(&self, x: Point4) -> bool;
+    fn is_close_to_singular(&self, x: Point4) -> bool;
 
     fn world_photon3_to_photon4(&self, world_photon: Photon3) -> Photon4;
 
@@ -236,6 +236,8 @@ pub trait PseudoRiemanian4Manifold: HasAtlas3 {
     }
 
     fn geodesic_derivative(&self, photon: Photon4) -> PhotonDerivative {
+        debug_assert!(!self.is_close_to_singular(photon.pos));
+
         let k = photon.vel;
 
         let mut del_k = FourVector::zero(k.vector_space);

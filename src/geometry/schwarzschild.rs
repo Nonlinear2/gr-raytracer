@@ -1,5 +1,6 @@
 use glam::{Mat4, Vec4};
 
+use crate::config;
 use crate::geometry::manifold::{ChartWorld, Chart, GpuManifold, HasAtlas3, PseudoRiemanian4Manifold};
 use crate::geometry::photon::{Photon3, Photon4};
 use crate::geometry::point::{Point3, Point4};
@@ -44,8 +45,8 @@ impl HasAtlas3 for Schwarzschild4Manifold {
 }
 
 impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
-    fn is_singular(&self, x: Point4) -> bool {
-        x.r() <= self.r_s
+    fn is_close_to_singular(&self, x: Point4) -> bool {
+        x.r() <= self.r_s + config::INTEGRATION_STEP_SIZE
     }
 
     fn world_photon3_to_photon4(&self, world_photon: Photon3) -> Photon4 {
