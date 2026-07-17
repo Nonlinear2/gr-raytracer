@@ -4,6 +4,7 @@ const PI: f32 = 3.141592653589793;
 const TAU: f32 = 6.283185307179586;
 
 override INTEGRATION_STEP_SIZE: f32 = 0.0;
+override INTEGRATION_METHOD: u32 = 0u;
 override MAX_STEPS: u32 = 0u;
 override DEBUG: bool = false;
 override DEBUG_RAY_INDEX: u32 = 0u;
@@ -53,6 +54,11 @@ const MATERIAL_METAL: u32 = 1u;
 const TEXTURE_NONE: u32 = 0u;
 const TEXTURE_ACCRETION: u32 = 1u;
 const TEXTURE_SKY: u32 = 2u;
+
+// integration method
+// must match the rust IntegrationMethod values
+const INTEGRATION_METHOD_EULER: u32 = 0u;
+const INTEGRATION_METHOD_RK4: u32 = 1u;
 
 const VEC3_ZERO: vec3<f32> = vec3<f32>(0.0, 0.0, 0.0);
 const VEC4_ZERO: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
@@ -896,6 +902,9 @@ fn geodesic_derivative(photon: Photon4) -> PhotonDerivative {
 }
 
 fn step_along_null_geodesic(photon: Photon4) -> Photon4 {
+    if (INTEGRATION_METHOD == INTEGRATION_METHOD_EULER) {
+        return euler_step(photon);
+    }
     return rk4_step(photon);
 }
 

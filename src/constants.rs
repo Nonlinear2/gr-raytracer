@@ -4,8 +4,9 @@ pub enum Pipeline {
     GPU,
 }
 
+#[repr(u32)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum IntegrationMethod {
-    EULER,
-    RK4
+    EULER = 0,
+    RK4 = 1,
 }

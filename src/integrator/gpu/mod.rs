@@ -52,6 +52,7 @@ impl GpuIntegrator {
     fn get_constants(world: &World) -> Vec<(&'static str, f64)> {
         let mut constants = vec![
             ("INTEGRATION_STEP_SIZE", config::INTEGRATION_STEP_SIZE as f64),
+            ("INTEGRATION_METHOD", config::INTEGRATION_METHOD as u32 as f64),
             ("MAX_STEPS", config::MAX_INTEGRATION_STEPS as f64),
             ("DEBUG", if config::DEBUG { 1.0 } else { 0.0 }),
             ("DEBUG_RAY_INDEX", config::DEBUG_RAY_INDEX as f64),
