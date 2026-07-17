@@ -4,7 +4,6 @@ use crate::geometry::manifold::{ChartWorld, Chart, GpuManifold, HasAtlas3, Pseud
 use crate::geometry::photon::{Photon3, Photon4};
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::FourVector;
-use crate::integration::euler;
 use crate::math::positive_root;
 
 pub struct Schwarzschild4Manifold {
@@ -86,11 +85,11 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     }
 
     fn g(&self, pos: Point4) -> Mat4 {
-        assert!(matches!(pos.chart, Chart::SphericalX | Chart::SphericalZ));
+        debug_assert!(matches!(pos.chart, Chart::SphericalX | Chart::SphericalZ));
 
         let r = pos.r();
         let theta = pos.theta();
-        assert!(r > self.r_s);
+        debug_assert!(r > self.r_s);
 
         let g = Mat4 {
             x_axis: Vec4::new(1. - self.r_s / r, 0., 0., 0.),
@@ -99,18 +98,18 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
             w_axis: Vec4::new(0., 0., 0., -r*r*theta.sin()*theta.sin()),
         };
         
-        assert!(g.determinant().is_finite());
+        debug_assert!(g.determinant().is_finite());
 
         g
     }
 
     fn g_inv(&self, pos: Point4) -> Mat4 {
-        assert!(matches!(pos.chart, Chart::SphericalX | Chart::SphericalZ));
-        assert!(pos.r() > self.r_s);
+        debug_assert!(matches!(pos.chart, Chart::SphericalX | Chart::SphericalZ));
+        debug_assert!(pos.r() > self.r_s);
 
         let r = pos.r();
         let theta = pos.theta();
-        assert!(r > self.r_s);
+        debug_assert!(r > self.r_s);
 
         let g_inv = Mat4 {
             x_axis: Vec4::new(1. / (1. - self.r_s / r), 0., 0., 0.),
@@ -123,7 +122,7 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
     }
 
     fn del_g(&self, pos: Point4, i: u32) -> Mat4 {
-        assert!(matches!(pos.chart, Chart::SphericalX | Chart::SphericalZ));
+        debug_assert!(matches!(pos.chart, Chart::SphericalX | Chart::SphericalZ));
 
         let r = pos.r();
         let theta = pos.theta();
@@ -144,46 +143,6 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
             3 => Mat4::ZERO,
             _ => unreachable!()
         }
-    }
-
-    fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32 {
-        assert!(matches!(pos.chart, Chart::SphericalX | Chart::SphericalZ));
-
-        let g_inv = self.g_inv(pos);
-        let mut gamma = 0.;
-
-        let d_mu_g = self.del_g(pos, mu as u32);
-        let d_nu_g = self.del_g(pos, nu as u32);
-
-        for alpha in 0..4 {
-            let d_alpha_g = self.del_g(pos, alpha as u32);
-
-            gamma += 0.5 * g_inv.col(lambda)[alpha] * (
-                d_mu_g.col(alpha)[nu]
-              + d_nu_g.col(alpha)[mu]
-              - d_alpha_g.col(mu)[nu]
-            )
-        }
-        assert!(gamma.is_finite());
-
-        gamma
-    }
-
-    fn step_along_null_geodesic(&self, photon: Photon4) -> Photon4 {
-        let x = photon.pos;
-        let k = photon.vel;
-
-        let mut del_k = FourVector::zero(photon.vel.vector_space);
-        for mu in 0..4 {
-            for alpha in 0..4 {
-                for beta in 0..4 {
-                    let gamma = self.christoffel(x, alpha, beta, mu);
-                    del_k[mu] -= gamma * k[alpha] * k[beta];
-                }
-            }
-        }
-
-        euler::euler_step(x, k, k.as_point4(), del_k)
     }
 }
 

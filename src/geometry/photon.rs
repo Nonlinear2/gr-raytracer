@@ -10,6 +10,13 @@ pub struct Photon4 {
     pub vel: FourVector,
 }
 
+// derivative of a photon's coordinates with respect to the affine parameter
+#[derive(Clone, Copy)]
+pub struct PhotonDerivative {
+    pub d_pos: FourVector,
+    pub d_vel: FourVector,
+}
+
 impl Photon4 {
     pub fn new(pos: Point4, vel: FourVector) -> Self {
         debug_assert!(tangent_space(pos.chart) ==  vel.vector_space);

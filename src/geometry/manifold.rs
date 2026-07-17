@@ -1,6 +1,7 @@
 use crate::geometry::point::{Point3, Point4};
-use crate::geometry::vector::{TangentSpace, ThreeVector};
-use crate::geometry::photon::{Photon4, Photon3};
+use crate::geometry::vector::{FourVector, TangentSpace, ThreeVector};
+use crate::geometry::photon::{Photon4, Photon3, PhotonDerivative};
+use crate::integration;
 
 use glam::Mat4;
 use num_enum::{TryFromPrimitive};
@@ -211,9 +212,48 @@ pub trait PseudoRiemanian4Manifold: HasAtlas3 {
 
     fn del_g(&self, x: Point4, i: u32) -> Mat4;
 
-    fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32;
+    // the methods below only depend on the metric, so they are shared between manifolds
 
-    fn step_along_null_geodesic(&self, s: Photon4) -> Photon4;
+    fn christoffel(&self, pos: Point4, mu: usize, nu: usize, lambda: usize) -> f32 {
+        let g_inv = self.g_inv(pos);
+        let mut gamma = 0.;
+
+        let d_mu_g = self.del_g(pos, mu as u32);
+        let d_nu_g = self.del_g(pos, nu as u32);
+
+        for alpha in 0..4 {
+            let d_alpha_g = self.del_g(pos, alpha as u32);
+
+            gamma += 0.5 * g_inv.col(lambda)[alpha] * (
+                d_mu_g.col(alpha)[nu]
+              + d_nu_g.col(alpha)[mu]
+              - d_alpha_g.col(mu)[nu]
+            )
+        }
+        debug_assert!(gamma.is_finite());
+
+        gamma
+    }
+
+    fn geodesic_derivative(&self, photon: Photon4) -> PhotonDerivative {
+        let k = photon.vel;
+
+        let mut del_k = FourVector::zero(k.vector_space);
+        for mu in 0..4 {
+            for alpha in 0..4 {
+                for beta in 0..4 {
+                    let gamma = self.christoffel(photon.pos, alpha, beta, mu);
+                    del_k[mu] -= gamma * k[alpha] * k[beta];
+                }
+            }
+        }
+
+        PhotonDerivative { d_pos: k, d_vel: del_k }
+    }
+
+    fn step_along_null_geodesic(&self, photon: Photon4) -> Photon4 {
+        integration::step(photon, |p| self.geodesic_derivative(p))
+    }
 }
 
 pub trait GpuManifold {

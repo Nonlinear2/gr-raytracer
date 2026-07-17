@@ -1,8 +1,7 @@
 use crate::geometry::manifold::{ChartWorld, Chart, GpuManifold, HasAtlas3, PseudoRiemanian4Manifold};
-use crate::geometry::photon::{Photon3, Photon4};
+use crate::geometry::photon::{Photon3, Photon4, PhotonDerivative};
 use crate::geometry::point::{Point3, Point4};
-use crate::geometry::vector::{FourVector, TangentSpace};
-use crate::integration::euler;
+use crate::geometry::vector::FourVector;
 use glam::Mat4;
 
 #[allow(dead_code)]
@@ -68,10 +67,11 @@ impl PseudoRiemanian4Manifold for Euclidean4Manifold {
         0.
     }
 
-    fn step_along_null_geodesic(&self, s: Photon4) -> Photon4 {
-        euler::euler_step(
-            s.pos, s.vel, s.vel.as_point4(), FourVector::zero(TangentSpace::Cartesian)
-        )
+    fn geodesic_derivative(&self, photon: Photon4) -> PhotonDerivative {
+        PhotonDerivative {
+            d_pos: photon.vel,
+            d_vel: FourVector::zero(photon.vel.vector_space),
+        }
     }
 }
 
