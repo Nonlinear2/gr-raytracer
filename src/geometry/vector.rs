@@ -58,24 +58,24 @@ impl<S> ThreeVector<S> {
 
 impl<S: Copy> ThreeVector<S> {
     pub fn normalize(&self) -> ThreeVector<S> {
-        assert!(self.length() != 0.);
+        debug_assert!(self.length() != 0.);
         ThreeVector { inner: self.inner.normalize(), vector_space: self.vector_space }
     }
 }
 
 impl ThreeVector<TangentWorld> {
     pub fn x(&self) -> f32 {
-        assert!(self.inner[0].is_finite());
+        debug_assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn y(&self) -> f32 {
-        assert!(self.inner[1].is_finite());
+        debug_assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn z(&self) -> f32 {
-        assert!(self.inner[2].is_finite());
+        debug_assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
@@ -107,44 +107,44 @@ impl ThreeVector {
     }
 
     pub fn x(&self) -> f32{
-        assert!(self.vector_space == TangentSpace::Cartesian);
-        assert!(self.inner[0].is_finite());
+        debug_assert!(self.vector_space == TangentSpace::Cartesian);
+        debug_assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn y(&self) -> f32{
-        assert!(self.vector_space == TangentSpace::Cartesian);
-        assert!(self.inner[1].is_finite());
+        debug_assert!(self.vector_space == TangentSpace::Cartesian);
+        debug_assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn z(&self) -> f32{
-        assert!(self.vector_space == TangentSpace::Cartesian);
-        assert!(self.inner[2].is_finite());
+        debug_assert!(self.vector_space == TangentSpace::Cartesian);
+        debug_assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn r(&self) -> f32{
-        assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
-        assert!(self.inner[0].is_finite());
+        debug_assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
+        debug_assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn theta(&self) -> f32{
-        assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
-        assert!(self.inner[1].is_finite());
+        debug_assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
+        debug_assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn phi(&self) -> f32{
-        assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
-        assert!(self.inner[2].is_finite());
+        debug_assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
+        debug_assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn dot(&self, other: ThreeVector) -> f32 {
-        assert!(self.vector_space == other.vector_space);
-        assert!(self.vector_space == TangentSpace::Cartesian);
+        debug_assert!(self.vector_space == other.vector_space);
+        debug_assert!(self.vector_space == TangentSpace::Cartesian);
         self.inner.dot(other.inner)
     }
 
@@ -199,7 +199,7 @@ impl<S: Copy + PartialEq> std::ops::Add for ThreeVector<S> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        assert!(self.vector_space == rhs.vector_space);
+        debug_assert!(self.vector_space == rhs.vector_space);
         Self::new(
             self.inner.x + rhs.inner.x,
             self.inner.y + rhs.inner.y,
@@ -213,7 +213,7 @@ impl<S: Copy + PartialEq> std::ops::Sub for ThreeVector<S> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        assert!(self.vector_space == rhs.vector_space);
+        debug_assert!(self.vector_space == rhs.vector_space);
         Self::new(
             self.inner.x - rhs.inner.x,
             self.inner.y - rhs.inner.y,
@@ -294,43 +294,43 @@ impl FourVector {
     }
 
     pub fn t(&self) -> f32 {
-        assert!(self.inner[0].is_finite());
+        debug_assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
     pub fn x(&self) -> f32 {
-        assert!(self.vector_space == TangentSpace::Cartesian);
-        assert!(self.inner[1].is_finite());
+        debug_assert!(self.vector_space == TangentSpace::Cartesian);
+        debug_assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn y(&self) -> f32 {
-        assert!(self.vector_space == TangentSpace::Cartesian);
-        assert!(self.inner[2].is_finite());
+        debug_assert!(self.vector_space == TangentSpace::Cartesian);
+        debug_assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn z(&self) -> f32 {
-        assert!(self.vector_space == TangentSpace::Cartesian);
-        assert!(self.inner[3].is_finite());
+        debug_assert!(self.vector_space == TangentSpace::Cartesian);
+        debug_assert!(self.inner[3].is_finite());
         self.inner[3]
     }
 
     pub fn r(&self) -> f32 {
-        assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
-        assert!(self.inner[1].is_finite());
+        debug_assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
+        debug_assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
     pub fn theta(&self) -> f32 {
-        assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
-        assert!(self.inner[2].is_finite());
+        debug_assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
+        debug_assert!(self.inner[2].is_finite());
         self.inner[2]
     }
 
     pub fn phi(&self) -> f32 {
-        assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
-        assert!(self.inner[3].is_finite());
+        debug_assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
+        debug_assert!(self.inner[3].is_finite());
         self.inner[3]
     }
 
@@ -385,7 +385,7 @@ impl std::ops::Add for FourVector {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        assert!(self.vector_space == rhs.vector_space);
+        debug_assert!(self.vector_space == rhs.vector_space);
         Self {
             inner: self.inner + rhs.inner,
             vector_space: self.vector_space,
