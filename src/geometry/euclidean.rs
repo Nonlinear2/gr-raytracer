@@ -9,6 +9,7 @@ pub struct Euclidean4Manifold {
     pub subatlas_center: Point3<ChartWorld> // center of the atlas for fixed-time submanifolds
 }
 
+#[allow(dead_code)]
 impl Euclidean4Manifold {
     pub fn new(center: Point3<ChartWorld>) -> Self {
         Self {
