@@ -38,8 +38,8 @@ fn main() {
             0.25
         )),
         textures: {
-            let accretion = Texture::from_file("assets/accretion.png", 1.0).expect("failed to load texture");
-            let sky = Texture::from_file("assets/space_sky.jpg", 0.6).expect("failed to load texture");
+            let accretion = Texture::from_file("assets/textures/accretion.png", 1.0).expect("failed to load texture");
+            let sky = Texture::from_file("assets/textures/space_sky.jpg", 0.6).expect("failed to load texture");
             Textures::new(accretion, sky)
         },
         objects: vec![
