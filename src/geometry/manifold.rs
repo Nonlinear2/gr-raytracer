@@ -6,9 +6,11 @@ use crate::integration;
 use glam::Mat4;
 use num_enum::{TryFromPrimitive};
 
-/// which global chart we use to describe points on the submanifolds of R^4 obtained by fixing the time coordinate.
+/// which chart we use to describe points on the submanifolds of R^4 obtained by fixing the time coordinate.
 /// NOTE:
-/// These charts will designate the maps from coordinates to "manifold" and not the opposite. They are technically inverse charts
+/// we cant encode points on an abstract manifold, so we pick the "ChartWorld" to be a distinguished global chart
+/// and write transition maps from every other chart to this one. Up to identification by the distinguished map,
+/// this is the closest we can get to actually writing different charts.
 #[repr(u32)]
 #[derive(Clone, Copy, PartialEq, TryFromPrimitive)]
 pub enum Chart {
@@ -35,15 +37,26 @@ pub fn tangent_space(chart: Chart) -> TangentSpace {
     }
 }
 
-// Atlas describing submanifolds of R^4 given by fixing the time coordinate (so this coordinate doesnt get converted)
-// The CartesianWorld chart is always part of the atlas and is not listed in Chart
+/// Atlas describing submanifolds M of spacetime given by fixing the time coordinate.
+/// The World chart is always part of the atlas and is not listed in Chart,
+/// because "coordinates through ChartWorld" will be the way to describe points of M.
 pub trait HasAtlas3 {
     fn has_chart(&self, chart: Chart) -> bool;
     fn subatlas_center(&self) -> Point3<ChartWorld>;
     fn preferred_chart_for_point(&self, point: Point3<ChartWorld>) -> Chart;
 
-    // the transition maps do not depend on the metric, so they are shared between manifolds
+    /// the open subset of M where the chart is defined (described through the world chart as usual)
+    fn chart_domain_contains(&self, chart: Chart, p: Point3<ChartWorld>) -> bool {
+        debug_assert!(self.has_chart(chart));
+        let rel = p - self.subatlas_center();
+        match chart {
+            Chart::Cartesian => true,
+            Chart::SphericalZ => rel.x() * rel.x() + rel.y() * rel.y() > 0.0,
+            Chart::SphericalX => rel.y() * rel.y() + rel.z() * rel.z() > 0.0,
+        }
+    }
 
+    // transition maps do not depend on the metric, so they are shared between manifolds
     fn point_to_world(&self, p: Point3) -> Point3<ChartWorld> {
         debug_assert!(self.has_chart(p.chart));
         match p.chart {
@@ -69,6 +82,7 @@ pub trait HasAtlas3 {
 
     fn point_from_world(&self, p: Point3<ChartWorld>, to: Chart) -> Point3 {
         debug_assert!(self.has_chart(to));
+        debug_assert!(self.chart_domain_contains(to, p));
         let p_rel = p - self.subatlas_center();
         match to {
         Chart::Cartesian => {
@@ -142,6 +156,7 @@ pub trait HasAtlas3 {
 
     fn vector_from_world(&self, p: Point3<ChartWorld>, v: ThreeVector<TangentWorld>, to: Chart) -> ThreeVector {
         debug_assert!(self.has_chart(to));
+        debug_assert!(self.chart_domain_contains(to, p));
         match to {
         Chart::Cartesian => {
             ThreeVector::new(v.x(), v.y(), v.z(), TangentSpace::Cartesian)
@@ -235,6 +250,7 @@ pub trait PseudoRiemanian4Manifold: HasAtlas3 {
         gamma
     }
 
+    /// this function computes the right hand side of the geodesic equation as described in the readme.
     fn geodesic_derivative(&self, photon: Photon4) -> PhotonDerivative {
         debug_assert!(!self.is_close_to_singular(photon.pos));
 
