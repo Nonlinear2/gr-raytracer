@@ -10,28 +10,40 @@ cargo run --release
 ```
 You can modify rendering parameters in `config.rs`, and change the scene in `main.rs`.
 
-# The project architecture
+# A few words about the project
 
 The pipeline was CPU only at first, until I re-wrote most of the code in WGSL. Unfortunately, using WGSL has not been a pleasant experience, mainly because of the lack of a proper module system and debugging tools. I also felt that the nature of manifolds better suits an object oriented language. I thus decided to bring back the CPU code, and write a dual pipeline. Now hopefully, I can add new features in rust without necessarly touching the GPU shaders, and update them only when I am sure of the implementation.
 
+Note that for now the pipeline only supports time independant geometries.
+
 # Notes on general relativity and implementation details
 
-To represent spacetime, we start by describing the corresponding 4 dimensional manifold. We start by giving $\mathbb{R}^4$ the maximal atlas induced by the identity chart. Here, the first coordinate will corespond to time, and the other three to space. For our purposes, we will not need to implement charts of $\mathbb{R}^4$ directly, but rather charts of submanifolds of $\mathbb{R}^4$ obtained by fixing the time coordinate. This is because our pipeline only needs to support time independant geometries (for now). 
+To represent spacetime, we start by describing the corresponding 4 dimensional manifold $\mathcal{M}$.
+Firstly, $\mathcal{M}$ is assumed to be the set of points in $\mathbb{R}^4$, together with the usual topology. The manifold structure of $\mathcal{M}$ is given by the maximal atlas induced by the chart $\varphi = (\mathcal{M}$, $\mathbf{Id}: \mathcal{M} \to \mathbb{R}^4)$.
 
-trait implements $\mathbb{R}^4$ as a semi riemannian manifold.
-- 3D submanifolds of $\mathbb{R}^4$ obtained by chosing a time coodinate $t$, which we will call $\mathbb{R}^3_t$
+However, we cant describe points on an abstract manifold, so we pick $\varphi$ to be a distinguished global chart
+and write transition maps from every other chart to this one. We call this chart `ChartWorld` in the code, it corresponds to cartesian coordinates centered on the camera. Up to identification by the distinguished map, this is the closest we can get to actually writing charts from $\mathcal{M}$ to $\mathbb{R}^4$. 
 
-- charts designate maps from coordinates to manifolds and not the opposite.
-- World designates the manifold $\mathbb{R}^3_t$ together with the atlas containing a single chart: cartesian coordinates centered on the camera.
+The first coordinate will corespond to time, and the other three to space. Because our pipeline only supports time independant geometries (for now), we can simplify the implementation of charts by writing them only for submanifolds of $\mathcal{M}$ obtained by fixing the time coordinate. We can then apply the identity map for the time coordinate.
 
-- Photon4 objects belong to R^4, and worldphoton objects will be photons at a point in time in world.
-- we always write vector_space when talking about a vector space to avoid confusion with "space" meaning the ThreeVector representing space in a FourVector
+Finally, we define the metric: a tensor field $g: \mathcal{M} \to T^{(0, 2)}\mathcal{M}$, where $g$ is symmetric and non-degenerate.
+At a point $p$, the metric is: $g(p): T_p\mathcal{M} \times T_p\mathcal{M} \to \mathbb{R}$. Now given a chart $\varphi$, the coordinate vector fields $\partial_i$ form a basis of the tangent space, and we can define: $g_{\mu\nu}(p) = g(p)(\partial_\mu, \partial_\nu)$. From this, we find that:
+$g(p) = g_{\mu\nu}(p) \; dx^\mu \otimes dx^\nu$.
+In our case, we define a `g` method to the manifold trait that for each chart returns a matrix with entries $g_{\mu\nu}$ in that chart, and this suffices to represent the metric tensor field.
 
-Note that for now the pipeline only supports time independant geometries.
+
+- Photon4 objects belong to R^4, and Photon3 objects will be photons at a point in time in world.
 
 ## Manifolds
 
-### vector chart transitions:
+### Point chart transitions:
+$$p^{(\mathrm{to})} \;=\; \varphi_{(\mathrm{to})} \circ \varphi_{(\mathrm{from})}(p^{(\mathrm{from})})$$
+
+Example: spherical to cartesian
+
+
+### Vector chart transitions:
+
 $$v^{(\mathrm{to})} \;=\; \left. D\!\left(\varphi_{\mathrm{to}} \circ \varphi_{\mathrm{from}}^{-1}\right)\right|_{p}\; v^{(\mathrm{from})}$$
 
 ## The geodesic equation

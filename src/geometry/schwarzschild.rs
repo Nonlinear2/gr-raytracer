@@ -87,7 +87,8 @@ impl PseudoRiemanian4Manifold for Schwarzschild4Manifold {
 
     fn g(&self, pos: Point4) -> Mat4 {
         debug_assert!(matches!(pos.chart, Chart::SphericalX | Chart::SphericalZ));
-
+        // the entries of g are the same regardless of if the spherical coordinates are centered on the X or Z axis,
+        // because the schwarzschild metric is spherically symmetric. Therefore we dont need to condition on the chart.
         let r = pos.r();
         let theta = pos.theta();
         debug_assert!(r > self.r_s);

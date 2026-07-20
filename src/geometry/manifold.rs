@@ -7,10 +7,6 @@ use glam::Mat4;
 use num_enum::{TryFromPrimitive};
 
 /// which chart we use to describe points on the submanifolds of R^4 obtained by fixing the time coordinate.
-/// NOTE:
-/// we cant encode points on an abstract manifold, so we pick the "ChartWorld" to be a distinguished global chart
-/// and write transition maps from every other chart to this one. Up to identification by the distinguished map,
-/// this is the closest we can get to actually writing different charts.
 #[repr(u32)]
 #[derive(Clone, Copy, PartialEq, TryFromPrimitive)]
 pub enum Chart {
