@@ -1,7 +1,7 @@
 <h1 align="center">GR-Raytracer</h1>
 <h4 align="center">A dual CPU / GPU general relativity ray tracer written in Rust and WGSL.</h4> 
 
-![Alt text](./assets/images/rendered_black_hole.png?raw=true)
+![Rendered black hole](./assets/images/rendered_black_hole.png?raw=true)
 
 The ray-tracer features an integrator for the geodesic equation in schwarzschild and euclidean geometries. The integrator steps light rays along null geodesics and can use euler's method or runge kutta 4. The supported objects are discs and spheres with arbitrary image textures and diffuse or metallic surfaces.
 
@@ -94,7 +94,7 @@ $g(p) = g_{\mu\nu}(p) \; dx^\mu \otimes dx^\nu$.
 In our case, we define a `g` method to the manifold trait that for each chart returns a matrix with entries $g_{\mu\nu}$ in that chart, and this suffices to represent the metric tensor field.
 
 ## The geodesic equation
-We know that the trajectory of a photon in spacetime follows a null geodesic. 
+We know that the trajectory of a photon in spacetime follows a null geodesic.
 $$\frac{d^2 x^\mu}{d\lambda^2} + \Gamma^\mu_{\alpha\beta}\,\frac{dx^\alpha}{d\lambda}\,\frac{dx^\beta}{d\lambda} = 0$$
 
 turned into a system of order 1:

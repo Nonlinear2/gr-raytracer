@@ -1,0 +1,31 @@
+site_name: GR-Raytracer
+site_description: A dual CPU / GPU general relativity ray tracer written in Rust and WGSL.
+site_url: https://nonlinear2.github.io/gr-raytracer/
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: black
+      accent: indigo
+  features:
+    - navigation.top
+    - content.code.copy
+    - toc.follow
+
+nav:
+  - Home: index.md
+  - Theory: theory.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.arithmatex:
+      generic: true
+  - toc:
+      permalink: true
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
