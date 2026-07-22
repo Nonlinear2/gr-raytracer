@@ -3,12 +3,11 @@
 ## Manifolds
 
 To represent spacetime, we start by describing the corresponding 4-dimensional
-manifold $\mathcal{M}$. Firstly, $\mathcal{M}$ is assumed to be a topological
-space homeomorphic to $\mathbb{R}^4$ with the usual topology. The manifold
-structure of $\mathcal{M}$ is given by the maximal atlas induced by the chart
-$(\mathcal{M}, \varphi: \mathcal{M} \to \mathbb{R}^4)$, where $\varphi$ is a
-homeomorphism from $\mathcal{M}$ to $\mathbb{R}^4$. The first coordinate is
-associated to time, and the other three to space.
+manifold $\mathcal{M}$. For the geometries we render, we make the modeling assumption that $\mathcal{M}$ admits a global chart 
+$(\mathcal{M}, \varphi : \mathcal{M} \to U)$,
+where $U$ is an open subset of $\mathbb{R}^4$ and $\varphi$ is a homeomorphism.
+The manifold structure of $\mathcal{M}$ is then given by the maximal atlas induced by this chart. The
+first coordinate is associated to time, and the other three to space.
 
 Because our pipeline only supports time-independent geometries (for now), we can
 simplify the manifold implementation by only describing three-dimensional
@@ -32,8 +31,8 @@ $$
 
 In the code, the map $\varphi_{\mathrm{world}} \circ \varphi_{\mathrm{from}}^{-1}$
 is defined as `point_to_world`. Up to identification by the distinguished map,
-this is the closest we can get to actually writing charts from $\mathcal{M}$ to
-$\mathbb{R}^4$.
+this is the closest we can get to actually writing charts from $\mathcal{M}_t$ to
+$\mathbb{R}^3$.
 
 Similarly, given the transition maps, we can also write tangent vector
 transitions. Let $p$ be a point in $\mathcal{M}_t$. We are looking for the
