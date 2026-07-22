@@ -55,7 +55,7 @@ fn main() {
             Box::new(Disc {
                 center: Point3::new(0.0, 0.0, -2.0, ChartWorld),
                 normal: ThreeVector::new(0.09, 0.8, 0.1, TangentWorld),
-                // normal: ThreeVector::new(0.0, 0.0, 1., geometry::vector::TangentSpace::CartesianWorld),
+                // normal: ThreeVector::new(0.09, 0.8, 0.1, TangentWorld),
                 radius: 1.5,
                 inner_radius: 0.75,
                 material: Box::new(Diffuse { 
