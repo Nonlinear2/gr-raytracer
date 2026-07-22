@@ -1,4 +1,4 @@
-# Notes on general relativity and implementation details
+# Notes on general relativity and implementation details (work in progress)
 
 ## Manifolds
 
