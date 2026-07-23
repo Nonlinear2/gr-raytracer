@@ -3,7 +3,9 @@
 
 ![Rendered black hole](./assets/images/rendered_black_hole.png?raw=true)
 
-This project traces light in pseudo-Riemannian geometries to render images of black holes and other curved spacetime scenes. To do so, it integrates the geodesic equation using Euler or RK4 stepping. For now only time independent geometries are supported, and the scene objects are limited to discs and spheres with arbitrary image textures and diffuse or metallic surfaces.
+This project traces light in pseudo-Riemannian geometries to render images of black holes and other curved spacetime scenes. To do so, it integrates the geodesic equation using Euler or RK4 stepping. For now only time independent geometries are supported, and the scene objects are limited to discs, annuli and spheres with arbitrary image textures and diffuse or metallic surfaces.
+
+The image above is a scene in schwarzschild geometry with two objects: an annulus with a semi transparent white texture to make the accretion disc, and a small brown sphere on the left (not very visible, I will fix that). The background is a night sky image.
 
 # Usage
 
