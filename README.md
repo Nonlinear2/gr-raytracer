@@ -3,7 +3,7 @@
 
 ![Rendered black hole](./assets/images/rendered_black_hole.png?raw=true)
 
-This project traces light in pseudo-Riemannian geometries to render images of black holes and other curved spacetime scenes. To do so, it features an integrator for the geodesic equation using Euler or RK4 stepping. For now the supported objects in the scene are discs and spheres with arbitrary image textures and diffuse or metallic surfaces. Currently only time independent geometries are supported.
+This project traces light in pseudo-Riemannian geometries to render images of black holes and other curved spacetime scenes. To do so, it integrates the geodesic equation using Euler or RK4 stepping. For now only time independent geometries are supported, and the scene objects are limited to discs and spheres with arbitrary image textures and diffuse or metallic surfaces.
 
 # Usage
 
@@ -24,3 +24,8 @@ The pipeline was CPU only at first, until I re-wrote most of the code in WGSL. U
 # Notes on general relativity and implementation details
 
 You can find all the details **[here](https://nonlinear2.github.io/gr-raytracer/theory/)**!
+
+# References
+
+- My favourite introduction of manifolds: John M. Lee, Introduction to smooth manifolds
+- A good book on general relativity: Barret O'Neill, Semi-Riemannian Geometry With Applications to Relativity
