@@ -1,5 +1,8 @@
 # Notes on general relativity and implementation details (work in progress)
 
+This document compiles notes on differential geometry, general relativity and how they are implemented in this project.
+Writing these notes helps me anchor what i've learned, and can help me recall it in the future. Be aware that there might be errors or misconceptions, I am still far from being at ease with these subjects.
+
 ## Manifolds
 
 To represent spacetime, we start by describing the corresponding 4-dimensional
@@ -18,7 +21,7 @@ coordinate to a value $t$.
 
 We can't describe points on an abstract manifold, so we pick $\varphi$ to be a
 distinguished global chart and write transition maps from every other chart to
-this one. We call this chart `ChartWorld` in the code; it corresponds to
+this one. We call this chart `ChartWorld` in the code. It corresponds to
 Cartesian coordinates centered on the camera.
 
 Let $p$ be a point in $\mathcal{M}_t$. If we call
@@ -118,30 +121,100 @@ represent the metric tensor field.
 
 ## The geodesic equation
 
-The trajectory of a photon in spacetime follows a null geodesic:
+Do describe the trajectory of light in spacetime, we are looking to define what a straight line is on a manifold.
+
+### Afine connections
+Let's consider the case where the manifold is $\mathcal{M} = R^n$. We would like to define what a straight curve of constant speed is. A reasonable definition for that is: "a curve whose velocity vector never changes". More formally:
+
+Let $\gamma: (0, 1) \to \mathcal{M}$ be a smooth curve. $\gamma$ is said to be straight if $\dot{\gamma}(t)$ is constant for all $t$, or equivalently, if $\ddot\gamma(t) = 0$.
+
+We would like to generalize this definition to any smooth manifold $\mathcal{M}$. We know how to define $\dot\gamma(t)$:
+$$
+\begin{aligned}
+\dot\gamma(t)f 
+&= \frac{d}{ds} (f \circ \gamma)|_t\\
+&= \left[\frac{d}{ds}(x^i \circ \gamma)|_t \; (\partial_{\gamma(t)})_i \right](f)
+\end{aligned}
+$$
+
+Now, we need to make sense of $\ddot \gamma$. The issue we have is that if we try the usual definition:
+$$
+\ddot \gamma(t) = \lim_{h \to 0} \frac{1}{h}(\underbrace{\dot\gamma(t + h)}_{\in \, T_{\gamma(t + h)}\mathcal{M}} - \underbrace{\dot\gamma(t)}_{\in \, T_{\gamma(t)}\mathcal{M}})
+$$
+We run into the problem of adding vectors from _different_ vector spaces.
+This motivates the concept of a connection.
+
+For any smooth curve $\gamma: (0, 1) \to \mathcal{M}$ from $p$ to $q$, we would like to define a map $P_\gamma: T_p\mathcal{M} \to T_q\mathcal{M}$ that transports a vector from $T_p\mathcal{M}$ to $T_q\mathcal{M}$ "without changing its orientation", whatever that means.
+But writing the correct definition is not so easy, and it is best to define parallel transport infinitesimally, we can define the map $P_\gamma$ from that. This is called an afine connection. It "connects" neighbouring tangent spaces together. Here is the formal definition:
+
+Let $X, Y, Z \in \Gamma^\infty(T\mathcal{M})$ be vector fields on $\mathcal{M}$, and $f \in C^\infty(\mathcal{M})$ be a scalar function on $\mathcal{M}$. We say that $\nabla: \Gamma^\infty(T\mathcal{M}) \times \Gamma^\infty(T\mathcal{M}) \to \Gamma^\infty(T\mathcal{M})$ is an afine connection if
+$$
+\nabla \text{ is bilinear: } \nabla_{aY + bZ} X = a\nabla_Y X + a\nabla_Z X \text{ and } \nabla_{Y} (aX + bZ) = a\nabla_Y X + a\nabla_Y Z
+$$
+$$
+\nabla \text{ is } C^\infty(\mathcal{M}) \text{ linear: } \nabla_{fY} X = f\nabla_{Y} X
+$$
 
 $$
-\frac{d^2 x^\mu}{d\lambda^2} + \Gamma^\mu_{\alpha\beta}\,\frac{dx^\alpha}{d\lambda}\,\frac{dx^\beta}{d\lambda} = 0
+\nabla \text{ follows the following Leibnitz rule: } \nabla_Y fX = Y(f) X + f\nabla_Y X 
 $$
 
-turned into a first-order system:
+There can exist multiple connections, and in our case we are interested in the Levi-Civita connection.
+[...]
+
+### Parallel transport
+
+Now that we have defined connections, for any smooth curve $\gamma: (0, 1) \to \mathcal{M}$ from $p$ to $q$, we can define the map $P_\gamma: T_p\mathcal{M} \to T_q\mathcal{M}$ we taked about earlier. First of all, we define
+$$
+P_\gamma(t): T_p\mathcal{M} \to T_{\gamma(t)}\mathcal{M}
+$$
+as the only function that verifies at each instant
+$$
+\nabla_{\dot\gamma}\dot \gamma = 0
+$$
+We can write this as a differential equation by expanding $\nabla$ with christoffel symbols.
+
+### Christoffel symbols
+In a given chart, Christoffel symbols are defined as follows
+$$
+(\nabla_{\partial_i} \partial_j)_P = \Gamma^{k}_{ij}(P) \partial_k (P)
+$$
+and thus:
 
 $$
-X(\lambda) =
+\begin{aligned}
+\nabla_{\dot\gamma} \dot\gamma
+&= \nabla_{\dot\gamma} \left[\frac{d\gamma^i}{ds} \; (\partial_{\gamma})_i \right]\\
+&= \frac{d\gamma^i}{ds} \nabla_{\dot\gamma} (\partial_{\gamma})_i + \frac{d^2\gamma^i}{ds^2}(\partial_{\gamma})_i\\
+&= \frac{d\gamma^i}{ds} \nabla_{\left[\frac{d\gamma^j}{ds} \; (\partial_{\gamma})_j \right]} (\partial_{\gamma})_i + \frac{d^2\gamma^i}{ds^2}(\partial_{\gamma})_i\\
+&= \frac{d\gamma^i}{ds}\frac{d\gamma^j}{ds} \nabla_{(\partial_{\gamma})_j} (\partial_{\gamma})_i + \frac{d^2\gamma^i}{ds^2}(\partial_{\gamma})_i\\
+&= \frac{d\gamma^i}{ds}\frac{d\gamma^j}{ds} \Gamma_{ji}^k (\partial_{\gamma})_k + \frac{d^2\gamma^i}{ds^2}(\partial_{\gamma})_i\\
+&= \left[\frac{d\gamma^i}{ds}\frac{d\gamma^j}{ds} \Gamma_{ji}^k + \frac{d^2\gamma^k}{ds^2}\right](\partial_{\gamma})_k\\
+\end{aligned}
+$$
+Equating with $0$ and using the linear independance of the $(\partial_\gamma)_k$, we find that for all $k$,
+$$
+\frac{d^2 \gamma^k}{ds^2} + \Gamma^k_{ji}\,\frac{d\gamma^j}{ds}\,\frac{d\gamma^i}{ds} = 0
+$$
+
+and this differential equation can be turned into a first-order system:
+
+$$
+X(s) =
 \begin{pmatrix}
-x^\mu\\
-k^\mu
+\gamma^\mu\\
+\dot\gamma^\mu
 \end{pmatrix}
 \qquad
-X'(\lambda) =
+X'(s) =
 \begin{pmatrix}
-\dfrac{dx^\mu}{d\lambda}\\[6pt]
-\dfrac{dk^\mu}{d\lambda}
+\dfrac{d\gamma^\mu}{ds}\\[6pt]
+\dfrac{d\dot\gamma^\mu}{ds}
 \end{pmatrix}
 =
 \begin{pmatrix}
-k^\mu\\
--\Gamma^\mu_{\alpha\beta}\,k^\alpha\,k^\beta
+\dot\gamma^\mu\\
+-\Gamma^\mu_{\alpha\beta}\,\dot\gamma^\alpha\,\dot\gamma^\beta
 \end{pmatrix}
 $$
 
@@ -152,3 +225,26 @@ $$
 $$
 r_{\mathrm{ms}} = 3 R_s
 $$
+
+## My notes and todos:
+- To define cartesian, polar coordinates as we do in physics, we define an abstract chart $\phi$, and call that one cartesian. Then we define $\phi_pol$ to verify $\phi \circ \phi_pol^-1 = (r \cos(\theta), r \sin(\theta))$. To define $\phi$ explicitely, we can use the canonical isomorphism $\mathbb{R} \cong T\mathbb{R}$. (but we could use another map, i think).
+
+- The notation $df/dx$ ... + worked out example
+
+- how turning maps into tensors works
+
+- motivate the definition of a connexion
+
+- derive the christoffel version geodesic equation
+
+- acceleration in polar coordinates
+
+- derivation of the schwarzschild metric
+
+topological manifold
++ smooth structure (a maximal smooth atlas)
++ metric -> levi civita christoffels <-> connection -> parallel transport and geodesics
+or + christoffels <-> connection -> geodesics
+
+- The same manifold can have two atlases $A, A'$ which are incompatible, but (M, A) can still be diffeomorphic to $(M, A')$.
+This is because compatible means $Id: (M, A) \to (M, A')$ is a diffeomorphism, whereas there can still exist a diffeomorphism $\Psi$ between $(M, A)$ and $(M, A')$.
