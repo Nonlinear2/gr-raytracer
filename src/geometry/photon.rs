@@ -1,43 +1,45 @@
-use crate::geometry::manifold::{tangent_space, ChartWorld, TangentWorld};
+use crate::geometry::chart::IsChart;
 use crate::geometry::point::{Point3, Point4};
 use crate::geometry::vector::{FourVector, ThreeVector};
 
 
-// photon in spacetime with manifold coordinate system
+// photon in spacetime, expressed in the spacetime chart induced by C
 #[derive(Clone, Copy)]
-pub struct Photon4 {
-    pub pos: Point4,
-    pub vel: FourVector,
+pub struct Photon4<C> {
+    pub pos: Point4<C>,
+    pub vel: FourVector<C>,
 }
 
 // derivative of a photon's coordinates with respect to the affine parameter
 #[derive(Clone, Copy)]
-pub struct PhotonDerivative {
-    pub d_pos: FourVector,
-    pub d_vel: FourVector,
+pub struct PhotonDerivative<C> {
+    pub d_pos: FourVector<C>,
+    pub d_vel: FourVector<C>,
 }
 
-impl Photon4 {
-    pub fn new(pos: Point4, vel: FourVector) -> Self {
-        debug_assert!(tangent_space(pos.chart) ==  vel.vector_space);
-
+impl<C: IsChart> Photon4<C> {
+    pub fn new(pos: Point4<C>, vel: FourVector<C>) -> Self {
         Self {
             pos: pos,
             vel: vel,
         }
     }
+
+    pub fn to_photon3(self) -> Photon3<C> {
+        Photon3::new(self.pos.space(), self.vel.space())
+    }
 }
 
 
-// photon in a fixed-time r^4 submanifold: R^3_t, expressed in the world chart.
+// photon in a fixed-time submanifold M_t, expressed in the chart C.
 #[derive(Clone, Copy)]
-pub struct Photon3 {
-    pub pos: Point3<ChartWorld>,
-    pub vel: ThreeVector<TangentWorld>,
+pub struct Photon3<C> {
+    pub pos: Point3<C>,
+    pub vel: ThreeVector<C>,
 }
 
-impl Photon3 {
-    pub fn new(pos: Point3<ChartWorld>, vel: ThreeVector<TangentWorld>) -> Self {
+impl<C: IsChart> Photon3<C> {
+    pub fn new(pos: Point3<C>, vel: ThreeVector<C>) -> Self {
         Self {
             pos: pos,
             vel: vel,

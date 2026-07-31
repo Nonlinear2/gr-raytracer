@@ -1,69 +1,62 @@
-﻿use num_enum::TryFromPrimitive;
-use glam::{Vec3, Vec4};
+﻿use glam::{Vec3, Vec4};
 use rand::{rngs::StdRng, RngExt};
 
-use crate::geometry::manifold::{ChartWorld, Chart, TangentWorld};
+use crate::geometry::chart::{Cartesian, IsChart, IsSphericalChart};
 use crate::geometry::point::{Point3, Point4};
 
-/// basis of the tangent space at a point (unspecified) of a given chart on R^3_t (that is, a coordinate system).
-/// the tangent space identified with R^3_t thus the basis is composed of vectors.
-/// (see proposition 3.2 J.Lee smooth manifolds).
-/// the world tangent space is tracked at the type level instead (ThreeVector<TangentWorld>).
-#[repr(u32)]
-#[derive(Clone, Copy, PartialEq, TryFromPrimitive)]
-pub enum TangentSpace {
-    Cartesian = 1,
-    SphericalZ = 2,
-    SphericalX = 3,
-}
-
-/// vector of a given tangent space.
-/// this struct assumes that the tangent space basis vectors are orthonormal.
-/// This is the case for cartesian and spherical tangent spaces.
+/// vector of the tangent space at a point of the chart C, expressed in the coordinate
+/// basis of C (see proposition 3.2 J.Lee smooth manifolds).
 #[derive(Clone, Copy, PartialEq)]
-pub struct ThreeVector<S = TangentSpace> {
+pub struct ThreeVector<C> {
     pub inner: Vec3,
-    pub vector_space: S
+    pub chart: C
 }
 
-impl<S> ThreeVector<S> {
-    pub fn zero(space: S) -> Self {
+impl<C: IsChart> ThreeVector<C> {
+    pub fn zero(chart: C) -> Self {
         Self {
             inner: Vec3::new(0., 0., 0.),
-            vector_space: space,
+            chart: chart,
         }
     }
 
-    pub fn new(x0: f32, x1: f32, x2: f32, space: S) -> Self {
+    pub fn new(x0: f32, x1: f32, x2: f32, chart: C) -> Self {
         Self {
             inner: Vec3::new(x0, x1, x2),
-            vector_space: space,
+            chart: chart,
         }
     }
 
+    pub fn as_vec3(self) -> Vec3 { self.inner }
+
+    pub fn as_point3(self) -> Point3<C> {
+        Point3::new(self.inner[0], self.inner[1], self.inner[2], self.chart)
+    }
+}
+
+impl ThreeVector<Cartesian> {
     /// uniformly distributed unit vector, expressed in an orthonormal tangent space basis
-    pub fn random_unit(rng: &mut StdRng, space: S) -> Self {
+    pub fn random_unit(rng: &mut StdRng, chart: Cartesian) -> Self {
         let z: f32 = rng.random_range(-1.0..=1.0);
         let phi: f32 = rng.random_range(0.0..std::f32::consts::TAU);
         let r_xy = (1.0 - z * z).max(0.0).sqrt();
-        Self::new(r_xy * phi.cos(), r_xy * phi.sin(), z, space)
+        Self::new(r_xy * phi.cos(), r_xy * phi.sin(), z, chart)
     }
 
     pub fn length(&self) -> f32 {
         self.inner.length()
     }
 
-    pub fn as_vec3(self) -> Vec3 { self.inner }
-}
-
-impl<S: Copy> ThreeVector<S> {
-    pub fn normalize(&self) -> ThreeVector<S> {
+    pub fn normalize(&self) -> Self {
         debug_assert!(self.length() != 0.);
-        ThreeVector { inner: self.inner.normalize(), vector_space: self.vector_space }
+        Self { inner: self.inner.normalize(), chart: self.chart }
     }
-}
 
-impl ThreeVector<TangentWorld> {
+    pub fn dot(&self, other: Self) -> f32 {
+        debug_assert!(self.chart == other.chart);
+        self.inner.dot(other.inner)
+    }
+
     pub fn x(&self) -> f32 {
         debug_assert!(self.inner[0].is_finite());
         self.inner[0]
@@ -78,92 +71,36 @@ impl ThreeVector<TangentWorld> {
         debug_assert!(self.inner[2].is_finite());
         self.inner[2]
     }
-
-    pub fn dot(&self, other: ThreeVector<TangentWorld>) -> f32 {
-        self.inner.dot(other.inner)
-    }
-
-    pub fn as_point3(self) -> Point3<ChartWorld> {
-        Point3::new(self.inner[0], self.inner[1], self.inner[2], ChartWorld)
-    }
 }
 
-impl ThreeVector {
-    // here the arguments are the components along the basis e_r, e_theta, e_phi of the tangent space.
-    // So r, theta, phi can be anything (negative, outside of -pi, pi, ...)
+// here the arguments are the components along the basis e_r, e_theta, e_phi of the tangent space.
+// So r, theta, phi can be anything (negative, outside of -pi, pi, ...)
 
-    pub fn new_spherical_z(r: f32, theta: f32, phi: f32) -> Self {
+impl<C: IsSphericalChart> ThreeVector<C> {
+    pub fn new_spherical(r: f32, theta: f32, phi: f32, chart: C) -> Self {
         Self {
             inner: Vec3::new(r, theta, phi),
-            vector_space: TangentSpace::SphericalZ,
+            chart: chart,
         }
     }
 
-    pub fn new_spherical_x(r: f32, theta: f32, phi: f32) -> Self {
-        Self {
-            inner: Vec3::new(r, theta, phi),
-            vector_space: TangentSpace::SphericalX,
-        }
-    }
-
-    pub fn x(&self) -> f32{
-        debug_assert!(self.vector_space == TangentSpace::Cartesian);
+    pub fn r(&self) -> f32 {
         debug_assert!(self.inner[0].is_finite());
         self.inner[0]
     }
 
-    pub fn y(&self) -> f32{
-        debug_assert!(self.vector_space == TangentSpace::Cartesian);
+    pub fn theta(&self) -> f32 {
         debug_assert!(self.inner[1].is_finite());
         self.inner[1]
     }
 
-    pub fn z(&self) -> f32{
-        debug_assert!(self.vector_space == TangentSpace::Cartesian);
+    pub fn phi(&self) -> f32 {
         debug_assert!(self.inner[2].is_finite());
         self.inner[2]
-    }
-
-    pub fn r(&self) -> f32{
-        debug_assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
-        debug_assert!(self.inner[0].is_finite());
-        self.inner[0]
-    }
-
-    pub fn theta(&self) -> f32{
-        debug_assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
-        debug_assert!(self.inner[1].is_finite());
-        self.inner[1]
-    }
-
-    pub fn phi(&self) -> f32{
-        debug_assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
-        debug_assert!(self.inner[2].is_finite());
-        self.inner[2]
-    }
-
-    pub fn dot(&self, other: ThreeVector) -> f32 {
-        debug_assert!(self.vector_space == other.vector_space);
-        debug_assert!(self.vector_space == TangentSpace::Cartesian);
-        self.inner.dot(other.inner)
-    }
-
-    pub fn as_point3(self) -> Point3 {
-        match self.vector_space {
-            TangentSpace::Cartesian => Point3::new(
-                self.inner[0], self.inner[1], self.inner[2], Chart::Cartesian
-            ),
-            TangentSpace::SphericalZ => Point3::new(
-                self.inner[0], self.inner[1], self.inner[2], Chart::SphericalZ
-            ),
-            TangentSpace::SphericalX => Point3::new(
-                self.inner[0], self.inner[1], self.inner[2], Chart::SphericalX
-            )
-        }
     }
 }
 
-impl<S> std::ops::Index<usize> for ThreeVector<S> {
+impl<C> std::ops::Index<usize> for ThreeVector<C> {
     type Output = f32;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -176,7 +113,7 @@ impl<S> std::ops::Index<usize> for ThreeVector<S> {
     }
 }
 
-impl<S> std::ops::IndexMut<usize> for ThreeVector<S> {
+impl<C> std::ops::IndexMut<usize> for ThreeVector<C> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         match index {
             0 => &mut self.inner.x,
@@ -187,43 +124,43 @@ impl<S> std::ops::IndexMut<usize> for ThreeVector<S> {
     }
 }
 
-impl<S: Copy> std::ops::Neg for ThreeVector<S> {
+impl<C: IsChart> std::ops::Neg for ThreeVector<C> {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        Self::new(-self.inner.x, -self.inner.y, -self.inner.z, self.vector_space)
+        Self::new(-self.inner.x, -self.inner.y, -self.inner.z, self.chart)
     }
 }
 
-impl<S: Copy + PartialEq> std::ops::Add for ThreeVector<S> {
+impl<C: IsChart> std::ops::Add for ThreeVector<C> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        debug_assert!(self.vector_space == rhs.vector_space);
+        debug_assert!(self.chart == rhs.chart);
         Self::new(
             self.inner.x + rhs.inner.x,
             self.inner.y + rhs.inner.y,
             self.inner.z + rhs.inner.z,
-            self.vector_space,
+            self.chart,
         )
     }
 }
 
-impl<S: Copy + PartialEq> std::ops::Sub for ThreeVector<S> {
+impl<C: IsChart> std::ops::Sub for ThreeVector<C> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        debug_assert!(self.vector_space == rhs.vector_space);
+        debug_assert!(self.chart == rhs.chart);
         Self::new(
             self.inner.x - rhs.inner.x,
             self.inner.y - rhs.inner.y,
             self.inner.z - rhs.inner.z,
-            self.vector_space,
+            self.chart,
         )
     }
 }
 
-impl<S: Copy> std::ops::Mul<f32> for ThreeVector<S> {
+impl<C: IsChart> std::ops::Mul<f32> for ThreeVector<C> {
     type Output = Self;
 
     fn mul(self, rhs: f32) -> Self::Output {
@@ -231,65 +168,46 @@ impl<S: Copy> std::ops::Mul<f32> for ThreeVector<S> {
             self.inner.x * rhs,
             self.inner.y * rhs,
             self.inner.z * rhs,
-            self.vector_space,
+            self.chart,
         )
     }
 }
 
-impl<S: Copy> std::ops::Mul<ThreeVector<S>> for f32 {
-    type Output = ThreeVector<S>;
+impl<C: IsChart> std::ops::Mul<ThreeVector<C>> for f32 {
+    type Output = ThreeVector<C>;
 
-    fn mul(self, rhs: ThreeVector<S>) -> Self::Output {
+    fn mul(self, rhs: ThreeVector<C>) -> Self::Output {
         rhs * self
     }
 }
 
-/// vector of a given tangent space.
-/// this struct assumes that the tangent space basis vectors are orthonormal.
-/// This is the case for cartesian and spherical tangent spaces.
+/// vector of the tangent space at a point of the spacetime chart obtained by taking
+/// the product of the time coordinate with the chart C.
 #[derive(Clone, Copy, PartialEq)]
-pub struct FourVector {
+pub struct FourVector<C> {
     pub inner: Vec4,
-    pub vector_space: TangentSpace,
+    pub chart: C,
 }
 
-impl FourVector {
-
-    pub fn zero(space: TangentSpace) -> Self {
+impl<C: IsChart> FourVector<C> {
+    pub fn zero(chart: C) -> Self {
         Self {
             inner: Vec4::new(0., 0., 0., 0.),
-            vector_space: space,
+            chart: chart,
         }
     }
 
-    pub fn new(x0: f32, x1: f32, x2: f32, x3: f32, space: TangentSpace) -> Self {
+    pub fn new(x0: f32, x1: f32, x2: f32, x3: f32, chart: C) -> Self {
         Self {
             inner: Vec4::new(x0, x1, x2, x3),
-            vector_space: space,
+            chart: chart,
         }
     }
 
-    // here the arguments are the components along the basis e_t, e_r, e_theta, e_phi of the tangent space.
-    // So r, theta, phi can be anything (negative, outside of -pi, pi, ...)
-
-    pub fn new_spherical_z(t: f32, r: f32, theta: f32, phi: f32) -> Self {
-        Self {
-            inner: Vec4::new(t, r, theta, phi),
-            vector_space: TangentSpace::SphericalZ,
-        }
-    }
-
-    pub fn new_spherical_x(t: f32, r: f32, theta: f32, phi: f32) -> Self {
-        Self {
-            inner: Vec4::new(t, r, theta, phi),
-            vector_space: TangentSpace::SphericalX,
-        }
-    }
-
-    pub fn from_space_time(time: f32, space: ThreeVector) -> Self {
+    pub fn from_space_time(time: f32, space: ThreeVector<C>) -> Self {
         Self {
             inner: Vec4::new(time, space.inner.x, space.inner.y, space.inner.z),
-            vector_space: space.vector_space
+            chart: space.chart,
         }
     }
 
@@ -298,64 +216,62 @@ impl FourVector {
         self.inner[0]
     }
 
-    pub fn x(&self) -> f32 {
-        debug_assert!(self.vector_space == TangentSpace::Cartesian);
-        debug_assert!(self.inner[1].is_finite());
-        self.inner[1]
+    pub fn space(&self) -> ThreeVector<C> {
+        ThreeVector::new(self.inner[1], self.inner[2], self.inner[3], self.chart)
     }
 
-    pub fn y(&self) -> f32 {
-        debug_assert!(self.vector_space == TangentSpace::Cartesian);
-        debug_assert!(self.inner[2].is_finite());
-        self.inner[2]
-    }
-
-    pub fn z(&self) -> f32 {
-        debug_assert!(self.vector_space == TangentSpace::Cartesian);
-        debug_assert!(self.inner[3].is_finite());
-        self.inner[3]
-    }
-
-    pub fn r(&self) -> f32 {
-        debug_assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
-        debug_assert!(self.inner[1].is_finite());
-        self.inner[1]
-    }
-
-    pub fn theta(&self) -> f32 {
-        debug_assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
-        debug_assert!(self.inner[2].is_finite());
-        self.inner[2]
-    }
-
-    pub fn phi(&self) -> f32 {
-        debug_assert!(matches!(self.vector_space, TangentSpace::SphericalZ | TangentSpace::SphericalX));
-        debug_assert!(self.inner[3].is_finite());
-        self.inner[3]
-    }
-
-    pub fn space(&self) -> ThreeVector {
-        ThreeVector::new(self.inner[1], self.inner[2], self.inner[3], self.vector_space)
-    }
-
-    pub fn as_point4(self) -> Point4 {
-        match self.vector_space {
-            TangentSpace::Cartesian => Point4::new(
-                self.inner[0], self.inner[1], self.inner[2], self.inner[3], Chart::Cartesian
-            ),
-            TangentSpace::SphericalZ => Point4::new(
-                self.inner[0], self.inner[1], self.inner[2], self.inner[3], Chart::SphericalZ
-            ),
-            TangentSpace::SphericalX => Point4::new(
-                self.inner[0], self.inner[1], self.inner[2], self.inner[3], Chart::SphericalX
-            )
-        }
+    pub fn as_point4(self) -> Point4<C> {
+        Point4::new(self.inner[0], self.inner[1], self.inner[2], self.inner[3], self.chart)
     }
 
     pub fn as_vec4(self) -> Vec4 { self.inner }
 }
 
-impl std::ops::Index<usize> for FourVector {
+impl FourVector<Cartesian> {
+    pub fn x(&self) -> f32 {
+        debug_assert!(self.inner[1].is_finite());
+        self.inner[1]
+    }
+
+    pub fn y(&self) -> f32 {
+        debug_assert!(self.inner[2].is_finite());
+        self.inner[2]
+    }
+
+    pub fn z(&self) -> f32 {
+        debug_assert!(self.inner[3].is_finite());
+        self.inner[3]
+    }
+}
+
+// here the arguments are the components along the basis e_t, e_r, e_theta, e_phi of the tangent space.
+// So r, theta, phi can be anything (negative, outside of -pi, pi, ...)
+
+impl<C: IsSphericalChart> FourVector<C> {
+    pub fn new_spherical(t: f32, r: f32, theta: f32, phi: f32, chart: C) -> Self {
+        Self {
+            inner: Vec4::new(t, r, theta, phi),
+            chart: chart,
+        }
+    }
+
+    pub fn r(&self) -> f32 {
+        debug_assert!(self.inner[1].is_finite());
+        self.inner[1]
+    }
+
+    pub fn theta(&self) -> f32 {
+        debug_assert!(self.inner[2].is_finite());
+        self.inner[2]
+    }
+
+    pub fn phi(&self) -> f32 {
+        debug_assert!(self.inner[3].is_finite());
+        self.inner[3]
+    }
+}
+
+impl<C> std::ops::Index<usize> for FourVector<C> {
     type Output = f32;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -369,7 +285,7 @@ impl std::ops::Index<usize> for FourVector {
     }
 }
 
-impl std::ops::IndexMut<usize> for FourVector {
+impl<C> std::ops::IndexMut<usize> for FourVector<C> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         match index {
             0 => &mut self.inner.x,
@@ -381,33 +297,33 @@ impl std::ops::IndexMut<usize> for FourVector {
     }
 }
 
-impl std::ops::Add for FourVector {
+impl<C: IsChart> std::ops::Add for FourVector<C> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        debug_assert!(self.vector_space == rhs.vector_space);
+        debug_assert!(self.chart == rhs.chart);
         Self {
             inner: self.inner + rhs.inner,
-            vector_space: self.vector_space,
+            chart: self.chart,
         }
     }
 }
 
-impl std::ops::Mul<f32> for FourVector {
+impl<C: IsChart> std::ops::Mul<f32> for FourVector<C> {
     type Output = Self;
 
     fn mul(self, rhs: f32) -> Self::Output {
         Self {
             inner: self.inner * rhs,
-            vector_space: self.vector_space,
+            chart: self.chart,
         }
     }
 }
 
-impl std::ops::Mul<FourVector> for f32 {
-    type Output = FourVector;
+impl<C: IsChart> std::ops::Mul<FourVector<C>> for f32 {
+    type Output = FourVector<C>;
 
-    fn mul(self, rhs: FourVector) -> Self::Output {
+    fn mul(self, rhs: FourVector<C>) -> Self::Output {
         rhs * self
     }
 }
