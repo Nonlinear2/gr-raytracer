@@ -1,0 +1,895 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A dual CPU / GPU general relativity ray tracer written in Rust and WGSL.">
+      
+      
+      
+        <link rel="canonical" href="https://nonlinear2.github.io/gr-raytracer/theory/">
+      
+      
+        <link rel="prev" href="..">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Theory - GR-Raytracer</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#notes-on-general-relativity-and-implementation-details-work-in-progress" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="GR-Raytracer" class="md-header__button md-logo" aria-label="GR-Raytracer" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            GR-Raytracer
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Theory
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="GR-Raytracer" class="md-nav__button md-logo" aria-label="GR-Raytracer" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    GR-Raytracer
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Theory
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Theory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#manifolds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manifolds
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Manifolds">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#chart-transitions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chart transitions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pseudo-riemannian-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pseudo-Riemannian structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-geodesic-equation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The geodesic equation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The geodesic equation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#afine-connections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Afine connections
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallel-transport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel transport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#christoffel-symbols" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Christoffel symbols
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#black-hole-physics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Black hole physics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Black hole physics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#innermost-stable-circular-orbit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Innermost stable circular orbit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#my-notes-and-todos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        My notes and todos:
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#manifolds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manifolds
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Manifolds">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#chart-transitions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chart transitions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pseudo-riemannian-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pseudo-Riemannian structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-geodesic-equation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The geodesic equation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The geodesic equation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#afine-connections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Afine connections
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallel-transport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel transport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#christoffel-symbols" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Christoffel symbols
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#black-hole-physics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Black hole physics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Black hole physics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#innermost-stable-circular-orbit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Innermost stable circular orbit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#my-notes-and-todos" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        My notes and todos:
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="notes-on-general-relativity-and-implementation-details-work-in-progress">Notes on general relativity and implementation details (work in progress)<a class="headerlink" href="#notes-on-general-relativity-and-implementation-details-work-in-progress" title="Permanent link">&para;</a></h1>
+<p>This document compiles notes on differential geometry, general relativity and how they are implemented in this project.
+Writing these notes helps me anchor what i've learned, and can help me recall it in the future. Be aware that there might be errors or misconceptions, I am still far from being at ease with these subjects.</p>
+<h2 id="manifolds">Manifolds<a class="headerlink" href="#manifolds" title="Permanent link">&para;</a></h2>
+<p>To represent spacetime, we start by describing the corresponding 4-dimensional
+manifold <span class="arithmatex">\(\mathcal{M}\)</span>. For the geometries we render, we make the modeling assumption that <span class="arithmatex">\(\mathcal{M}\)</span> admits a global chart 
+<span class="arithmatex">\((\mathcal{M}, \varphi : \mathcal{M} \to U)\)</span>,
+where <span class="arithmatex">\(U\)</span> is an open subset of <span class="arithmatex">\(\mathbb{R}^4\)</span> and <span class="arithmatex">\(\varphi\)</span> is a homeomorphism.
+The manifold structure of <span class="arithmatex">\(\mathcal{M}\)</span> is then given by the maximal atlas induced by this chart. The
+first coordinate is associated to time, and the other three to space.</p>
+<p>Because our pipeline only supports time-independent geometries (for now), we can
+simplify the manifold implementation by only describing three-dimensional
+submanifolds <span class="arithmatex">\(\mathcal{M}_t\)</span> of <span class="arithmatex">\(\mathcal{M}\)</span> obtained by fixing the time
+coordinate to a value <span class="arithmatex">\(t\)</span>.</p>
+<h3 id="chart-transitions">Chart transitions<a class="headerlink" href="#chart-transitions" title="Permanent link">&para;</a></h3>
+<p>We can't describe points on an abstract manifold, so we pick <span class="arithmatex">\(\varphi\)</span> to be a
+distinguished global chart and write transition maps from every other chart to
+this one. We call this chart <code>ChartWorld</code> in the code. It corresponds to
+Cartesian coordinates centered on the camera.</p>
+<p>Let <span class="arithmatex">\(p\)</span> be a point in <span class="arithmatex">\(\mathcal{M}_t\)</span>. If we call
+<span class="arithmatex">\(P^{(\mathrm{world})}, P^{(\mathrm{from})} \in \mathbb{R}^3\)</span> the images of <span class="arithmatex">\(p\)</span> by
+the charts <span class="arithmatex">\(\varphi_{\mathrm{world}}, \varphi_{\mathrm{from}}\)</span>, then</p>
+<div class="arithmatex">\[
+P^{(\mathrm{world})} \;=\; \varphi_{\mathrm{world}} \circ \varphi_{\mathrm{from}}^{-1}(P^{(\mathrm{from})})
+\]</div>
+<p>In the code, the map <span class="arithmatex">\(\varphi_{\mathrm{world}} \circ \varphi_{\mathrm{from}}^{-1}\)</span>
+is defined as <code>point_to_world</code>. Up to identification by the distinguished map,
+this is the closest we can get to actually writing charts from <span class="arithmatex">\(\mathcal{M}_t\)</span> to
+<span class="arithmatex">\(\mathbb{R}^3\)</span>.</p>
+<p>Similarly, given the transition maps, we can also write tangent vector
+transitions. Let <span class="arithmatex">\(p\)</span> be a point in <span class="arithmatex">\(\mathcal{M}_t\)</span>. We are looking for the
+components of <span class="arithmatex">\(v^{(\mathrm{to})}\)</span> with respect to the basis
+<span class="arithmatex">\(\partial^{(\mathrm{to})}\)</span> in terms of <span class="arithmatex">\(v^{(\mathrm{from})}\)</span> in the basis
+<span class="arithmatex">\(\partial^{(\mathrm{from})}\)</span>.</p>
+<p>To do this, we can write the coordinate vector fields <span class="arithmatex">\(\partial^{(\mathrm{from})}_p\)</span>
+in terms of <span class="arithmatex">\(\partial^{(\mathrm{to})}_p\)</span>. Let <span class="arithmatex">\(f \in C^{\infty}(\mathcal{M})\)</span>. We have</p>
+<div class="arithmatex">\[
+\begin{aligned}
+\left(\partial^{(\mathrm{from})}_p(f)\right)_\mu
+&amp;= \frac{\partial}{\partial x^\mu}(f \circ \varphi_{\mathrm{from}}^{-1}) \big|_{\varphi_{\mathrm{from}}(p)}\\
+&amp;= \frac{\partial}{\partial x^\mu}(\underbrace{f \circ \varphi_{\mathrm{to}}^{-1}}_{\mathbb{R}^3 \to \mathbb{R}} \circ \underbrace{\varphi_{\mathrm{to}} \circ \varphi_{\mathrm{from}}^{-1}}_{\mathbb{R}^3 \to \mathbb{R}^3})\big|_{\varphi_{\mathrm{from}}(p)}
+\end{aligned}
+\]</div>
+<p>and</p>
+<div class="arithmatex">\[
+D\left[(f \circ \varphi_{\mathrm{to}}^{-1}) \circ (\varphi_{\mathrm{to}} \circ \varphi_{\mathrm{from}}^{-1})\right] \big|_{\varphi_{\mathrm{from}}(p)}
+= D\left[f \circ \varphi_{\mathrm{to}}^{-1}\right] \big|_{\varphi_{\mathrm{to}}(p)} \cdot D\left[\varphi_{\mathrm{to}} \circ \varphi_{\mathrm{from}}^{-1}\right] \big|_{\varphi_{\mathrm{from}}(p)}
+\]</div>
+<p>As</p>
+<div class="arithmatex">\[
+\partial^{(\mathrm{from})}_p(f) = D\left[f \circ \varphi_{\mathrm{from}}^{-1}\right] \big|_{\varphi_{\mathrm{from}}(p)}
+\qquad\text{and}\qquad
+\partial^{(\mathrm{to})}_p(f) = D\left[f \circ \varphi_{\mathrm{to}}^{-1}\right] \big|_{\varphi_{\mathrm{to}}(p)}
+\]</div>
+<p>we have</p>
+<div class="arithmatex">\[
+\partial^{(\mathrm{from})}_p(f)
+= \partial^{(\mathrm{to})}_p(f) \cdot D\left[\varphi_{\mathrm{to}} \circ \varphi_{\mathrm{from}}^{-1}\right] \big|_{\varphi_{\mathrm{from}}(p)}
+\]</div>
+<p>Writing <span class="arithmatex">\(J := D\left[\varphi_{\mathrm{to}} \circ \varphi_{\mathrm{from}}^{-1}\right]\big|_{\varphi_{\mathrm{from}}(p)}\)</span>
+for the Jacobian, and noting the left-hand side is the scalar <span class="arithmatex">\(v_p(f)\)</span> (the same
+number in either chart):</p>
+<div class="arithmatex">\[
+\begin{aligned}
+v_p(f)
+&amp;= (v^{(\mathrm{from})})^\mu\, (\partial^{(\mathrm{from})}_p(f))_\mu\\
+&amp;= (v^{(\mathrm{from})})^\mu \left(\partial^{(\mathrm{to})}_p(f) \cdot J\right)_\mu\\
+&amp;= (v^{(\mathrm{from})})^\mu\, (\partial^{(\mathrm{to})}_p(f))_\nu\, J^\nu{}_\mu\\
+&amp;= \left(J^\nu{}_\mu\, (v^{(\mathrm{from})})^\mu\right)\, (\partial^{(\mathrm{to})}_p(f))_\nu
+\end{aligned}
+\]</div>
+<p>This holds for every <span class="arithmatex">\(f \in C^{\infty}(\mathcal{M})\)</span>, so <span class="arithmatex">\(v_p\)</span> equals
+<span class="arithmatex">\(\left(J^\nu{}_\mu\, (v^{(\mathrm{from})})^\mu\right)\, (\partial^{(\mathrm{to})}_p)_\nu\)</span>
+as a derivation. Since <span class="arithmatex">\(\partial^{(\mathrm{to})}_p\)</span> constitutes a basis, components
+of <span class="arithmatex">\(v_p\)</span> are unique and we identify:</p>
+<div class="arithmatex">\[
+\boxed{\,(v^{(\mathrm{to})})^\nu = J^\nu{}_\mu\, (v^{(\mathrm{from})})^\mu, \qquad J = D\left[\varphi_{\mathrm{to}} \circ \varphi_{\mathrm{from}}^{-1}\right]\big|_{\varphi_{\mathrm{from}}(p)}\,}
+\]</div>
+<p>or, as a matrix equation on column vectors,</p>
+<div class="arithmatex">\[
+v^{(\mathrm{to})} = D\left[\varphi_{\mathrm{to}} \circ \varphi_{\mathrm{from}}^{-1}\right]\big|_{\varphi_{\mathrm{from}}(p)}\; v^{(\mathrm{from})}.
+\]</div>
+<h3 id="pseudo-riemannian-structure">Pseudo-Riemannian structure<a class="headerlink" href="#pseudo-riemannian-structure" title="Permanent link">&para;</a></h3>
+<p>Finally, we define the metric: a tensor field
+<span class="arithmatex">\(g: \mathcal{M} \to T^{(0, 2)}\mathcal{M}\)</span>, where <span class="arithmatex">\(g\)</span> is symmetric and
+non-degenerate. At a point <span class="arithmatex">\(p\)</span>, the metric is
+<span class="arithmatex">\(g(p): T_p\mathcal{M} \times T_p\mathcal{M} \to \mathbb{R}\)</span>. Given a chart
+<span class="arithmatex">\(\varphi\)</span>, the coordinate vector fields <span class="arithmatex">\(\partial_i\)</span> form a basis of the tangent
+space, and we can define <span class="arithmatex">\(g_{\mu\nu}(p) = g(p)(\partial_\mu, \partial_\nu)\)</span>. From
+this we find that <span class="arithmatex">\(g(p) = g_{\mu\nu}(p)\, dx^\mu \otimes dx^\nu\)</span>.</p>
+<p>In our case, we define a <code>g</code> method on the manifold trait that, for each chart,
+returns a matrix with entries <span class="arithmatex">\(g_{\mu\nu}\)</span> in that chart, and this suffices to
+represent the metric tensor field.</p>
+<h2 id="the-geodesic-equation">The geodesic equation<a class="headerlink" href="#the-geodesic-equation" title="Permanent link">&para;</a></h2>
+<p>Do describe the trajectory of light in spacetime, we are looking to define what a straight line is on a manifold.</p>
+<h3 id="afine-connections">Afine connections<a class="headerlink" href="#afine-connections" title="Permanent link">&para;</a></h3>
+<p>Let's consider the case where the manifold is <span class="arithmatex">\(\mathcal{M} = R^n\)</span>. We would like to define what a straight curve of constant speed is. A reasonable definition for that is: "a curve whose velocity vector never changes". More formally:</p>
+<p>Let <span class="arithmatex">\(\gamma: (0, 1) \to \mathcal{M}\)</span> be a smooth curve. <span class="arithmatex">\(\gamma\)</span> is said to be straight if <span class="arithmatex">\(\dot{\gamma}(t)\)</span> is constant for all <span class="arithmatex">\(t\)</span>, or equivalently, if <span class="arithmatex">\(\ddot\gamma(t) = 0\)</span>.</p>
+<p>We would like to generalize this definition to any smooth manifold <span class="arithmatex">\(\mathcal{M}\)</span>. We know how to define <span class="arithmatex">\(\dot\gamma(t)\)</span>:</p>
+<div class="arithmatex">\[
+\begin{aligned}
+\dot\gamma(t)f 
+&amp;= \frac{d}{ds} (f \circ \gamma)|_t\\
+&amp;= \left[\frac{d}{ds}(x^i \circ \gamma)|_t \; (\partial_{\gamma(t)})_i \right](f)
+\end{aligned}
+\]</div>
+<p>Now, we need to make sense of <span class="arithmatex">\(\ddot \gamma\)</span>. The issue we have is that if we try the usual definition:</p>
+<div class="arithmatex">\[
+\ddot \gamma(t) = \lim_{h \to 0} \frac{1}{h}(\underbrace{\dot\gamma(t + h)}_{\in \, T_{\gamma(t + h)}\mathcal{M}} - \underbrace{\dot\gamma(t)}_{\in \, T_{\gamma(t)}\mathcal{M}})
+\]</div>
+<p>We run into the problem of adding vectors from <em>different</em> vector spaces.
+This motivates the concept of a connection.</p>
+<p>For any smooth curve <span class="arithmatex">\(\gamma: (0, 1) \to \mathcal{M}\)</span> from <span class="arithmatex">\(p\)</span> to <span class="arithmatex">\(q\)</span>, we would like to define a map <span class="arithmatex">\(P_\gamma: T_p\mathcal{M} \to T_q\mathcal{M}\)</span> that transports a vector from <span class="arithmatex">\(T_p\mathcal{M}\)</span> to <span class="arithmatex">\(T_q\mathcal{M}\)</span> "without changing its orientation", whatever that means.
+But writing the correct definition is not so easy, and it is best to define parallel transport infinitesimally, we can define the map <span class="arithmatex">\(P_\gamma\)</span> from that. This is called an afine connection. It "connects" neighbouring tangent spaces together. Here is the formal definition:</p>
+<p>Let <span class="arithmatex">\(X, Y, Z \in \Gamma^\infty(T\mathcal{M})\)</span> be vector fields on <span class="arithmatex">\(\mathcal{M}\)</span>, and <span class="arithmatex">\(f \in C^\infty(\mathcal{M})\)</span> be a scalar function on <span class="arithmatex">\(\mathcal{M}\)</span>. We say that <span class="arithmatex">\(\nabla: \Gamma^\infty(T\mathcal{M}) \times \Gamma^\infty(T\mathcal{M}) \to \Gamma^\infty(T\mathcal{M})\)</span> is an afine connection if</p>
+<div class="arithmatex">\[
+\nabla \text{ is bilinear: } \nabla_{aY + bZ} X = a\nabla_Y X + a\nabla_Z X \text{ and } \nabla_{Y} (aX + bZ) = a\nabla_Y X + a\nabla_Y Z
+\]</div>
+<div class="arithmatex">\[
+\nabla \text{ is } C^\infty(\mathcal{M}) \text{ linear: } \nabla_{fY} X = f\nabla_{Y} X
+\]</div>
+<div class="arithmatex">\[
+\nabla \text{ follows the following Leibnitz rule: } \nabla_Y fX = Y(f) X + f\nabla_Y X 
+\]</div>
+<p>There can exist multiple connections, and in our case we are interested in the Levi-Civita connection.
+[...]</p>
+<h3 id="parallel-transport">Parallel transport<a class="headerlink" href="#parallel-transport" title="Permanent link">&para;</a></h3>
+<p>Now that we have defined connections, for any smooth curve <span class="arithmatex">\(\gamma: (0, 1) \to \mathcal{M}\)</span> from <span class="arithmatex">\(p\)</span> to <span class="arithmatex">\(q\)</span>, we can define the map <span class="arithmatex">\(P_\gamma: T_p\mathcal{M} \to T_q\mathcal{M}\)</span> we taked about earlier. First of all, we define</p>
+<div class="arithmatex">\[
+P_\gamma(t): T_p\mathcal{M} \to T_{\gamma(t)}\mathcal{M}
+\]</div>
+<p>as the only function that verifies at each instant</p>
+<div class="arithmatex">\[
+\nabla_{\dot\gamma}\dot \gamma = 0
+\]</div>
+<p>We can write this as a differential equation by expanding <span class="arithmatex">\(\nabla\)</span> with christoffel symbols.</p>
+<h3 id="christoffel-symbols">Christoffel symbols<a class="headerlink" href="#christoffel-symbols" title="Permanent link">&para;</a></h3>
+<p>In a given chart, Christoffel symbols are defined as follows</p>
+<div class="arithmatex">\[
+(\nabla_{\partial_i} \partial_j)_P = \Gamma^{k}_{ij}(P) \partial_k (P)
+\]</div>
+<p>and thus:</p>
+<div class="arithmatex">\[
+\begin{aligned}
+\nabla_{\dot\gamma} \dot\gamma
+&amp;= \nabla_{\dot\gamma} \left[\frac{d\gamma^i}{ds} \; (\partial_{\gamma})_i \right]\\
+&amp;= \frac{d\gamma^i}{ds} \nabla_{\dot\gamma} (\partial_{\gamma})_i + \frac{d^2\gamma^i}{ds^2}(\partial_{\gamma})_i\\
+&amp;= \frac{d\gamma^i}{ds} \nabla_{\left[\frac{d\gamma^j}{ds} \; (\partial_{\gamma})_j \right]} (\partial_{\gamma})_i + \frac{d^2\gamma^i}{ds^2}(\partial_{\gamma})_i\\
+&amp;= \frac{d\gamma^i}{ds}\frac{d\gamma^j}{ds} \nabla_{(\partial_{\gamma})_j} (\partial_{\gamma})_i + \frac{d^2\gamma^i}{ds^2}(\partial_{\gamma})_i\\
+&amp;= \frac{d\gamma^i}{ds}\frac{d\gamma^j}{ds} \Gamma_{ji}^k (\partial_{\gamma})_k + \frac{d^2\gamma^i}{ds^2}(\partial_{\gamma})_i\\
+&amp;= \left[\frac{d\gamma^i}{ds}\frac{d\gamma^j}{ds} \Gamma_{ji}^k + \frac{d^2\gamma^k}{ds^2}\right](\partial_{\gamma})_k\\
+\end{aligned}
+\]</div>
+<p>Equating with <span class="arithmatex">\(0\)</span> and using the linear independance of the <span class="arithmatex">\((\partial_\gamma)_k\)</span>, we find that for all <span class="arithmatex">\(k\)</span>,</p>
+<div class="arithmatex">\[
+\frac{d^2 \gamma^k}{ds^2} + \Gamma^k_{ji}\,\frac{d\gamma^j}{ds}\,\frac{d\gamma^i}{ds} = 0
+\]</div>
+<p>and this differential equation can be turned into a first-order system:</p>
+<div class="arithmatex">\[
+X(s) =
+\begin{pmatrix}
+\gamma^\mu\\
+\dot\gamma^\mu
+\end{pmatrix}
+\qquad
+X'(s) =
+\begin{pmatrix}
+\dfrac{d\gamma^\mu}{ds}\\[6pt]
+\dfrac{d\dot\gamma^\mu}{ds}
+\end{pmatrix}
+=
+\begin{pmatrix}
+\dot\gamma^\mu\\
+-\Gamma^\mu_{\alpha\beta}\,\dot\gamma^\alpha\,\dot\gamma^\beta
+\end{pmatrix}
+\]</div>
+<h2 id="black-hole-physics">Black hole physics<a class="headerlink" href="#black-hole-physics" title="Permanent link">&para;</a></h2>
+<h3 id="innermost-stable-circular-orbit">Innermost stable circular orbit<a class="headerlink" href="#innermost-stable-circular-orbit" title="Permanent link">&para;</a></h3>
+<div class="arithmatex">\[
+r_{\mathrm{ms}} = 3 R_s
+\]</div>
+<h2 id="my-notes-and-todos">My notes and todos:<a class="headerlink" href="#my-notes-and-todos" title="Permanent link">&para;</a></h2>
+<ul>
+<li>
+<p>To define cartesian, polar coordinates as we do in physics, we define an abstract chart <span class="arithmatex">\(\phi\)</span>, and call that one cartesian. Then we define <span class="arithmatex">\(\phi_{pol}\)</span> to verify <span class="arithmatex">\(\phi \circ \phi_{pol}^-1 = (r \cos(\theta), r \sin(\theta))\)</span>. To define <span class="arithmatex">\(\phi\)</span> explicitely, we can use the canonical isomorphism <span class="arithmatex">\(\mathbb{R} \cong T\mathbb{R}\)</span>. (but we could use another map, i think).</p>
+</li>
+<li>
+<p>The notation <span class="arithmatex">\(df/dx\)</span> ... + worked out example</p>
+</li>
+<li>
+<p>how turning maps into tensors works</p>
+</li>
+<li>
+<p>motivate the definition of a connexion</p>
+</li>
+<li>
+<p>derive the christoffel version geodesic equation</p>
+</li>
+<li>
+<p>acceleration in polar coordinates</p>
+</li>
+<li>
+<p>derivation of the schwarzschild metric</p>
+</li>
+</ul>
+<p>topological manifold
++ smooth structure (a maximal smooth atlas)
++ metric -&gt; levi civita christoffels &lt;-&gt; connection -&gt; parallel transport and geodesics
+or + christoffels &lt;-&gt; connection -&gt; geodesics</p>
+<ul>
+<li>The same manifold can have two atlases <span class="arithmatex">\(A, A'\)</span> which are incompatible, but (M, A) can still be diffeomorphic to <span class="arithmatex">\((M, A')\)</span>.
+This is because compatible means <span class="arithmatex">\(Id: (M, A) \to (M, A')\)</span> is a diffeomorphism, whereas there can still exist a diffeomorphism <span class="arithmatex">\(\Psi\)</span> between <span class="arithmatex">\((M, A)\)</span> and <span class="arithmatex">\((M, A')\)</span>.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.top", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
