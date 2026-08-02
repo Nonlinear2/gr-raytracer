@@ -2,7 +2,6 @@ use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 use rand::rngs::StdRng;
 
-use crate::geometry::manifold::{ChartWorld, TangentWorld};
 use crate::geometry::point::Point3;
 use crate::geometry::vector::ThreeVector;
 use crate::graphics::color::Color;

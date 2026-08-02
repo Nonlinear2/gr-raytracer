@@ -1,4 +1,4 @@
-use glam::Mat4;
+use glam::{Mat4, Vec4};
 
 use crate::geometry::chart::Cartesian;
 use crate::geometry::manifold::{GpuManifold, PseudoRiemanian4Manifold};
@@ -36,11 +36,16 @@ impl Euclidean4Manifold {
 impl Metric<Cartesian> for Euclidean4Manifold {
 
     fn g(&self, _x: Point4<Cartesian>) -> Mat4 {
-        Mat4::IDENTITY
+        Mat4 {
+            x_axis: Vec4::new(1., 0., 0., 0.),
+            y_axis: Vec4::new(0., -1., 0., 0.),
+            z_axis: Vec4::new(0., 0., -1., 0.),
+            w_axis: Vec4::new(0., 0., 0., -1.),
+        }
     }
 
     fn g_inv(&self, _x: Point4<Cartesian>) -> Mat4 {
-        Mat4::IDENTITY
+        self.g(_x)
     }
 
     fn del_g(&self, _x: Point4<Cartesian>, _i: u32) -> Mat4 {

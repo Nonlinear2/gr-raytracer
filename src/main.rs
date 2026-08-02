@@ -7,6 +7,7 @@ mod config;
 mod constants;
 mod scene;
 
+use crate::geometry::chart::Cartesian;
 use crate::graphics::window::App;
 use crate::scene::texture::{Textures, Texture, TextureId};
 #[allow(unused_imports)]
@@ -21,7 +22,6 @@ use crate::geometry::point::Point3;
 use crate::geometry::schwarzschild::Schwarzschild4Manifold;
 #[allow(unused_imports)]
 use crate::geometry::euclidean::Euclidean4Manifold;
-use crate::geometry::manifold::{ChartWorld, TangentWorld};
 
 use rand::{rngs::StdRng, SeedableRng};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -34,7 +34,7 @@ fn main() {
     let world = World {
         scene_size: 6.0,
         manifold: Box::new(Schwarzschild4Manifold::new(
-            Point3::new(0., 0., -2., ChartWorld),
+            Point3::new(0., 0., -2., Cartesian),
             0.25
         )),
         textures: {
@@ -44,7 +44,7 @@ fn main() {
         },
         objects: vec![
             Box::new(Sphere {
-                center: Point3::new(-0.6, 0.14, -0.7, ChartWorld),
+                center: Point3::new(-0.6, 0.14, -0.7, Cartesian),
                 radius: 0.02,
                 material: Box::new(Diffuse {
                     color: Color::new(61.0 / 255.0, 34.0 / 255.0, 17.0 / 255.0),
@@ -53,9 +53,9 @@ fn main() {
                 texture: TextureId::NONE,
             }),
             Box::new(Disc {
-                center: Point3::new(0.0, 0.0, -2.0, ChartWorld),
-                normal: ThreeVector::new(0.09, 0.8, 0.1, TangentWorld),
-                // normal: ThreeVector::new(0.09, 0.8, 0.1, TangentWorld),
+                center: Point3::new(0.0, 0.0, -2.0, Cartesian),
+                normal: ThreeVector::new(0.09, 0.8, 0.1, Cartesian),
+                // normal: ThreeVector::new(0.09, 0.8, 0.1, Cartesian),
                 radius: 1.5,
                 inner_radius: 0.75,
                 material: Box::new(Diffuse { 

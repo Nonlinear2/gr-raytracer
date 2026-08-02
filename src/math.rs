@@ -1,4 +1,6 @@
-use std::f32::consts::{PI, TAU};
+use std::{debug_assert, f32::consts::{PI, TAU}};
+
+use glam::Vec3;
 
 use crate::geometry::{chart::Cartesian, vector::ThreeVector};
 

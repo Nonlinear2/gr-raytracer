@@ -1,32 +1,27 @@
 use crate::{
-    config::{self, IMAGE_HEIGHT, IMAGE_WIDTH, SAMPLES_PER_PIXEL},
-    constants::Pipeline::CPU,
-    integrator::{cpu::CpuIntegrator, gpu::GpuIntegrator, GeodesicIntegrator},
-    geometry::photon::Photon3,
-    scene::World,
+    config::{self, IMAGE_HEIGHT, IMAGE_WIDTH, SAMPLES_PER_PIXEL}, constants::Pipeline::CPU, geometry::{chart::{Cartesian, IsChart}, photon::Photon3}, integrator::{GeodesicIntegrator, cpu::CpuIntegrator, gpu::GpuIntegrator}, scene::World,
 };
 
 use crate::geometry::{point::Point3, vector::ThreeVector};
 use crate::graphics::color::Color;
-use crate::geometry::manifold::{ChartWorld, TangentWorld};
 
+use glam::Quat;
 use rand::{rngs::StdRng, RngExt};
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
 
-pub struct Camera {
-    pub center: Point3<ChartWorld>,
+pub struct Camera<C: IsChart> {
+    pub center: Point3<C>,
 
-    pub first_pixel_loc: Point3<ChartWorld>,
-    pub pixel_delta_u: ThreeVector<TangentWorld>,
-    pub pixel_delta_v: ThreeVector<TangentWorld>,
+    pub first_pixel_loc: Point3<C>,
+    pub pixel_delta_u: ThreeVector<C>,
+    pub pixel_delta_v: ThreeVector<C>,
 }
 
-impl Camera {
-    pub fn new() -> Self {
+impl<C: IsChart> Camera<C> {
+    pub fn new(center: Point3<C>, orientation: Quat) -> Self {
         let a_ratio = (IMAGE_WIDTH as f32) / (IMAGE_HEIGHT as f32);
 
-        let center: Point3<ChartWorld> = Point3::new(0.,0.,0., ChartWorld);
         const FOCAL_LENGTH: f32 = 1.0;
 
         let viewport_height = 2.0;
@@ -39,7 +34,7 @@ impl Camera {
         let pixel_delta_v = viewport_v_vect * (1.0 / IMAGE_HEIGHT as f32);
 
         let viewport_upper_left = center
-            - Point3::new(0., 0., FOCAL_LENGTH, ChartWorld)
+            - FOCAL_LENGTH * orientation
             - viewport_u_vect.as_point3() * 0.5
             - viewport_v_vect.as_point3() * 0.5;
         let first_pixel_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v).as_point3();

@@ -1,22 +1,65 @@
-use glam::Mat4;
+use glam::{Mat3, Mat4};
 
 use crate::geometry::chart::IsChart;
 use crate::geometry::photon::{Photon3, Photon4};
 use crate::geometry::point::Point4;
-use crate::geometry::vector::FourVector;
+use crate::geometry::vector::{FourVector, ThreeVector};
 use crate::math::positive_root;
 
 /// the metric of a pseudo-riemannian manifold, read in the spacetime chart induced by C.
 /// a geometry implements this once per chart of its atlas.
 pub trait Metric<C: IsChart> {
 
-    fn g(&self, x: Point4<C>) -> Mat4;
+    fn g(&self, p: Point4<C>) -> Mat4;
 
-    fn g_inv(&self, x: Point4<C>) -> Mat4;
+    fn g_inv(&self, p: Point4<C>) -> Mat4;
 
-    fn del_g(&self, x: Point4<C>, i: u32) -> Mat4;
+    fn del_g(&self, p: Point4<C>, i: u32) -> Mat4;
 
     // the methods below only depend on the metric, so they are shared between manifolds
+
+    fn spatial_g(&self, p: Point4<C>, u: ThreeVector<C>, v: ThreeVector<C>) -> Mat3 {
+        self.g(p)
+    }
+
+    fn spatial_dot(&self, p: Point4<C>, u: ThreeVector<C>, v: ThreeVector<C>) -> f32 {
+        let mut out = 0f32;
+        let g = self.g(p);
+        for alpha in 0..3 {
+            for beta in 0..3 {
+                out -= u[alpha] * v[beta] * g.col(alpha + 1)[beta + 1]; // we do -= because the metric signature is +--- and we want a positive definite matrix
+            }
+        }
+        out
+    }
+
+    fn spatial_norm(&self, p: Point4<C>, u: ThreeVector<C>) -> f32 {
+        self.spatial_dot(p, u, u).sqrt()
+    }
+
+    fn spatial_normalize(&self, p: Point4<C>, u: ThreeVector<C>) -> ThreeVector<C> {
+        u * (1.0 / self.spatial_norm(p, u))
+    }
+
+    /// uses the Gram-Schmidt procedure on the three tangent space basis vectors: \partial_1, \partial_2, \partial_3
+    /// using the metric for dot products. Only \partial_1 keeps its direction.
+    fn orthonormal_frame(&self, p: Point4<C>) -> [ThreeVector<C>; 3] {
+
+        let projection = 
+            |x, e| self.spatial_dot(p, e, x) * e;
+
+        let del_1 = ThreeVector::new(1.0, 0.0, 0.0, p.chart);
+        let del_2 = ThreeVector::new(0.0, 1.0, 0.0, p.chart);
+        let del_3 = ThreeVector::new(0.0, 0.0, 1.0, p.chart);
+
+        let out_1 = self.spatial_normalize(p, del_1);
+        let out_2 = self.spatial_normalize(p, del_2 - projection(del_2, out_1));
+        let out_3 = self.spatial_normalize(p, del_3 - projection(del_3, out_1) - projection(del_3, out_2));
+
+        [out_1, out_2, out_3]
+
+        // R = [[q.dot_product(cols[j]) if j >= i else 0 for j in range(n)] for i, q in enumerate(Q)]
+    }
 
     fn christoffel(&self, pos: Point4<C>, mu: usize, nu: usize, lambda: usize) -> f32 {
         let g_inv = self.g_inv(pos);
