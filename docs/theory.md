@@ -129,6 +129,7 @@ Let's consider the case where the manifold is $\mathcal{M} = R^n$. We would like
 Let $\gamma: (0, 1) \to \mathcal{M}$ be a smooth curve. $\gamma$ is said to be straight if $\dot{\gamma}(t)$ is constant for all $t$, or equivalently, if $\ddot\gamma(t) = 0$.
 
 We would like to generalize this definition to any smooth manifold $\mathcal{M}$. We know how to define $\dot\gamma(t)$:
+
 $$
 \begin{aligned}
 \dot\gamma(t)f 
@@ -138,9 +139,11 @@ $$
 $$
 
 Now, we need to make sense of $\ddot \gamma$. The issue we have is that if we try the usual definition:
+
 $$
 \ddot \gamma(t) = \lim_{h \to 0} \frac{1}{h}(\underbrace{\dot\gamma(t + h)}_{\in \, T_{\gamma(t + h)}\mathcal{M}} - \underbrace{\dot\gamma(t)}_{\in \, T_{\gamma(t)}\mathcal{M}})
 $$
+
 We run into the problem of adding vectors from _different_ vector spaces.
 This motivates the concept of a connection.
 
@@ -148,9 +151,11 @@ For any smooth curve $\gamma: (0, 1) \to \mathcal{M}$ from $p$ to $q$, we would 
 But writing the correct definition is not so easy, and it is best to define parallel transport infinitesimally, we can define the map $P_\gamma$ from that. This is called an afine connection. It "connects" neighbouring tangent spaces together. Here is the formal definition:
 
 Let $X, Y, Z \in \Gamma^\infty(T\mathcal{M})$ be vector fields on $\mathcal{M}$, and $f \in C^\infty(\mathcal{M})$ be a scalar function on $\mathcal{M}$. We say that $\nabla: \Gamma^\infty(T\mathcal{M}) \times \Gamma^\infty(T\mathcal{M}) \to \Gamma^\infty(T\mathcal{M})$ is an afine connection if
+
 $$
 \nabla \text{ is bilinear: } \nabla_{aY + bZ} X = a\nabla_Y X + a\nabla_Z X \text{ and } \nabla_{Y} (aX + bZ) = a\nabla_Y X + a\nabla_Y Z
 $$
+
 $$
 \nabla \text{ is } C^\infty(\mathcal{M}) \text{ linear: } \nabla_{fY} X = f\nabla_{Y} X
 $$
@@ -165,20 +170,26 @@ There can exist multiple connections, and in our case we are interested in the L
 ### Parallel transport
 
 Now that we have defined connections, for any smooth curve $\gamma: (0, 1) \to \mathcal{M}$ from $p$ to $q$, we can define the map $P_\gamma: T_p\mathcal{M} \to T_q\mathcal{M}$ we taked about earlier. First of all, we define
+
 $$
 P_\gamma(t): T_p\mathcal{M} \to T_{\gamma(t)}\mathcal{M}
 $$
+
 as the only function that verifies at each instant
+
 $$
 \nabla_{\dot\gamma}\dot \gamma = 0
 $$
+
 We can write this as a differential equation by expanding $\nabla$ with christoffel symbols.
 
 ### Christoffel symbols
 In a given chart, Christoffel symbols are defined as follows
+
 $$
 (\nabla_{\partial_i} \partial_j)_P = \Gamma^{k}_{ij}(P) \partial_k (P)
 $$
+
 and thus:
 
 $$
@@ -192,7 +203,9 @@ $$
 &= \left[\frac{d\gamma^i}{ds}\frac{d\gamma^j}{ds} \Gamma_{ji}^k + \frac{d^2\gamma^k}{ds^2}\right](\partial_{\gamma})_k\\
 \end{aligned}
 $$
+
 Equating with $0$ and using the linear independance of the $(\partial_\gamma)_k$, we find that for all $k$,
+
 $$
 \frac{d^2 \gamma^k}{ds^2} + \Gamma^k_{ji}\,\frac{d\gamma^j}{ds}\,\frac{d\gamma^i}{ds} = 0
 $$
@@ -227,7 +240,7 @@ r_{\mathrm{ms}} = 3 R_s
 $$
 
 ## My notes and todos:
-- To define cartesian, polar coordinates as we do in physics, we define an abstract chart $\phi$, and call that one cartesian. Then we define $\phi_pol$ to verify $\phi \circ \phi_pol^-1 = (r \cos(\theta), r \sin(\theta))$. To define $\phi$ explicitely, we can use the canonical isomorphism $\mathbb{R} \cong T\mathbb{R}$. (but we could use another map, i think).
+- To define cartesian, polar coordinates as we do in physics, we define an abstract chart $\phi$, and call that one cartesian. Then we define $\phi_{pol}$ to verify $\phi \circ \phi_{pol}^-1 = (r \cos(\theta), r \sin(\theta))$. To define $\phi$ explicitely, we can use the canonical isomorphism $\mathbb{R} \cong T\mathbb{R}$. (but we could use another map, i think).
 
 - The notation $df/dx$ ... + worked out example
 
