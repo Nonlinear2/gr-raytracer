@@ -1,11 +1,11 @@
 use crate::{
-    config::{self, IMAGE_HEIGHT, IMAGE_WIDTH, SAMPLES_PER_PIXEL}, constants::Pipeline::CPU, geometry::{chart::{Cartesian, IsChart}, photon::Photon3}, integrator::{GeodesicIntegrator, cpu::CpuIntegrator, gpu::GpuIntegrator}, scene::World,
+    config::{self, IMAGE_HEIGHT, IMAGE_WIDTH, SAMPLES_PER_PIXEL}, constants::Pipeline::CPU, geometry::{chart::IsChart, manifold::Manifold, metric::Metric, photon::Photon3}, integrator::{GeodesicIntegrator, cpu::CpuIntegrator, gpu::GpuIntegrator}, scene::World,
 };
 
-use crate::geometry::{point::Point3, vector::ThreeVector};
+use crate::geometry::{point::{Point3, Point4}, vector::ThreeVector};
 use crate::graphics::color::Color;
 
-use glam::Quat;
+use glam::{Quat, Vec3};
 use rand::{rngs::StdRng, RngExt};
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
@@ -13,13 +13,13 @@ use indicatif::ProgressStyle;
 pub struct Camera<C: IsChart> {
     pub center: Point3<C>,
 
-    pub first_pixel_loc: Point3<C>,
-    pub pixel_delta_u: ThreeVector<C>,
-    pub pixel_delta_v: ThreeVector<C>,
+    pub first_pixel_dir: ThreeVector<C>,
+    pub pixel_delta_x: ThreeVector<C>,
+    pub pixel_delta_y: ThreeVector<C>,
 }
 
 impl<C: IsChart> Camera<C> {
-    pub fn new(center: Point3<C>, orientation: Quat) -> Self {
+    pub fn new<M: Manifold<C>>(manifold: &M, center: Point3<C>, orientation: Quat) -> Self {
         let a_ratio = (IMAGE_WIDTH as f32) / (IMAGE_HEIGHT as f32);
 
         const FOCAL_LENGTH: f32 = 1.0;
@@ -27,34 +27,40 @@ impl<C: IsChart> Camera<C> {
         let viewport_height = 2.0;
         let viewport_width = viewport_height * a_ratio;
 
-        let viewport_u_vect = ThreeVector::new(viewport_width, 0., 0., TangentWorld);
-        let viewport_v_vect = ThreeVector::new(0., -viewport_height, 0., TangentWorld);
+        let (e_1, e_2, e_3) = manifold.orthonormal_frame(Point4::from_space_time(0.0, center));
+        let rotated = |d: Vec3| {
+            let d = orientation.mul_vec3(d);
+            e_1 * d.x + e_2 * d.y + e_3 * d.z
+        };
 
-        let pixel_delta_u = viewport_u_vect * (1.0 / IMAGE_WIDTH as f32);
-        let pixel_delta_v = viewport_v_vect * (1.0 / IMAGE_HEIGHT as f32);
+        let u = rotated(Vec3::X);
+        let v = rotated(Vec3::Y) * viewport_width;
+        let w = rotated(Vec3::Z) * (-viewport_height);
 
-        let viewport_upper_left = center
-            - FOCAL_LENGTH * orientation
-            - viewport_u_vect.as_point3() * 0.5
-            - viewport_v_vect.as_point3() * 0.5;
-        let first_pixel_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v).as_point3();
+        let pixel_delta_x = v * (1.0 / IMAGE_WIDTH as f32);
+        let pixel_delta_y = w * (1.0 / IMAGE_HEIGHT as f32);
+
+        let viewport_upper_left = u * FOCAL_LENGTH - v * 0.5 - w * 0.5;
+        let first_pixel_dir = viewport_upper_left + (pixel_delta_x + pixel_delta_y) * 0.5;
 
         Self {
             center: center,
-            first_pixel_loc: first_pixel_loc,
-            pixel_delta_u: pixel_delta_u,
-            pixel_delta_v: pixel_delta_v,
+            first_pixel_dir: first_pixel_dir,
+            pixel_delta_x: pixel_delta_x,
+            pixel_delta_y: pixel_delta_y,
         }
     }
 
-    pub fn get_pixel_position(&self, i: usize, j: usize, offset: bool, rng: &mut StdRng) -> Point3<ChartWorld> {
-        let mut pos = self.first_pixel_loc + (self.pixel_delta_u * (i as f32) + self.pixel_delta_v * (j as f32)).as_point3();
+    pub fn get_pixel_direction(&self, i: usize, j: usize, offset: bool, rng: &mut StdRng) -> ThreeVector<C> {
+        let mut dir = self.first_pixel_dir
+            + self.pixel_delta_x * (i as f32)
+            + self.pixel_delta_y * (j as f32);
         if offset {
-            pos = pos
-                + rng.random_range(-0.5..0.5) * self.pixel_delta_u.as_point3()
-                + rng.random_range(-0.5..0.5) * self.pixel_delta_v.as_point3();
+            dir = dir
+                + self.pixel_delta_x * rng.random_range(-0.5..0.5)
+                + self.pixel_delta_y * rng.random_range(-0.5..0.5);
         }
-        pos
+        dir
     }
 
     pub fn render(&self, frame: &mut [u8], world: &World, rng: &mut StdRng) {
@@ -82,8 +88,7 @@ impl<C: IsChart> Camera<C> {
 
             for j in 0..IMAGE_HEIGHT as usize {
                 for i in 0..IMAGE_WIDTH as usize {
-                    let ray_direction =
-                        (self.get_pixel_position(i, j, true, rng) - self.center).as_threevector();
+                    let ray_direction = self.get_pixel_direction(i, j, true, rng);
                     let world_photon = Photon3::new(self.center, ray_direction);
 
                     rays.push(world_photon);

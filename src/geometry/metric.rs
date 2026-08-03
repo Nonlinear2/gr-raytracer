@@ -1,4 +1,4 @@
-use glam::{Mat3, Mat4};
+use glam::{Mat3, Mat4, Vec3};
 
 use crate::geometry::chart::IsChart;
 use crate::geometry::photon::{Photon3, Photon4};
@@ -18,16 +18,22 @@ pub trait Metric<C: IsChart> {
 
     // the methods below only depend on the metric, so they are shared between manifolds
 
-    fn spatial_g(&self, p: Point4<C>, u: ThreeVector<C>, v: ThreeVector<C>) -> Mat3 {
-        self.g(p)
+    fn spatial_g(&self, p: Point4<C>) -> Mat3 {
+        let g = self.g(p);
+        // we negate because the metric signature is +--- and we want a positive definite matrix
+        Mat3::from_cols(
+            Vec3::new(-g.col(1)[1], -g.col(1)[2], -g.col(1)[3]),
+            Vec3::new(-g.col(2)[1], -g.col(2)[2], -g.col(2)[3]),
+            Vec3::new(-g.col(3)[1], -g.col(3)[2], -g.col(3)[3]),
+        )
     }
 
     fn spatial_dot(&self, p: Point4<C>, u: ThreeVector<C>, v: ThreeVector<C>) -> f32 {
         let mut out = 0f32;
-        let g = self.g(p);
+        let g = self.spatial_g(p);
         for alpha in 0..3 {
             for beta in 0..3 {
-                out -= u[alpha] * v[beta] * g.col(alpha + 1)[beta + 1]; // we do -= because the metric signature is +--- and we want a positive definite matrix
+                out += u[alpha] * v[beta] * g.col(alpha)[beta];
             }
         }
         out
@@ -43,7 +49,7 @@ pub trait Metric<C: IsChart> {
 
     /// uses the Gram-Schmidt procedure on the three tangent space basis vectors: \partial_1, \partial_2, \partial_3
     /// using the metric for dot products. Only \partial_1 keeps its direction.
-    fn orthonormal_frame(&self, p: Point4<C>) -> [ThreeVector<C>; 3] {
+    fn orthonormal_frame(&self, p: Point4<C>) -> (ThreeVector<C>, ThreeVector<C>, ThreeVector<C>) {
 
         let projection = 
             |x, e| self.spatial_dot(p, e, x) * e;
@@ -56,8 +62,7 @@ pub trait Metric<C: IsChart> {
         let out_2 = self.spatial_normalize(p, del_2 - projection(del_2, out_1));
         let out_3 = self.spatial_normalize(p, del_3 - projection(del_3, out_1) - projection(del_3, out_2));
 
-        [out_1, out_2, out_3]
-
+        (out_1, out_2, out_3)
         // R = [[q.dot_product(cols[j]) if j >= i else 0 for j in range(n)] for i, q in enumerate(Q)]
     }
 
